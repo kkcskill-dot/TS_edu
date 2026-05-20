@@ -659,7 +659,7 @@ function initChallengeArena() {
   });
 
   document.getElementById("btn-next-level").addEventListener("click", () => {
-    if (currentLevel < 4) {
+    if (currentLevel < 6) {
       // Mark current level completed
       const activeBtn = document.querySelector(`.challenge-level-btn[data-level="${currentLevel}"]`);
       activeBtn.classList.add("completed");
@@ -773,7 +773,7 @@ function evaluateChallengeSolution(lvl, optId) {
     // Enable next button
     const nextBtn = document.getElementById("btn-next-level");
     nextBtn.disabled = false;
-    if (lvl === 4) {
+    if (lvl === 6) {
       nextBtn.innerText = "DBA 인증서 획득 🏆";
     } else {
       nextBtn.innerText = "다음 튜닝 단계로 이동";
@@ -1273,6 +1273,131 @@ db file scattered read         89,102      894          10.03        8.5%
         desc: "대형 드라이빙 조인 구조를 위해 해시 조인 연산을 억제하고 Nested Loops 조인 힌트를 주어 메모리 해시 연산 부하를 최소화합니다.",
         isCorrect: false,
         feedback: "오답입니다. 대용량 조인 대기 병목에서 오히려 Nested Loops Join은 내부 루프(Inner Loop)의 Full Table Scan 횟수만큼 디스크 싱글 블록 읽기를 기하급수적으로 유발하여 대기 이벤트를 파국 수준으로 증가시키는 원흉입니다. 오히려 Hash Join으로 결합했어야 조인이 매끄러워집니다."
+      }
+    ]
+  },
+  4: {
+    qNum: 4,
+    title: "AWR log file sync 대기 이벤트 튜닝 (Commit frequency 최적화)",
+    desc: "AWR snapshot 분석 결과, 'log file sync' 대기 시간이 전체 데이터베이스 성능 대기의 82%를 점유하고 있으며, 애플리케이션의 트랜잭션 대기 시간이 급증하고 있습니다. ASH를 상세 분석한 결과, 대용량 데이터를 처리하는 배치 프로그램들이 동작 중이며 루프 내부에서 데이터가 삽입/변경될 때마다 매 행마다 COMMIT을 실행하고 있는 것이 관찰되었습니다. 이 병목을 해결하기 위한 가장 타당한 조치는 무엇입니까?",
+    scenario: `<strong>[AWR snapshot Report - Top Wait Events]</strong>
+<pre style="background:rgba(0,0,0,0.15); padding:10px; border-radius:6px; font-family:var(--font-mono); font-size:0.75rem; color:var(--color-text-main); margin-top:8px; border:1px solid var(--border-light); overflow-x:auto;">
+Event                         Waits    Time(s)   Avg Wait(ms)   % DB time
+----------------------------  -------  --------  ------------   ---------
+log file sync                 345,918    9,567          27.65       82.1%
+log file parallel write       310,211    2,109           6.79       18.0%
+db file sequential read        12,901       92           7.13        0.8%
+</pre>
+<strong style="margin-top:10px; display:block;">[ASH Transaction execution profile]</strong>
+<div style="font-size:0.8rem; color:var(--color-text-muted); margin-top:4px; line-height:1.5;">
+• <strong>Wait Event:</strong> <code>log file sync</code> (Waiting for LGWR to write redo log).<br>
+• <strong>Transaction details:</strong> <code>INSERT INTO history_log VALUES (...)</code> followed by immediate <code>COMMIT</code> in a loop of 100,000 iterations.
+</div>`,
+    options: [
+      {
+        id: "q4-opt-A",
+        title: "온라인 Redo Log File의 용량을 기존 50MB에서 500MB로 확장",
+        desc: "로그 파일 크기를 증설하여 로그 스위치(Log Switch)와 체크포인트 주기 자체를 줄여 디스크 플러시 효율을 향상시킵니다.",
+        isCorrect: false,
+        feedback: "오답입니다. 온라인 Redo Log 파일의 크기를 키우면 로그 스위치 횟수는 감소하여 Checkpoint 부하는 다소 낮출 수 있으나, 개별 트랜잭션이 완료될 때 호출하는 동기식 커밋 대기(`log file sync`)는 여전히 동기적인 Redo Log 쓰기 완료를 대기하므로 성능 개선 효과가 거의 없습니다."
+      },
+      {
+        id: "q4-opt-B",
+        title: "애플리케이션 배치 로직을 튜닝하여 1,000건 내지 5,000건 단위로 묶음(Batch) 커밋하도록 코드 리팩토링",
+        desc: "매 행마다 진행되던 동기식 COMMIT 횟수를 대폭 억제하여 LGWR(Log Writer)의 물리 디스크 I/O 동기화 대기 부하를 근본적으로 제거합니다.",
+        isCorrect: true,
+        feedback: "정답입니다! `log file sync` 대기 이벤트는 사용자 세션이 `COMMIT`을 날릴 때, LGWR이 메모리(Redo Log Buffer)에 적재된 로그 데이터를 디스크의 Redo Log 파일로 안전하게 기록하는 과정에서 발생합니다. 루프 내 매 건마다 커밋을 수행하면 디스크 I/O 응답 속도가 전체 트랜잭션 속도를 제약하는 최악의 병목이 됩니다. 배치 단위를 설정하여 묶음 커밋을 처리하면 성능이 수십 배 이상 크게 향상됩니다."
+      },
+      {
+        id: "q4-opt-C",
+        title: "Redo Log Buffer 메모리 크기(LOG_BUFFER)를 8MB에서 128MB로 크게 확장",
+        desc: "메모리 적재 용량을 극대화하여 LGWR이 디스크에 내려쓰는 횟수 자체를 메모리 레벨에서 완화시킵니다.",
+        isCorrect: false,
+        feedback: "오답입니다. 로그 버퍼가 아무리 크더라도 사용자가 `COMMIT`을 실행하는 순간 LGWR은 데이터 보호를 위해 즉각 동기식 I/O를 수행해야 하므로 `log file sync` 대기시간은 줄어들지 않습니다. 로그 버퍼 크기 조절은 트랜잭션 도중 발생하는 `log buffer space` 대기를 해소하는 대안입니다."
+      }
+    ]
+  },
+  5: {
+    qNum: 5,
+    title: "AWR direct path read temp 대기 (PGA 정렬 영역 고갈)",
+    desc: "연말 정산 및 배치 분석 처리 기간에 Top Wait Event로 'direct path read temp'와 'direct path write temp' 대기 이벤트가 임계치를 초과하여 점유하고 있습니다. 해당 작업 중인 해시 조인(Hash Join) 및 정렬(Sort) 쿼리가 극도로 느려졌으며 Temp 테이블스페이스의 디스크 점유율이 95% 이상으로 치솟았습니다. 이를 해결하기 위한 정석 조치는?",
+    scenario: `<strong>[AWR snapshot Report - Top Wait Events]</strong>
+<pre style="background:rgba(0,0,0,0.15); padding:10px; border-radius:6px; font-family:var(--font-mono); font-size:0.75rem; color:var(--color-text-main); margin-top:8px; border:1px solid var(--border-light); overflow-x:auto;">
+Event                         Waits    Time(s)   Avg Wait(ms)   % DB time
+----------------------------  -------  --------  ------------   ---------
+direct path read temp          88,912    6,120          68.83       67.4%
+direct path write temp         79,122    2,450          30.96       27.0%
+db file sequential read        14,101      124           8.79        1.4%
+</pre>
+<strong style="margin-top:10px; display:block;">[ASH Temp Segment Details]</strong>
+<div style="font-size:0.8rem; color:var(--color-text-muted); margin-top:4px; line-height:1.5;">
+• <strong>Wait Event:</strong> <code>direct path read/write temp</code> (Reading/Writing Temp tablespace).<br>
+• <strong>Query Profile:</strong> <code>SELECT * FROM sales s JOIN customer c ON s.cust_id = c.id ORDER BY s.amount DESC</code><br>
+• <strong>Execution Context:</strong> Hash Join failed to fit in memory (One-Pass/Multi-Pass join executed on disk).
+</div>`,
+    options: [
+      {
+        id: "q5-opt-A",
+        title: "Hash Join을 무력화하기 위해 USE_NL 힌트를 주어 Nested Loops Join 방식으로 우회",
+        desc: "메모리 소모가 심하고 Temp 영역을 사용하는 해시 조인을 지양하고 정렬이 필요 없는 루프 조인으로 구조를 전환합니다.",
+        isCorrect: false,
+        feedback: "오답입니다. 대용량 테이블 간의 조인(예: 수천만 건)에 Nested Loops Join을 강제하면 조인 대상 건수만큼 디스크 싱글 블록 I/O인 `db file sequential read`가 수백만 번 유발되어 시스템이 완전히 응답 불능 상태에 빠지게 됩니다."
+      },
+      {
+        id: "q5-opt-B",
+        title: "PGA Aggregate Target (pga_aggregate_target) 메모리 설정을 확장하여 인메모리(In-Memory) 해시 조인을 보장",
+        desc: "정렬 및 해시 조인 수행을 위한 세션 메모리(PGA) 영역을 늘려, 데이터가 디스크 Temp 영역으로 밀려나는 Out-of-Core 연산을 방지합니다.",
+        isCorrect: true,
+        feedback: "정답입니다! 정렬 연산이나 해시 조인을 수행할 때 세션별로 사용할 수 있는 PGA 메모리 크기가 부족하면, 메모리 안에서 연산을 완료하지 못하고 디스크(Temp Tablespace)에 임시 세그먼트를 만들어 쓰고 읽는(Direct Path Temp I/O) 물리 스왑 연산이 수행됩니다. 디스크 I/O 속도는 메모리 연산에 비해 수백 배 느리므로, `pga_aggregate_target` 설정을 확장하여 최대한 메모리 내에서 조인이 완성되도록(Optimal Pass) 조치하는 것이 가장 정확한 튜닝입니다."
+      },
+      {
+        id: "q5-opt-C",
+        title: "Temp Tablespace 데이터 파일(tempfile)의 물리적 갯수를 늘려 디스크 IO 대기 회피",
+        desc: "Temp 테이블스페이스의 물리 파일을 추가하여 I/O 성능을 병렬적으로 분산시킵니다.",
+        isCorrect: false,
+        feedback: "오답입니다. Temp 테이블스페이스 파일 추가는 디스크 가득 참으로 인한 쿼리 취소 에러(ORA-01652)를 막아주는 대비책일 뿐, 메모리 연산이 디스크 Temp 연산으로 밀려나서 발생하는 근본적인 'direct path temp I/O' 속도 저하를 막지는 못합니다."
+      }
+    ]
+  },
+  6: {
+    qNum: 6,
+    title: "RAC 환경 gc current block 3-way 대기 이벤트 (Cluster Cache Fusion)",
+    desc: "오라클 RAC(Real Application Clusters) 3노드 Active-Active 환경에서, 특정 이벤트 응모 시간대에 CPU 가용률이 0%에 근접하며 DB 전체가 먹통이 되었습니다. AWR의 Top Wait Event 분석 시 'gc current block 3-way' 및 'gc current block 2-way'가 전체 대기 시간의 90%를 점유하고 있습니다. ASH 상세 분석 결과, 모든 노드의 세션들이 동일한 이벤트 이력 테이블(EVENT_HISTORY)의 PK값 생성을 위해 시퀀스(Sequence)를 호출하는 과정에서 특정 블록에 대한 갱신 권한을 뺏고 빼앗기는 중인 것으로 확인되었습니다. 이 클러스터 병목의 근본 원인을 해결하기 위한 구조적 튜닝 기법은?",
+    scenario: `<strong>[AWR snapshot Report - Top Cluster Wait Events]</strong>
+<pre style="background:rgba(0,0,0,0.15); padding:10px; border-radius:6px; font-family:var(--font-mono); font-size:0.75rem; color:var(--color-text-main); margin-top:8px; border:1px solid var(--border-light); overflow-x:auto;">
+Event                         Waits    Time(s)   Avg Wait(ms)   % DB time
+----------------------------  -------  --------  ------------   ---------
+gc current block 3-way        821,411   15,221         18.53        72.3%
+gc current block 2-way        412,019    3,892          9.44        18.1%
+latch: row cache objects       42,109      824         19.56         7.1%
+</pre>
+<strong style="margin-top:10px; display:block;">[ASH Instance Contention details]</strong>
+<div style="font-size:0.8rem; color:var(--color-text-muted); margin-top:4px; line-height:1.5;">
+• <strong>Cluster Wait:</strong> Inter-instance block transfer via Cache Fusion.<br>
+• <strong>Sequence Definition:</strong> <code>CREATE SEQUENCE seq_event_id START WITH 1 INCREMENT BY 1 CACHE 20 ORDER;</code><br>
+• <strong>Hot Block:</strong> Index Leaf Block of <code>EVENT_HISTORY_PK</code> index segment.
+</div>`,
+    options: [
+      {
+        id: "q6-opt-A",
+        title: "시퀀스 설정에서 CACHE 크기를 1,000 이상으로 늘리고 ORDER 옵션을 NOORDER로 변경",
+        desc: "각 인스턴스(노드)가 사용할 번호 대역을 미리 메모리에 크게 할당하고, 순번의 노드 간 동기화 정렬 요구사항(ORDER)을 해제하여 노드 간의 빈번한 데이터 블록 교환 대기를 해제합니다.",
+        isCorrect: true,
+        feedback: "정답입니다! RAC 환경에서 'gc(Global Cache) current block'은 다른 인스턴스가 갱신 중인 최신 상태의 블록을 요청할 때 발생합니다. 특히 시퀀스에 캐시를 작게(예: CACHE 20) 잡거나 `ORDER`를 설정하면, 매번 새로운 번호를 부여하고 순서를 맞추기 위해 인스턴스 간에 락 권한(Exclusive)을 네트워크를 통해 끊임없이 뺏고 빼앗기게 됩니다(Cache Fusion 병목). 캐시를 늘리고 `NOORDER`로 바꾸면 각 노드가 독립적으로 번호를 받아 블록 갱신 주기 자체가 분산되므로 gc 경합이 극적으로 사라집니다."
+      },
+      {
+        id: "q6-opt-B",
+        title: "이력 테이블의 PK 인덱스 구성을 Reverse Key Index로 재정의하여 탐색 분산",
+        desc: "일련번호가 사전순으로 들어오는 것을 역순으로 변환하여 리프 블록 경합을 물리적으로 분산시킵니다.",
+        isCorrect: false,
+        feedback: "오답입니다. Reverse Key Index는 순차 삽입 시 발생하는 리프 블록 경합(`enq: TX - index contention` 등)을 해소하는 데 도움을 주지만, 이 문제는 시퀀스 딕셔너리 정보 및 시퀀스 캐시 블록 획득에 따른 클러스터 락 경합이 근본적 원인이므로 시퀀스 설정을 개선하지 않는 한 효과를 거둘 수 없으며, 범위 검색(Range Scan)을 불가능하게 만들어 다른 쿼리 성능을 저하시킵니다."
+      },
+      {
+        id: "q6-opt-C",
+        title: "각 노드의 파이버 채널(FC) HBA 카드 및 네트워크 스위치 하드웨어를 10Gbps에서 100Gbps로 대폭 업그레이드",
+        desc: "인스턴스 간 통신 대역폭을 물리적으로 확장하여 블록 전송 지연 시간(Avg Wait ms)을 하드웨어 성능으로 소멸시킵니다.",
+        isCorrect: false,
+        feedback: "오답입니다. 하드웨어 네트워크 대역폭 업그레이드는 지연 시간을 미세하게 단축시킬 뿐, 1초에 수만 번 발생하는 노드 간 상호 배타적 락(Lock) 경합 및 데이터 정기 스레드 동기화 오버헤드를 완화하지 못하며 비용 낭비에 가깝습니다."
       }
     ]
   }

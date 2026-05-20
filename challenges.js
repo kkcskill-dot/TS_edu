@@ -187,5 +187,97 @@ const sqlChallenges = {
         feedback: "반쪽짜리 답변입니다. VIP 고객 수가 수만 명에 이르는 경우 애플리케이션 메모리에 그 방대한 ID를 담아 보내는 쿼리(`WHERE user_id IN (1, 2, ..., 50000)`)는 최악의 네트워크 오버헤드를 야기하고 파싱 에러(ORA-01795)를 유발할 수 있습니다."
       }
     ]
+  },
+  5: {
+    level: 5,
+    name: "결합 인덱스 컬럼 순서 지정 오류 (Composite Index Column Ordering)",
+    desc: "주문 테이블(ORDERS)에서 특정 상점(store_id)의 배송 완료(status = 'DELIVERED') 건을 조회하는 쿼리가 매우 늘어지고 있습니다. 현재 테이블에는 status가 선두 컬럼이고 store_id가 후행 컬럼인 결합 인덱스(status, store_id)가 생성되어 있습니다. status는 종류가 3개뿐이라 변별력이 매우 낮고, store_id는 5,000종류로 변별력이 높습니다. 스캔 범위가 너무 비대해져 I/O 부하가 높습니다.",
+    asisSql: "SELECT * FROM orders WHERE status = 'DELIVERED' AND store_id = 999;",
+    tobeSql: "SELECT * FROM orders WHERE store_id = 999 AND status = 'DELIVERED'; -- (IDX_ORDERS_STORE_STATUS 결합 인덱스 사용)",
+    dialectData: {
+      oracle: {
+        asisPlan: "INDEX RANGE SCAN (IDX_ORDERS_STATUS_STORE) -- (대량 블록 스캔)",
+        tobePlan: "INDEX RANGE SCAN (IDX_ORDERS_STORE_STATUS) -- (최소 블록 스캔)"
+      }
+    },
+    asisMetrics: {
+      io: "12,400 Blocks",
+      time: "1,500 ms",
+      plan: "INDEX RANGE SCAN (status, store_id)"
+    },
+    tobeMetrics: {
+      io: "6 Blocks",
+      time: "0.8 ms",
+      plan: "INDEX RANGE SCAN (store_id, status)"
+    },
+    options: [
+      {
+        id: "opt-5A",
+        title: "SQL 조건절의 기술 순서를 WHERE store_id = 999 AND status = 'DELIVERED' 로 단순히 순서 변경",
+        desc: "쿼리 조건절의 선두 순서를 인덱스 순서와 무관하게 변별력이 높은 컬럼부터 배치하여 옵티마이저의 동작을 개선합니다.",
+        isCorrect: false,
+        feedback: "오답입니다. SQL 조건절 내의 조건 나열 순서는 옵티마이저가 실행 계획을 세울 때 자동으로 최적화하므로 성능에 전혀 영향을 미치지 않습니다. 인덱스 구성 컬럼의 실제 정렬 순서(인덱스 정의)가 핵심입니다."
+      },
+      {
+        id: "opt-5B",
+        title: "결합 인덱스의 순서를 변별력이 높은 컬럼이 앞서도록 (store_id, status) 순으로 재생성",
+        desc: "= 조건으로 상시 사용되는 컬럼 중 카디널리티가 높은(분포도가 좋은) store_id를 선두 컬럼으로 배치해 리프 노드 스캔을 최소화합니다.",
+        isCorrect: true,
+        feedback: "정답입니다! 결합 인덱스를 구성할 때, '=' 조건으로 조회되는 두 컬럼 중 카디널리티가 압도적으로 높은(중복도가 낮은) 컬럼을 인덱스 선두에 배치해야 인덱스 리프 노드 스캔 범위를 최소한으로 좁힐 수 있습니다. status를 선두에 두면 'DELIVERED'에 해당하는 수많은 데이터를 인덱스 레벨에서 무수히 스캔하며 필터링하게 되어 비효율적입니다."
+      },
+      {
+        id: "opt-5C",
+        title: "status 컬럼과 store_id 컬럼에 각각 단일 인덱스를 추가하여 개별 탐색 유도",
+        desc: "두 컬럼 각각에 단일 컬럼 인덱스를 두어, 옵티마이저가 Index Merge를 통해 교집합을 찾도록 유도합니다.",
+        isCorrect: false,
+        feedback: "오답입니다. 두 개의 단일 인덱스를 결합하여 교집합을 추출하는 Index Merge(또는 Bitmap conversion)는 하나의 결합 인덱스(store_id, status)를 통해 한 번에 탐색하는 것보다 I/O 연산 비용 및 메모리 오버헤드가 훨씬 큽니다."
+      }
+    ]
+  },
+  6: {
+    level: 6,
+    name: "인덱스 컬럼 가공에 의한 무력화 (Index Column Modification)",
+    desc: "매출 데이터 테이블(SALES)에서 특정 년도 5월에 해당하는 매출액 총합을 집계하고 있습니다. sale_date 컬럼에 단일 인덱스가 구축되어 있지만, 월 단위 비교를 위해 좌변 컬럼에 TO_CHAR 함수를 사용하자 인덱스를 타지 않고 1억 건에 달하는 테이블 전체를 풀 스캔하는 최악의 병목 현상이 발생하고 있습니다.",
+    asisSql: "SELECT SUM(amount) FROM sales WHERE TO_CHAR(sale_date, 'YYYYMM') = '202505';",
+    tobeSql: "SELECT SUM(amount) FROM sales WHERE sale_date >= TO_DATE('2025-05-01', 'YYYY-MM-DD') AND sale_date < TO_DATE('2025-06-01', 'YYYY-MM-DD');",
+    dialectData: {
+      oracle: {
+        asisPlan: "TABLE ACCESS FULL (SALES) -- (인덱스 무력화)",
+        tobePlan: "INDEX RANGE SCAN (IDX_SALES_DATE) -- (인덱스 활용 범위 검색)"
+      }
+    },
+    asisMetrics: {
+      io: "185,000 Blocks",
+      time: "24,000 ms",
+      plan: "TABLE ACCESS FULL"
+    },
+    tobeMetrics: {
+      io: "45 Blocks",
+      time: "8.2 ms",
+      plan: "INDEX RANGE SCAN"
+    },
+    options: [
+      {
+        id: "opt-6A",
+        title: "조건절 좌변 컬럼 가공을 제거하고, 우변의 상수를 가공하여 날짜 범위(Range) 검색으로 쿼리 튜닝",
+        desc: "sale_date 컬럼에 씌운 TO_CHAR 함수를 걷어내고, 우변 조건값을 TO_DATE 형식의 범위(>=, <) 조건으로 변경하여 인덱스 스캔을 살려냅니다.",
+        isCorrect: true,
+        feedback: "완벽한 정답입니다! 인덱스는 데이터가 정렬된 구조입니다. 좌변의 인덱스 컬럼 자체를 함수(`TO_CHAR`, `SUBSTR` 등)로 가공하거나 연산(예: `sale_date + 1`)을 가하면 B-Tree 인덱스 고유의 정렬값이 훼손되므로 옵티마이저가 인덱스를 사용할 수 없어 풀 테이블 스캔을 하게 됩니다. 좌변 컬럼은 있는 그대로 보존하고, 우변의 비교 값을 가공하여 범위 검색(Range Search)을 수행하는 것이 정석 튜닝 방법입니다."
+      },
+      {
+        id: "opt-6B",
+        title: "TO_CHAR(sale_date, 'YYYYMM') 조건에 부합하는 함수 기반 인덱스(FBI) 추가 생성",
+        desc: "CREATE INDEX idx_sales_fbi ON sales(TO_CHAR(sale_date, 'YYYYMM'))를 생성하여 함수식 자체를 인덱스 키로 등록합니다.",
+        isCorrect: false,
+        feedback: "오답입니다. 함수 기반 인덱스(Function-Based Index)를 생성하면 인덱스 스캔은 가능하지만, 테이블의 DML(INSERT/UPDATE) 시마다 매번 CPU 연산을 통해 인덱스 블록을 정렬해야 하므로 쓰기 성능이 급격히 악화됩니다. 쿼리를 범위 조건으로 튜닝하여 기존 인덱스를 재사용하는 것이 훨씬 안전하고 효율적인 방법입니다."
+      },
+      {
+        id: "opt-6C",
+        title: "sales 테이블의 모든 파티션을 FULL 스캔하되 병렬 쿼리(Parallel Query) 힌트 활용",
+        desc: "/*+ PARALLEL(sales 8) */ 힌트를 사용하여 다중 CPU 스레드를 동원해 풀 스캔 속도를 물리적으로 끌어올립니다.",
+        isCorrect: false,
+        feedback: "오답입니다. 병렬 쿼리는 대용량 배치 작업에는 유용하지만, 빈번히 발생하는 온라인 트랜잭션 환경에서 사용하면 서버 전체의 CPU 자원을 순간적으로 고갈시켜 다른 동시 접속 세션들까지 전부 먹통으로 만드는 위험한 임시방편입니다."
+      }
+    ]
   }
 };
