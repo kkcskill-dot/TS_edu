@@ -237,7 +237,7 @@
     rel="stylesheet">
 
   <!-- App Styles -->
-  <link rel="stylesheet" href="style.css?v=1.1">
+  <link rel="stylesheet" href="style.css?v=1.2">
 </head>
 
 <body class="light-theme">
@@ -2385,9 +2385,9 @@ public void updateMemberPoints(int memberNo, int points) throws SQLException {
   </div>
 
   <!-- Javascript Modules -->
-  <script src="challenges.js?v=1.1"></script>
-  <script src="visualizers.js?v=1.1"></script>
-  <script src="app.js?v=1.1"></script>
+  <script src="challenges.js?v=1.2"></script>
+  <script src="visualizers.js?v=1.2"></script>
+  <script src="app.js?v=1.2"></script>
 
   <!-- External Parsers -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -2435,7 +2435,7 @@ public void updateMemberPoints(int memberNo, int points) throws SQLException {
       };
 
       // Handle Textbook Tab Clicking
-      const tbookTabs = document.querySelectorAll('.tbook-tab');
+      const tbookTabs = document.querySelectorAll('#panel-textbook .tbook-tab');
       tbookTabs.forEach(tab => {
         tab.addEventListener('click', () => {
           const target = tab.getAttribute('data-target');
