@@ -1112,8 +1112,9 @@ body.light-theme .btn-orange {
   background-color: rgba(0, 0, 0, 0.35);
   border: 1px solid var(--border-light);
   border-radius: 8px;
-  padding: 16px;
+  padding: 0;
   margin-bottom: 16px;
+  overflow: hidden;
 }
 
 .code-title {
@@ -1689,11 +1690,11 @@ body.light-theme .btn-orange {
 }
 
 .terminal-response.success {
-  color: var(--accent-emerald);
+  color: var(--ij-success);
 }
 
 .terminal-response.waiting {
-  color: var(--accent-orange);
+  color: var(--ij-keyword);
   animation: pulseOpacity 1.5s infinite;
 }
 
@@ -2381,4 +2382,344 @@ body.light-theme .tbook-tab.active {
 .tbook-tab:hover {
   color: var(--color-text-main) !important;
   background-color: rgba(255, 255, 255, 0.01) !important;
+}
+
+/* =============================================================
+   IntelliJ Light Theme — Code / SQL / Plan blocks only
+   Reusable .ij-code-wrapper component
+   ============================================================= */
+:root {
+  --ij-bg-editor:    #ffffff;
+  --ij-bg-panel:     #f7f8fa;
+  --ij-bg-tool:      #ebedef;
+  --ij-bg-gutter:    #f0f0f0;
+  --ij-bg-selection: #cce5ff;
+  --ij-border:       #c9ccd1;
+  --ij-border-focus: #4e78a0;
+  --ij-text:         #080808;
+  --ij-text-dim:     #8c8c8c;
+  --ij-keyword:      #0033b3;
+  --ij-string:       #067d17;
+  --ij-number:       #1750eb;
+  --ij-func:         #00627a;
+  --ij-error:        #d92b2b;
+  --ij-success:      #067d17;
+  --ij-link:         #006dcc;
+}
+
+/* --- Wrapper: mimics an IntelliJ editor window --- */
+.ij-code-wrapper {
+  border: 1px solid var(--ij-border);
+  border-radius: 5px;
+  overflow: hidden;
+  font-family: 'JetBrains Mono', 'Consolas', 'Menlo', var(--font-mono), monospace;
+}
+
+/* --- Title bar (file-tab style) --- */
+.ij-code-wrapper .ij-code-titlebar {
+  background: var(--ij-bg-tool);
+  border-bottom: 1px solid var(--ij-border);
+  padding: 5px 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ij-text-dim);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+  letter-spacing: 0.3px;
+}
+.ij-code-wrapper .ij-code-icon {
+  font-size: 0.85rem;
+  opacity: 0.65;
+}
+
+/* --- SQL / code pre block --- */
+.ij-code-wrapper .ij-code-block {
+  background: var(--ij-bg-editor);
+  margin: 0;
+  padding: 14px 16px;
+  font-size: 0.8rem;
+  line-height: 1.7;
+  color: var(--ij-text);
+  white-space: pre-wrap;
+  overflow-x: auto;
+  border: none;
+  border-radius: 0;
+}
+.ij-code-wrapper .ij-code-block code {
+  color: var(--ij-text);
+  background: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+/* --- Result block (math formula) inside wrapper --- */
+.ij-code-wrapper .ij-result-block {
+  background: var(--ij-bg-editor);
+  padding: 14px 16px;
+  font-family: 'JetBrains Mono', 'Consolas', var(--font-mono), monospace;
+  font-size: 0.78rem;
+  color: var(--ij-text);
+  line-height: 1.9;
+}
+.ij-code-wrapper .ij-result-block strong {
+  color: var(--ij-keyword);
+}
+.ij-code-wrapper .ij-result-block code {
+  background: var(--ij-bg-tool);
+  color: var(--ij-string);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.74rem;
+  border: 1px solid var(--ij-border);
+}
+
+/* --- Execution plan table --- */
+.ij-plan-container {
+  overflow-x: auto;
+  overflow-y: auto;
+  background: var(--ij-bg-editor);
+}
+.ij-plan-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  font-family: 'JetBrains Mono', 'Consolas', var(--font-mono), monospace;
+}
+.ij-plan-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--ij-bg-gutter);
+  color: var(--ij-text-dim);
+  font-weight: 600;
+  text-align: left;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--ij-border);
+  font-size: 0.73rem;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.ij-plan-table thead th.r {
+  text-align: right;
+}
+.ij-plan-table tbody tr {
+  border-bottom: 1px solid var(--ij-border);
+  transition: background 0.12s ease;
+}
+.ij-plan-table tbody tr.clickable {
+  cursor: pointer;
+}
+.ij-plan-table tbody tr.clickable:hover {
+  background: var(--ij-bg-selection);
+}
+.ij-plan-table tbody td {
+  padding: 6px 12px;
+  color: var(--ij-text);
+  white-space: pre;
+}
+.ij-plan-table tbody td.r {
+  text-align: right;
+}
+.ij-plan-table .col-id     { color: var(--ij-text-dim); }
+.ij-plan-table .col-op     { color: var(--ij-text); }
+.ij-plan-table .col-erows  { color: var(--ij-number); font-weight: 600; }
+.ij-plan-table .col-arows  { color: var(--ij-keyword); font-weight: 600; }
+.ij-plan-table .col-buf    { color: var(--ij-text-dim); }
+.ij-plan-table .col-starts { color: var(--ij-text-dim); }
+
+/* Row selection states */
+.ij-plan-table tbody tr.ij-correct {
+  background: rgba(6, 125, 23, 0.08) !important;
+  border-left: 3px solid var(--ij-success);
+}
+.ij-plan-table tbody tr.ij-wrong {
+  background: rgba(217, 43, 43, 0.08) !important;
+  border-left: 3px solid var(--ij-error);
+}
+.ij-plan-table tbody tr.ij-answer-hint {
+  background: rgba(0, 109, 204, 0.08) !important;
+  border-left: 3px solid rgba(0,109,204,0.35);
+}
+
+/* =============================================================
+   IntelliJ Light — Global overrides for existing code areas
+   Applies to: sql-preview-box, sql-terminal, sql-challenge-editor,
+               explain-text-viewport, join algorithm visuals
+   ============================================================= */
+
+/* --- SQL Preview Box (Explain Plan panel) --- */
+.sql-preview-box {
+  border: 1px solid var(--ij-border) !important;
+  border-radius: 5px !important;
+  background: var(--ij-bg-editor) !important;
+}
+.sql-preview-box .code-title {
+  background: var(--ij-bg-tool);
+  border-bottom: 1px solid var(--ij-border);
+  padding: 5px 12px;
+  margin-bottom: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ij-text-dim);
+  letter-spacing: 0.3px;
+}
+.sql-preview-box pre {
+  background: var(--ij-bg-editor);
+  margin: 0;
+  padding: 14px 16px;
+  border: none;
+  border-radius: 0;
+}
+#explain-sql-code {
+  color: var(--ij-text) !important;
+  font-family: 'JetBrains Mono', 'Consolas', 'Menlo', var(--font-mono), monospace;
+  font-size: 0.82rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* --- DBMS_XPLAN Text Output (Explain Plan panel) --- */
+#explain-text-viewport {
+  background: var(--ij-bg-editor) !important;
+  border: 1px solid var(--ij-border) !important;
+  border-radius: 5px !important;
+  color: var(--ij-text) !important;
+  font-family: 'JetBrains Mono', 'Consolas', 'Menlo', var(--font-mono), monospace !important;
+  font-size: 0.78rem !important;
+  box-shadow: none !important;
+  padding: 14px 16px !important;
+}
+
+/* --- SQL Terminals (Lock, ASH, AWR) --- */
+.sql-terminal {
+  background-color: var(--ij-bg-editor) !important;
+  border: 1px solid var(--ij-border) !important;
+  border-radius: 5px !important;
+  font-family: 'JetBrains Mono', 'Consolas', 'Menlo', var(--font-mono), monospace !important;
+  color: var(--ij-text) !important;
+}
+.terminal-prompt {
+  color: var(--ij-keyword) !important;
+}
+.terminal-sql {
+  color: var(--ij-text) !important;
+}
+.terminal-response {
+  color: var(--ij-text-dim) !important;
+}
+
+/* Terminal .code-title header (ASH/AWR panels) */
+.terminal-container .code-title {
+  background: var(--ij-bg-tool);
+  border: 1px solid var(--ij-border);
+  border-bottom: none;
+  border-radius: 5px 5px 0 0;
+  padding: 5px 12px;
+  margin-bottom: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ij-text-dim);
+  letter-spacing: 0.3px;
+}
+.terminal-container .sql-terminal {
+  border-radius: 0 0 5px 5px !important;
+  border-top: none !important;
+}
+
+/* --- Challenge SQL Editor --- */
+.sql-challenge-editor {
+  background-color: var(--ij-bg-editor) !important;
+  border: 1px solid var(--ij-border) !important;
+  border-radius: 5px !important;
+}
+.editor-header {
+  background-color: var(--ij-bg-tool) !important;
+  border-bottom: 1px solid var(--ij-border) !important;
+  color: var(--ij-text-dim) !important;
+  padding: 5px 12px !important;
+  font-size: 0.72rem !important;
+}
+.editor-header .editor-lang {
+  color: var(--ij-keyword);
+  font-weight: 700;
+}
+.sql-challenge-editor pre {
+  background: var(--ij-bg-editor);
+  padding: 14px 16px;
+  margin: 0;
+}
+#challenge-asis-sql {
+  color: var(--ij-text) !important;
+  font-family: 'JetBrains Mono', 'Consolas', 'Menlo', var(--font-mono), monospace;
+  font-size: 0.82rem;
+}
+
+/* --- Join Lab: Algorithm Pseudocode Blocks --- */
+.ij-algo-block {
+  background: var(--ij-bg-editor) !important;
+  border: 1px solid var(--ij-border) !important;
+  border-radius: 5px !important;
+  padding: 0 !important;
+  font-family: 'JetBrains Mono', 'Consolas', 'Menlo', var(--font-mono), monospace !important;
+  color: var(--ij-text) !important;
+  overflow: hidden;
+  min-height: auto;
+  margin-bottom: 12px;
+}
+.ij-algo-block .ij-algo-titlebar {
+  background: var(--ij-bg-tool);
+  border-bottom: 1px solid var(--ij-border);
+  padding: 4px 10px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--ij-text-dim);
+  letter-spacing: 0.3px;
+}
+.ij-algo-block .ij-algo-code {
+  padding: 10px 12px;
+  font-size: 0.76rem;
+  line-height: 1.65;
+  color: var(--ij-text);
+}
+.ij-algo-block .ij-algo-code .kw {
+  color: var(--ij-keyword);
+  font-weight: 600;
+}
+.ij-algo-block .ij-algo-code .cm {
+  color: var(--ij-text-dim);
+  font-style: italic;
+}
+.ij-algo-block .ij-algo-code .fn {
+  color: var(--ij-func);
+}
+.ij-algo-block .ij-algo-code .str {
+  color: var(--ij-string);
+}
+
+/* --- Light theme overrides: disable the body.light-theme old rules --- */
+body.light-theme .sql-terminal {
+  background-color: var(--ij-bg-editor) !important;
+  border-color: var(--ij-border) !important;
+  color: var(--ij-text) !important;
+}
+body.light-theme .terminal-sql {
+  color: var(--ij-text) !important;
+}
+body.light-theme .sql-preview-box {
+  background: var(--ij-bg-editor) !important;
+  border-color: var(--ij-border) !important;
+}
+body.light-theme .sql-challenge-editor {
+  background-color: var(--ij-bg-editor) !important;
+  border-color: var(--ij-border) !important;
+}
+body.light-theme .editor-header {
+  background-color: var(--ij-bg-tool) !important;
+  border-bottom-color: var(--ij-border) !important;
+}
+body.light-theme #challenge-asis-sql {
+  color: var(--ij-text) !important;
 }

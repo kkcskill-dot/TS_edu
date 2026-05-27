@@ -280,33 +280,40 @@ function renderExecutionPlanTree(queryKey, dialect = "oracle") {
       const span = document.createElement('span');
       span.style.display = 'block';
 
-      // Colorize by line content
+      // Colorize by line content — IntelliJ Light palette
+      const ijStyles = getComputedStyle(document.documentElement);
+      const ijKeyword = ijStyles.getPropertyValue('--ij-keyword').trim() || '#0033b3';
+      const ijString  = ijStyles.getPropertyValue('--ij-string').trim()  || '#067d17';
+      const ijNumber  = ijStyles.getPropertyValue('--ij-number').trim()  || '#1750eb';
+      const ijError   = ijStyles.getPropertyValue('--ij-error').trim()   || '#d92b2b';
+      const ijFunc    = ijStyles.getPropertyValue('--ij-func').trim()    || '#00627a';
+      const ijDim     = ijStyles.getPropertyValue('--ij-text-dim').trim()|| '#8c8c8c';
+
       if (/TABLE ACCESS FULL/.test(line)) {
-        span.style.color = '#f87171'; // red for FULL scan
+        span.style.color = ijError; // red for FULL scan
         span.style.fontWeight = '700';
       } else if (/\|\s*\d+\s*\|/.test(line) && /\*/.test(line)) {
-        // rows with * (predicate applied)
-        span.style.color = '#fb923c'; // orange
+        span.style.color = '#b45309'; // deep amber for predicate rows
       } else if (/^[-]{5,}/.test(line) || /^[=]{5,}/.test(line)) {
-        span.style.color = 'rgba(148, 163, 184, 0.4)';
+        span.style.color = '#c9ccd1';
       } else if (/^Predicate Information/.test(line) || /^Note/.test(line)) {
-        span.style.color = '#a78bfa'; // purple heading
+        span.style.color = '#871094'; // purple heading
         span.style.fontWeight = '700';
       } else if (/access\(|filter\(/.test(line)) {
-        span.style.color = '#34d399'; // green for access predicates
+        span.style.color = ijString; // green for access predicates
       } else if (/⚠️/.test(line)) {
-        span.style.color = '#fbbf24'; // yellow warning
+        span.style.color = '#b45309'; // amber warning
         span.style.fontWeight = '700';
       } else if (/^SQL_ID/.test(line)) {
-        span.style.color = '#94a3b8'; // muted header
+        span.style.color = ijDim;
       } else if (/Plan hash value/.test(line)) {
-        span.style.color = '#67e8f9';
+        span.style.color = ijFunc;
       } else if (/INDEX (UNIQUE|RANGE) SCAN/.test(line)) {
-        span.style.color = '#6ee7b7'; // light green for index ops
+        span.style.color = ijString; // green for index ops
       } else if (/NESTED LOOPS|HASH JOIN/.test(line)) {
-        span.style.color = '#93c5fd'; // blue join ops
+        span.style.color = ijKeyword; // blue join ops
       } else if (/^SELECT/.test(line.trim())) {
-        span.style.color = '#fcd34d'; // yellow SQL text
+        span.style.color = ijKeyword; // blue SQL keywords
       }
 
       span.textContent = line;

@@ -39,6 +39,8 @@ document.addEventListener("DOMContentLoaded", () => {
   initChallengeArena();
   initAshAnalyzer();
   initAwrAnalyzer();
+  initPlanDiagLab();
+  initJoinLab();
 
   // Choose a random tip to start
   rotateDbaTip();
@@ -1542,5 +1544,421 @@ function displayQuizFeedback(qNum, selectedId) {
   }
 
   desc.innerHTML = opt.feedback;
+}
+
+/* -------------------------------------------------------------
+ * 9. Plan Diagnosis Lab (플랜 진단 실습)
+ * ------------------------------------------------------------- */
+function initPlanDiagLab() {
+  const scenarioData = {
+    stale_stats: {
+      sql: `SELECT o.order_id, u.name
+FROM orders o JOIN users u ON o.user_id = u.id
+WHERE o.order_date = '2026-05-18';`,
+      plan: [
+        { id: 0, operation: "SELECT STATEMENT",       depth: 0, eRows: "",       aRows: "",       buffers: "",     starts: 1 },
+        { id: 1, operation: "NESTED LOOPS",            depth: 1, eRows: "15",     aRows: "12,450", buffers: "38,210", starts: 1 },
+        { id: 2, operation: " TABLE ACCESS BY ROWID",  depth: 2, eRows: "15",     aRows: "12,450", buffers: "37,980", starts: 250 },
+        { id: 3, operation: "  INDEX RANGE SCAN",      depth: 3, eRows: "15",     aRows: "12,450", buffers: "1,240",  starts: 250 },
+        { id: 4, operation: " TABLE ACCESS BY ROWID",  depth: 2, eRows: "1",      aRows: "1",      buffers: "230",    starts: 250 },
+        { id: 5, operation: "  INDEX UNIQUE SCAN",     depth: 3, eRows: "1",      aRows: "1",      buffers: "230",    starts: 250 },
+      ],
+      bottleneck: 3,
+      scoreCorrect: 100,
+      scoreWrong: 20,
+      math: `<strong>오차율 산출 (INDEX RANGE SCAN):</strong><br>
+E-Rows = 15,  A-Rows = 12,450<br>
+<span style="color:var(--ij-keyword);">오차 비율 = |A-Rows - E-Rows| / E-Rows × 100</span><br>
+= |12,450 - 15| / 15 × 100 = <strong style="color:var(--ij-error);">82,900%</strong><br><br>
+→ 통계 수집 이후 데이터가 대폭 증가했으나 통계가 갱신되지 않아<br>
+&nbsp;&nbsp;옵티마이저가 15건으로 추정 → 실제 12,450건 반환됨<br>
+→ NL 조인이 선택되었으나 대량 데이터로 인해 버퍼 I/O 폭증`,
+      feedback: `<strong>근본 원인:</strong> ORDERS 테이블의 통계가 수개월 전 수집 상태로, 신규 주문 데이터 유입이 반영되지 않았습니다.<br><br>
+<strong>조치안:</strong><br>
+1. <code>EXEC DBMS_STATS.GATHER_TABLE_STATS('SCHEMA', 'ORDERS', CASCADE => TRUE);</code><br>
+2. E-Rows와 A-Rows 오차가 100% 미만으로 수렴하는지 재검증<br>
+3. 건수 증가 추이에 따라 Hash Join 유도 검토 (USE_HASH 힌트)<br>
+4. 장기적으로 자동 통계 수집 JOB 등록 권장`
+    },
+    no_histogram: {
+      sql: `SELECT *
+FROM employees
+WHERE department_id = 50
+  AND status = 'ACTIVE';`,
+      plan: [
+        { id: 0, operation: "SELECT STATEMENT",       depth: 0, eRows: "",       aRows: "",       buffers: "",     starts: 1 },
+        { id: 1, operation: "TABLE ACCESS FULL",       depth: 1, eRows: "5,000",  aRows: "42",     buffers: "14,820", starts: 1 },
+        { id: 2, operation: " FILTER",                 depth: 2, eRows: "5,000",  aRows: "42",     buffers: "14,820", starts: 1 },
+      ],
+      bottleneck: 1,
+      scoreCorrect: 100,
+      scoreWrong: 20,
+      math: `<strong>오차율 산출 (TABLE ACCESS FULL):</strong><br>
+E-Rows = 5,000,  A-Rows = 42<br>
+<span style="color:var(--ij-keyword);">오차 비율 = |A-Rows - E-Rows| / max(E-Rows, 1) × 100</span><br>
+= |42 - 5,000| / 5,000 × 100 = <strong style="color:var(--ij-error);">99.16%</strong><br><br>
+→ status 컬럼에 히스토그램이 없어 균등 분포로 가정<br>
+&nbsp;&nbsp;실제 'ACTIVE'는 전체의 0.84%만 존재 (데이터 편향)<br>
+→ 옵티마이저가 Full Scan 선택 → 인덱스 활용 불가`,
+      feedback: `<strong>근본 원인:</strong> STATUS 컬럼의 데이터 분포가 극도로 편향되어 있으나 (ACTIVE=0.84%, INACTIVE=99.16%), 히스토그램이 수집되지 않아 옵티마이저가 균등 분포(50/50)로 오판했습니다.<br><br>
+<strong>조치안:</strong><br>
+1. <code>EXEC DBMS_STATS.GATHER_TABLE_STATS('SCHEMA', 'EMPLOYEES', METHOD_OPT => 'FOR COLUMNS STATUS SIZE AUTO');</code><br>
+2. STATUS + DEPARTMENT_ID 복합 인덱스 생성 검토<br>
+3. <code>SELECT column_name, histogram FROM user_tab_col_statistics WHERE table_name='EMPLOYEES';</code> 로 히스토그램 유형 확인`
+    },
+    correlated_sub: {
+      sql: `SELECT e.emp_name, e.salary
+FROM employees e
+WHERE e.salary > (
+  SELECT AVG(salary)
+  FROM employees e2
+  WHERE e2.dept_id = e.dept_id
+);`,
+      plan: [
+        { id: 0, operation: "SELECT STATEMENT",       depth: 0, eRows: "",       aRows: "",       buffers: "",      starts: 1 },
+        { id: 1, operation: "FILTER",                  depth: 1, eRows: "500",    aRows: "312",    buffers: "85,400", starts: 1 },
+        { id: 2, operation: " TABLE ACCESS FULL",      depth: 2, eRows: "10,000", aRows: "10,000", buffers: "1,200",  starts: 1 },
+        { id: 3, operation: " SORT AGGREGATE",         depth: 2, eRows: "1",      aRows: "1",      buffers: "84,200", starts: 10000 },
+        { id: 4, operation: "  TABLE ACCESS FULL",     depth: 3, eRows: "200",    aRows: "200",    buffers: "84,200", starts: 10000 },
+      ],
+      bottleneck: 4,
+      scoreCorrect: 100,
+      scoreWrong: 20,
+      math: `<strong>오차율 산출 (내부 TABLE ACCESS FULL):</strong><br>
+E-Rows = 200,  A-Rows = 200,  <span style="color:var(--ij-keyword);">Starts = 10,000</span><br>
+<span style="color:var(--ij-keyword);">총 실행 행 = A-Rows × Starts</span><br>
+= 200 × 10,000 = <strong style="color:var(--ij-error);">2,000,000 행</strong><br><br>
+→ E-Rows/A-Rows 비율만 보면 정상(200=200)이지만<br>
+&nbsp;&nbsp;Starts=10,000 → 상관 서브쿼리가 외부 행마다 반복 실행<br>
+→ 총 I/O = 84,200 blocks (전체 비용의 98.6% 집중)`,
+      feedback: `<strong>근본 원인:</strong> 상관 서브쿼리(Correlated Subquery)가 외부 테이블의 매 행(10,000건)마다 반복 실행되어 총 200만 건을 스캔합니다. E-Rows와 A-Rows는 일치하지만, Starts 값이 핵심 병목 지표입니다.<br><br>
+<strong>조치안:</strong><br>
+1. 스칼라 서브쿼리 → 인라인 뷰(분석 함수)로 변환:<br>
+<code>SELECT emp_name, salary FROM (
+  SELECT emp_name, salary,
+    AVG(salary) OVER (PARTITION BY dept_id) AS avg_sal
+  FROM employees
+) WHERE salary > avg_sal;</code><br>
+2. 이 방식으로 Full Scan 1회 + Window Sort 1회로 감소<br>
+3. Starts 값이 1로 변경되는지 XPLAN 재검증 필수`
+    }
+  };
+
+  let currentScenarioKey = "stale_stats";
+
+  function renderScenario(key) {
+    currentScenarioKey = key;
+    const s = scenarioData[key];
+
+    // Update SQL display
+    document.getElementById("plan-diag-sql").textContent = s.sql;
+
+    // Update active button (original site theme)
+    document.querySelectorAll(".btn-plan-diag-scenario").forEach(btn => {
+      if (btn.dataset.scenario === key) {
+        btn.style.border = "1px solid var(--accent-cyan)";
+        btn.style.background = "rgba(6, 182, 212, 0.15)";
+        btn.style.color = "var(--accent-cyan)";
+        btn.classList.add("active");
+      } else {
+        btn.style.border = "1px solid var(--border-light)";
+        btn.style.background = "transparent";
+        btn.style.color = "var(--color-text-muted)";
+        btn.classList.remove("active");
+      }
+    });
+
+    // Render plan table
+    const container = document.getElementById("plan-diag-table-container");
+    let html = `<table class="ij-plan-table">
+      <thead>
+        <tr>
+          <th>Id</th>
+          <th>Operation</th>
+          <th class="r">E-Rows</th>
+          <th class="r">A-Rows</th>
+          <th class="r">Buffers</th>
+          <th class="r">Starts</th>
+        </tr>
+      </thead>
+      <tbody>`;
+
+    s.plan.forEach(row => {
+      const isClickable = row.eRows !== "" && row.aRows !== "";
+      html += `<tr data-row-id="${row.id}" class="${isClickable ? 'clickable plan-diag-row' : ''}">
+        <td class="col-id">${row.id}</td>
+        <td class="col-op">${row.operation}</td>
+        <td class="r col-erows">${row.eRows}</td>
+        <td class="r col-arows">${row.aRows}</td>
+        <td class="r col-buf">${row.buffers}</td>
+        <td class="r col-starts">${row.starts}</td>
+      </tr>`;
+    });
+
+    html += `</tbody></table>`;
+    container.innerHTML = html;
+
+    // Add click handlers (hover via CSS)
+    container.querySelectorAll(".plan-diag-row").forEach(tr => {
+      tr.addEventListener("click", () => handleRowClick(parseInt(tr.dataset.rowId)));
+    });
+
+    // Reset result area
+    document.getElementById("plan-diag-score").textContent = "-";
+    document.getElementById("plan-diag-score").style.color = "var(--color-text-muted)";
+    document.getElementById("plan-diag-math-content").innerHTML = "병목 노드를 클릭하면 수리적 오차 산출 과정이 표시됩니다.";
+    document.getElementById("plan-diag-feedback").innerHTML = "시나리오를 선택하고 실행 계획의 병목 노드를 클릭하세요.";
+  }
+
+  function handleRowClick(rowId) {
+    const s = scenarioData[currentScenarioKey];
+    const isCorrect = rowId === s.bottleneck;
+
+    // Highlight selected row via CSS classes
+    const container = document.getElementById("plan-diag-table-container");
+    container.querySelectorAll(".plan-diag-row").forEach(tr => {
+      const rid = parseInt(tr.dataset.rowId);
+      tr.classList.remove("ij-correct", "ij-wrong", "ij-answer-hint");
+      if (rid === rowId) {
+        tr.classList.add(isCorrect ? "ij-correct" : "ij-wrong");
+      } else if (rid === s.bottleneck && !isCorrect) {
+        tr.classList.add("ij-answer-hint");
+      }
+    });
+
+    // Update score
+    const score = isCorrect ? s.scoreCorrect : s.scoreWrong;
+    const scoreEl = document.getElementById("plan-diag-score");
+    scoreEl.textContent = score + "점";
+    scoreEl.style.color = isCorrect ? "var(--accent-emerald)" : "#f87171";
+
+    // Update math
+    const mathContent = document.getElementById("plan-diag-math-content");
+    if (isCorrect) {
+      mathContent.innerHTML = s.math;
+    } else {
+      const clickedRow = s.plan.find(r => r.id === rowId);
+      const correctRow = s.plan.find(r => r.id === s.bottleneck);
+      mathContent.innerHTML = `<span style="color:var(--ij-error);"><strong>오답입니다.</strong></span><br><br>
+선택한 노드 (Id=${rowId}): ${clickedRow ? clickedRow.operation.trim() : ''}<br>
+→ 이 노드는 주요 병목 지점이 아닙니다.<br><br>
+<span style="color:var(--ij-link);">힌트:</span> E-Rows와 A-Rows의 비율 차이가 가장 극단적이거나,<br>
+Starts 값이 비정상적으로 큰 노드를 찾아보세요.<br>
+정답 노드: <strong>Id=${s.bottleneck} (${correctRow ? correctRow.operation.trim() : ''})</strong>`;
+    }
+
+    // Update feedback
+    const feedbackEl = document.getElementById("plan-diag-feedback");
+    if (isCorrect) {
+      feedbackEl.innerHTML = s.feedback;
+    } else {
+      feedbackEl.innerHTML = `선택한 노드는 병목 지점이 아닙니다. 실행 계획에서 <strong>E-Rows 대비 A-Rows 오차가 가장 크거나</strong>, <strong>Starts 값이 비정상적으로 높은</strong> 노드가 진정한 병목입니다. 다시 시도해 보세요.`;
+    }
+  }
+
+  // Event listeners
+  document.querySelectorAll(".btn-plan-diag-scenario").forEach(btn => {
+    btn.addEventListener("click", () => renderScenario(btn.dataset.scenario));
+  });
+
+  // Initialize first scenario
+  renderScenario("stale_stats");
+}
+
+/* -------------------------------------------------------------
+ * 10. Join Comparison Lab (조인 비교 실험실)
+ * ------------------------------------------------------------- */
+function initJoinLab() {
+  const DB_BLOCK_SIZE = 8192; // 8KB
+  const AVG_ROW_SIZE = 100;  // bytes
+  const ROWS_PER_BLOCK = Math.floor(DB_BLOCK_SIZE / AVG_ROW_SIZE); // ~81
+  const IO_TIME_MS = 0.01;   // single block read ms (buffer cache)
+  const HASH_OVERHEAD = 1.2; // hash build overhead factor
+
+  function numFmt(n) {
+    if (n >= 1e9) return (n / 1e9).toFixed(1) + "B";
+    if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
+    if (n >= 1e3) return (n / 1e3).toFixed(1) + "K";
+    return n.toFixed(0);
+  }
+
+  function timeFmt(ms) {
+    if (ms >= 1000) return (ms / 1000).toFixed(2) + "s";
+    return ms.toFixed(1) + "ms";
+  }
+
+  function memFmt(bytes) {
+    if (bytes >= 1024 * 1024 * 1024) return (bytes / (1024 * 1024 * 1024)).toFixed(1) + " GB";
+    if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+    if (bytes >= 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return bytes + " B";
+  }
+
+  function simulate() {
+    const drivingRows = parseInt(document.getElementById("join-lab-driving-rows").value);
+    const drivenRows  = parseInt(document.getElementById("join-lab-driven-rows").value);
+    const hasIndex    = document.getElementById("join-lab-index").value === "yes";
+    const BLEVEL = 2;
+
+    const drivingBlocks = Math.ceil(drivingRows / ROWS_PER_BLOCK);
+    const drivenBlocks  = Math.ceil(drivenRows / ROWS_PER_BLOCK);
+
+    // --- Nested Loops ---
+    let nlIO, nlLoops, nlMem, nlTime;
+    nlLoops = drivingRows;
+    if (hasIndex) {
+      // Each driving row: BLEVEL index reads + 1 table access
+      nlIO = drivingBlocks + drivingRows * (BLEVEL + 1);
+    } else {
+      // Without index: full scan of driven for each driving row
+      nlIO = drivingBlocks + drivingRows * drivenBlocks;
+    }
+    nlMem = drivingRows * 32; // minimal — cursor context only
+    nlTime = nlIO * IO_TIME_MS;
+
+    // --- Hash Join ---
+    const smallerRows  = Math.min(drivingRows, drivenRows);
+    const largerRows   = Math.max(drivingRows, drivenRows);
+    const smallerBlocks = Math.ceil(smallerRows / ROWS_PER_BLOCK);
+    const largerBlocks  = Math.ceil(largerRows / ROWS_PER_BLOCK);
+
+    const hashIO = Math.ceil((smallerBlocks + largerBlocks) * HASH_OVERHEAD);
+    const hashLoops = 2; // build pass + probe pass
+    const hashMem = smallerRows * (AVG_ROW_SIZE + 16); // row + hash entry overhead
+    const hashTime = hashIO * IO_TIME_MS + (smallerRows * 0.001); // hash build CPU
+
+    // --- Sort Merge Join ---
+    const log2 = (n) => n > 0 ? Math.log2(n) : 0;
+    const sortCostDriving = drivingRows * log2(Math.max(drivingRows, 2));
+    const sortCostDriven  = drivenRows * log2(Math.max(drivenRows, 2));
+    const totalSortCost   = sortCostDriving + sortCostDriven;
+
+    const mergeIO = Math.ceil((drivingBlocks + drivenBlocks) * 2); // read + write for sort runs
+    const mergeLoops = Math.ceil(log2(Math.max(drivingBlocks, 2))) + Math.ceil(log2(Math.max(drivenBlocks, 2)));
+    const mergeMem = (drivingRows + drivenRows) * AVG_ROW_SIZE * 0.3; // sort area
+    const mergeTime = mergeIO * IO_TIME_MS + totalSortCost * 0.0001; // sort CPU
+
+    // Determine costs and winner
+    const costs = {
+      nl:    nlIO,
+      hash:  hashIO,
+      merge: mergeIO
+    };
+    const maxCost = Math.max(costs.nl, costs.hash, costs.merge, 1);
+    const winner = Object.entries(costs).reduce((a, b) => a[1] <= b[1] ? a : b)[0];
+
+    // --- Update NL Card ---
+    document.getElementById("join-nl-io").textContent = numFmt(nlIO);
+    document.getElementById("join-nl-loops").textContent = numFmt(nlLoops);
+    document.getElementById("join-nl-mem").textContent = memFmt(nlMem);
+    document.getElementById("join-nl-time").textContent = timeFmt(nlTime);
+    const nlPct = Math.round((costs.nl / maxCost) * 100);
+    document.getElementById("join-nl-cost-pct").textContent = nlPct + "%";
+    document.getElementById("join-nl-cost-bar").style.width = nlPct + "%";
+
+    // --- Update Hash Card ---
+    document.getElementById("join-hash-io").textContent = numFmt(hashIO);
+    document.getElementById("join-hash-loops").textContent = hashLoops + " pass";
+    document.getElementById("join-hash-mem").textContent = memFmt(hashMem);
+    document.getElementById("join-hash-time").textContent = timeFmt(hashTime);
+    const hashPct = Math.round((costs.hash / maxCost) * 100);
+    document.getElementById("join-hash-cost-pct").textContent = hashPct + "%";
+    document.getElementById("join-hash-cost-bar").style.width = hashPct + "%";
+
+    // --- Update Merge Card ---
+    document.getElementById("join-merge-io").textContent = numFmt(mergeIO);
+    document.getElementById("join-merge-loops").textContent = mergeLoops + " pass";
+    document.getElementById("join-merge-mem").textContent = memFmt(mergeMem);
+    document.getElementById("join-merge-time").textContent = timeFmt(mergeTime);
+    const mergePct = Math.round((costs.merge / maxCost) * 100);
+    document.getElementById("join-merge-cost-pct").textContent = mergePct + "%";
+    document.getElementById("join-merge-cost-bar").style.width = mergePct + "%";
+
+    // --- Badges & Card highlights ---
+    const cards = { nl: "join-card-nl", hash: "join-card-hash", merge: "join-card-merge" };
+    const badges = { nl: "join-nl-badge", hash: "join-hash-badge", merge: "join-merge-badge" };
+    const colors = { nl: "var(--accent-cyan)", hash: "var(--accent-emerald)", merge: "var(--accent-orange)" };
+
+    Object.keys(cards).forEach(k => {
+      const card = document.getElementById(cards[k]);
+      const badge = document.getElementById(badges[k]);
+      if (k === winner) {
+        card.style.borderColor = colors[k];
+        card.style.boxShadow = `0 0 20px ${k === 'nl' ? 'rgba(6,182,212,0.15)' : k === 'hash' ? 'rgba(16,185,129,0.15)' : 'rgba(249,115,22,0.15)'}`;
+        badge.textContent = "최적 ✓";
+        badge.style.background = `${k === 'nl' ? 'rgba(6,182,212,0.15)' : k === 'hash' ? 'rgba(16,185,129,0.15)' : 'rgba(249,115,22,0.15)'}`;
+        badge.style.color = colors[k];
+      } else {
+        card.style.borderColor = "var(--border-light)";
+        card.style.boxShadow = "none";
+        const ratio = (costs[k] / costs[winner]).toFixed(1);
+        badge.textContent = ratio + "× 비용";
+        badge.style.background = "rgba(239,68,68,0.1)";
+        badge.style.color = "#f87171";
+      }
+    });
+
+    // --- Winner badge ---
+    const winnerNames = { nl: "NESTED LOOPS", hash: "HASH JOIN", merge: "SORT MERGE JOIN" };
+    const winnerBadge = document.getElementById("join-lab-winner-badge");
+    winnerBadge.textContent = "최적: " + winnerNames[winner];
+    winnerBadge.style.background = `${winner === 'nl' ? 'rgba(6,182,212,0.15)' : winner === 'hash' ? 'rgba(16,185,129,0.15)' : 'rgba(249,115,22,0.15)'}`;
+    winnerBadge.style.color = colors[winner];
+
+    // --- DBA Advice ---
+    const adviceEl = document.getElementById("join-lab-dba-advice");
+    let advice = "";
+    if (winner === "nl") {
+      advice = `<strong>Nested Loops가 최적입니다.</strong><br>
+선행 테이블 ${numFmt(drivingRows)}건으로 소량이며, ${hasIndex ? '후행 인덱스가 존재하여 각 루프당 BLEVEL('+BLEVEL+') + 1회의 I/O만 발생합니다.' : '후행 인덱스가 없지만 선행 건수가 충분히 적어 Full Scan 반복 비용이 다른 방식보다 낮습니다.'}<br><br>
+<strong>NL 조인 핵심 공식:</strong> 총 I/O = Driving Blocks + Driving Rows × (BLEVEL + 1) = ${numFmt(drivingBlocks)} + ${numFmt(drivingRows)} × ${BLEVEL + 1} = <strong>${numFmt(nlIO)}</strong><br><br>
+<em>Tip: 선행 테이블이 ${numFmt(drivingRows)}건 이하이고 후행 인덱스가 있으면 NL이 거의 항상 최적입니다.</em>`;
+    } else if (winner === "hash") {
+      advice = `<strong>Hash Join이 최적입니다.</strong><br>
+작은 테이블(${numFmt(smallerRows)}건)로 해시맵을 빌드한 뒤, 큰 테이블(${numFmt(largerRows)}건)을 한 번 스캔하며 프로빙합니다.<br><br>
+<strong>Hash Join 핵심 공식:</strong> 총 I/O ≈ (Small Blocks + Large Blocks) × 1.2 = (${numFmt(smallerBlocks)} + ${numFmt(largerBlocks)}) × 1.2 = <strong>${numFmt(hashIO)}</strong><br>
+PGA 메모리 = Small Rows × (RowSize + 16B) = ${numFmt(smallerRows)} × ${AVG_ROW_SIZE + 16} = <strong>${memFmt(hashMem)}</strong><br><br>
+<em>주의: PGA 메모리가 HASH_AREA_SIZE를 초과하면 Temp 디스크 I/O가 발생하여 One-Pass 또는 Multi-Pass 모드로 전환됩니다.</em>`;
+    } else {
+      advice = `<strong>Sort Merge Join이 최적입니다.</strong><br>
+양쪽 테이블을 조인 키로 정렬 후 한 번의 Merge 패스로 결합합니다. 이미 정렬된 데이터이거나 부등호(>, <, BETWEEN) 조인 시 유리합니다.<br><br>
+<strong>Sort Merge 핵심 공식:</strong><br>
+정렬 비용 = N·log₂N + M·log₂M = ${numFmt(sortCostDriving)} + ${numFmt(sortCostDriven)} = <strong>${numFmt(totalSortCost)}</strong><br>
+총 I/O ≈ (Driving Blocks + Driven Blocks) × 2 = <strong>${numFmt(mergeIO)}</strong><br><br>
+<em>Tip: ORDER BY나 GROUP BY가 조인 키와 같은 경우 Sort 단계가 생략되어 추가 비용 절감이 가능합니다.</em>`;
+    }
+
+    // Add comparison table
+    advice += `<br><br><table style="width:100%; font-size:0.72rem; border-collapse:collapse; margin-top:8px;">
+<tr style="border-bottom:1px solid var(--border-light); color:var(--accent-cyan);">
+  <th style="text-align:left;padding:4px 6px;">방식</th>
+  <th style="text-align:right;padding:4px 6px;">I/O</th>
+  <th style="text-align:right;padding:4px 6px;">메모리</th>
+  <th style="text-align:right;padding:4px 6px;">시간</th>
+</tr>
+<tr style="border-bottom:1px solid rgba(255,255,255,0.04);${winner==='nl'?' color:var(--accent-cyan);font-weight:700;':''}">
+  <td style="padding:4px 6px;">NL Join</td>
+  <td style="text-align:right;padding:4px 6px;">${numFmt(nlIO)}</td>
+  <td style="text-align:right;padding:4px 6px;">${memFmt(nlMem)}</td>
+  <td style="text-align:right;padding:4px 6px;">${timeFmt(nlTime)}</td>
+</tr>
+<tr style="border-bottom:1px solid rgba(255,255,255,0.04);${winner==='hash'?' color:var(--accent-emerald);font-weight:700;':''}">
+  <td style="padding:4px 6px;">Hash Join</td>
+  <td style="text-align:right;padding:4px 6px;">${numFmt(hashIO)}</td>
+  <td style="text-align:right;padding:4px 6px;">${memFmt(hashMem)}</td>
+  <td style="text-align:right;padding:4px 6px;">${timeFmt(hashTime)}</td>
+</tr>
+<tr style="${winner==='merge'?' color:var(--accent-orange);font-weight:700;':''}">
+  <td style="padding:4px 6px;">Sort Merge</td>
+  <td style="text-align:right;padding:4px 6px;">${numFmt(mergeIO)}</td>
+  <td style="text-align:right;padding:4px 6px;">${memFmt(mergeMem)}</td>
+  <td style="text-align:right;padding:4px 6px;">${timeFmt(mergeTime)}</td>
+</tr></table>`;
+
+    adviceEl.innerHTML = advice;
+  }
+
+  // Event listener
+  document.getElementById("btn-join-lab-simulate").addEventListener("click", simulate);
 }
 
