@@ -43,6 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initAdvPlanDiag();
   initJoinLab();
   initPlanQuizPanel();
+  initJoinSyntaxLab();
 
   // Choose a random tip to start
   rotateDbaTip();
@@ -83,6 +84,8 @@ function initRouter() {
         initQuizPanel();
       } else if (targetPanel === "panel-plan-quiz") {
         initPlanQuizPanel();
+      } else if (targetPanel === "panel-join-syntax-lab") {
+        initJoinSyntaxLab();
       }
     });
   });
@@ -2938,5 +2941,217 @@ PGA 메모리 = Small Rows × (RowSize + 16B) = ${numFmt(smallerRows)} × ${AVG_
 
   // Event listener
   document.getElementById("btn-join-lab-simulate").addEventListener("click", simulate);
+}
+
+/* -------------------------------------------------------------
+ * 10b. Join Syntax Lab Controller (조인 문법 실습실)
+ * ------------------------------------------------------------- */
+function initJoinSyntaxLab() {
+  let activeJoinType = 'inner';
+  let activeSyntax = 'ansi';
+
+  const empData = [
+    { emp_id: 101, name: '김민수', dept_id: 10 },
+    { emp_id: 102, name: '이영희', dept_id: 20 },
+    { emp_id: 103, name: '박철수', dept_id: 30 },
+    { emp_id: 104, name: '최지우', dept_id: null }
+  ];
+
+  const deptData = [
+    { dept_id: 10, dept_name: '인사팀' },
+    { dept_id: 20, dept_name: '개발팀' },
+    { dept_id: 40, dept_name: '마케팅팀' }
+  ];
+
+  const sqlTemplates = {
+    ansi: {
+      inner: `SELECT e.emp_id, e.name, d.dept_id, d.dept_name\nFROM emp e\nINNER JOIN dept d ON e.dept_id = d.dept_id;`,
+      left: `SELECT e.emp_id, e.name, d.dept_id, d.dept_name\nFROM emp e\nLEFT OUTER JOIN dept d ON e.dept_id = d.dept_id;`,
+      right: `SELECT e.emp_id, e.name, d.dept_id, d.dept_name\nFROM emp e\nRIGHT OUTER JOIN dept d ON e.dept_id = d.dept_id;`,
+      full: `SELECT e.emp_id, e.name, d.dept_id, d.dept_name\nFROM emp e\nFULL OUTER JOIN dept d ON e.dept_id = d.dept_id;`
+    },
+    oracle: {
+      inner: `SELECT e.emp_id, e.name, d.dept_id, d.dept_name\nFROM emp e, dept d\nWHERE e.dept_id = d.dept_id;`,
+      left: `SELECT e.emp_id, e.name, d.dept_id, d.dept_name\nFROM emp e, dept d\nWHERE e.dept_id = d.dept_id(+);`,
+      right: `SELECT e.emp_id, e.name, d.dept_id, d.dept_name\nFROM emp e, dept d\nWHERE e.dept_id(+) = d.dept_id;`,
+      full: `-- 오라클 전통 (+) 구문으로는 FULL OUTER JOIN을 직접 표현할 수 없습니다.\n-- 아래와 같이 LEFT JOIN과 RIGHT JOIN을 UNION하여 구현해야 합니다.\n\nSELECT e.emp_id, e.name, d.dept_id, d.dept_name\nFROM emp e, dept d\nWHERE e.dept_id = d.dept_id(+)\nUNION\nSELECT e.emp_id, e.name, d.dept_id, d.dept_name\nFROM emp e, dept d\nWHERE e.dept_id(+) = d.dept_id;`
+    }
+  };
+
+  const adviceNotes = {
+    inner: {
+      title: "INNER JOIN (내부 조인) 특징 및 가이드",
+      content: `• 양쪽 테이블(EMP, DEPT)에서 조인 조건(dept_id)이 서로 일치하는 행들만 결과 집합에 포함시킵니다.
+• 부서가 없는 '최지우(emp_id: 104)' 사원과 사원이 없는 '마케팅팀(dept_id: 40)' 부서는 매칭되지 않으므로 결과에서 제외됩니다.
+• **문법 비교**: ANSI-92는 명시적인 \`INNER JOIN\` 키워드와 \`ON\` 절을 사용하는 반면, 오라클 전통 방식은 \`FROM\` 절에 테이블을 콤마(,)로 나열하고 \`WHERE\` 절에 조인 조건을 지정합니다.`
+    },
+    left: {
+      title: "LEFT OUTER JOIN (왼쪽 외부 조인) 특징 및 가이드",
+      content: `• 왼쪽 테이블(EMP)의 모든 행을 보존하며, 오른쪽 테이블(DEPT)에서 조인되는 행을 매칭합니다.
+• 매칭되는 부서가 없는 '박철수(emp_id: 103)' 사원과 부서 번호가 없는 '최지우(emp_id: 104)' 사원도 결과에 나오지만, 부서명(dept_name)은 \`NULL\`로 채워집니다.
+• **오라클 (+) 문법 특징**: 데이터가 부족한(NULL로 채워져야 하는) 오른쪽 테이블의 컬럼 뒤에 \`(+)\` 기호를 추가합니다. \`e.dept_id = d.dept_id(+)\` 형태로 지정하면 d 쪽이 부족하다는 의미가 되어 LEFT 조인으로 작동합니다.`
+    },
+    right: {
+      title: "RIGHT OUTER JOIN (오른쪽 외부 조인) 특징 및 가이드",
+      content: `• 오른쪽 테이블(DEPT)의 모든 행을 보존하며, 왼쪽 테이블(EMP)에서 조인되는 행을 매칭합니다.
+• 소속 사원이 없는 '마케팅팀(dept_id: 40)' 부서도 결과에 포함되지만, 사원 ID와 이름은 \`NULL\`로 채워집니다.
+• **오라클 (+) 문법 특징**: 데이터가 부족한(NULL로 채워져야 하는) 왼쪽 테이블의 컬럼 뒤에 \`(+)\` 기호를 붙입니다. 즉, \`e.dept_id(+) = d.dept_id\` 형태로 지정하면 e 쪽이 부족하다는 의미가 되어 RIGHT 조인으로 작동합니다.`
+    },
+    full: {
+      title: "FULL OUTER JOIN (전체 외부 조인) 특징 및 가이드",
+      content: `• 양쪽 테이블(EMP, DEPT)의 모든 행을 결과 집합에 포함시킵니다. 매칭 정보가 없더라도 한쪽 데이터만 있으면 보존하며 상대편 컬럼은 \`NULL\`이 됩니다.
+• '박철수', '최지우' 사원 정보(DEPT는 NULL)와 '마케팅팀' 부서 정보(EMP는 NULL)가 모두 함께 출력됩니다.
+• **🚨 오라클 전통 (+) 구문의 치명적 한계**: 오라클 전용 구문인 \`(+)\`은 조인 조건 양쪽에 동시에 지정할 수 없습니다. (\`e.dept_id(+) = d.dept_id(+)\` 사용 시 ORA-01468 오류 발생)
+• 따라서 Oracle 전통 방식으로 FULL OUTER JOIN을 구현하기 위해서는 LEFT OUTER JOIN 결과와 RIGHT OUTER JOIN 결과를 \`UNION\` 연산자로 결합해야만 합니다. 이는 쿼리가 길어지고 비효율적이므로 현대 SQL에서는 반드시 ANSI 표준인 \`FULL OUTER JOIN\` 구문 작성이 강력히 권장됩니다.`
+    }
+  };
+
+  function getJoinResults(type) {
+    let results = [];
+    if (type === 'inner') {
+      empData.forEach(e => {
+        const d = deptData.find(dept => dept.dept_id === e.dept_id);
+        if (d) {
+          results.push({ emp_id: e.emp_id, name: e.name, dept_id: d.dept_id, dept_name: d.dept_name });
+        }
+      });
+    } else if (type === 'left') {
+      empData.forEach(e => {
+        const d = deptData.find(dept => dept.dept_id === e.dept_id);
+        results.push({
+          emp_id: e.emp_id,
+          name: e.name,
+          dept_id: d ? d.dept_id : null,
+          dept_name: d ? d.dept_name : null
+        });
+      });
+    } else if (type === 'right') {
+      deptData.forEach(d => {
+        const emps = empData.filter(e => e.dept_id === d.dept_id);
+        if (emps.length > 0) {
+          emps.forEach(e => {
+            results.push({ emp_id: e.emp_id, name: e.name, dept_id: d.dept_id, dept_name: d.dept_name });
+          });
+        } else {
+          results.push({ emp_id: null, name: null, dept_id: d.dept_id, dept_name: d.dept_name });
+        }
+      });
+    } else if (type === 'full') {
+      let matchedDeptIds = new Set();
+
+      empData.forEach(e => {
+        const d = deptData.find(dept => dept.dept_id === e.dept_id);
+        if (d) {
+          results.push({ emp_id: e.emp_id, name: e.name, dept_id: d.dept_id, dept_name: d.dept_name });
+          matchedDeptIds.add(d.dept_id);
+        } else {
+          results.push({ emp_id: e.emp_id, name: e.name, dept_id: null, dept_name: null });
+        }
+      });
+
+      deptData.forEach(d => {
+        if (!matchedDeptIds.has(d.dept_id)) {
+          results.push({ emp_id: null, name: null, dept_id: d.dept_id, dept_name: d.dept_name });
+        }
+      });
+    }
+    return results;
+  }
+
+  function updateView() {
+    // 1. Update SQL Text
+    const sqlText = sqlTemplates[activeSyntax][activeJoinType];
+    document.getElementById("join-syntax-sql").textContent = sqlText;
+
+    // 2. Update Venn Diagram Classes
+    const vennDiagram = document.getElementById("join-venn-diagram");
+    vennDiagram.className.baseVal = "venn-svg"; // reset
+    
+    let labelText = "";
+    if (activeJoinType === 'inner') {
+      vennDiagram.classList.add("inner");
+      labelText = "INNER JOIN MATCH";
+    } else if (activeJoinType === 'left') {
+      vennDiagram.classList.add("left-join");
+      labelText = "LEFT OUTER JOIN";
+    } else if (activeJoinType === 'right') {
+      vennDiagram.classList.add("right-join");
+      labelText = "RIGHT OUTER JOIN";
+    } else if (activeJoinType === 'full') {
+      vennDiagram.classList.add("full-join");
+      labelText = "FULL OUTER JOIN";
+    }
+    document.getElementById("venn-join-label").textContent = labelText;
+
+    // 3. Update Result Table
+    const tbody = document.getElementById("join-results-tbody");
+    tbody.innerHTML = "";
+    const results = getJoinResults(activeJoinType);
+    
+    results.forEach(row => {
+      const tr = document.createElement("tr");
+      tr.style.borderBottom = "1px solid rgba(255,255,255,0.05)";
+      
+      const empIdVal = row.emp_id !== null ? row.emp_id : `<span style="color:#ef4444; font-style:italic;">NULL</span>`;
+      const nameVal = row.name !== null ? row.name : `<span style="color:#ef4444; font-style:italic;">NULL</span>`;
+      const deptIdVal = row.dept_id !== null ? row.dept_id : `<span style="color:#ef4444; font-style:italic;">NULL</span>`;
+      const deptNameVal = row.dept_name !== null ? row.dept_name : `<span style="color:#ef4444; font-style:italic;">NULL</span>`;
+
+      tr.innerHTML = `
+        <td style="padding: 8px; font-family: var(--font-mono);">${empIdVal}</td>
+        <td style="padding: 8px;">${nameVal}</td>
+        <td style="padding: 8px; font-family: var(--font-mono);">${deptIdVal}</td>
+        <td style="padding: 8px;">${deptNameVal}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // 4. Update Developer Note
+    const note = adviceNotes[activeJoinType];
+    document.getElementById("join-syntax-note-title").textContent = note.title;
+    document.getElementById("join-syntax-note-content").innerHTML = note.content;
+  }
+
+  // Bind type selector buttons
+  const typeBtns = document.querySelectorAll(".btn-join-type");
+  typeBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+      typeBtns.forEach(b => {
+        b.classList.remove("active");
+        b.style.background = "transparent";
+        b.style.borderColor = "var(--border-light)";
+        b.style.color = "var(--color-text-muted)";
+      });
+      btn.classList.add("active");
+      btn.style.background = "rgba(6,182,212,0.15)";
+      btn.style.borderColor = "var(--accent-cyan)";
+      btn.style.color = "var(--accent-cyan)";
+      
+      activeJoinType = btn.getAttribute("data-type");
+      updateView();
+    });
+  });
+
+  // Bind syntax selector buttons
+  const syntaxBtns = document.querySelectorAll(".btn-join-syntax");
+  syntaxBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+      syntaxBtns.forEach(b => {
+        b.classList.remove("active");
+        b.style.background = "transparent";
+        b.style.borderColor = "var(--border-light)";
+        b.style.color = "var(--color-text-muted)";
+      });
+      btn.classList.add("active");
+      btn.style.background = "rgba(6,182,212,0.15)";
+      btn.style.borderColor = "var(--accent-cyan)";
+      btn.style.color = "var(--accent-cyan)";
+
+      activeSyntax = btn.getAttribute("data-syntax");
+      updateView();
+    });
+  });
+
+  updateView();
 }
 

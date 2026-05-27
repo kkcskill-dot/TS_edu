@@ -2744,3 +2744,118 @@ body.light-theme .editor-header {
 body.light-theme #challenge-asis-sql {
   color: var(--ij-text) !important;
 }
+
+/* --- SVG Venn Diagram Styles --- */
+.venn-svg {
+  width: 280px;
+  height: 160px;
+}
+.venn-svg .circle-bg-left {
+  fill: rgba(255, 255, 255, 0.03);
+  stroke: rgba(255, 255, 255, 0.2);
+  stroke-width: 2;
+  transition: all 0.3s ease;
+}
+.venn-svg .circle-bg-right {
+  fill: rgba(255, 255, 255, 0.03);
+  stroke: rgba(255, 255, 255, 0.2);
+  stroke-width: 2;
+  transition: all 0.3s ease;
+}
+.venn-svg .intersection-path {
+  fill: transparent;
+  stroke: transparent;
+  stroke-width: 2;
+  transition: all 0.3s ease;
+}
+.venn-svg text {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 700;
+  fill: var(--color-text-muted);
+  transition: all 0.3s ease;
+}
+
+/* INNER JOIN HIGHLIGHTS */
+.venn-svg.inner .intersection-path {
+  fill: rgba(16, 185, 129, 0.35);
+  stroke: var(--accent-emerald);
+}
+.venn-svg.inner .circle-bg-left, .venn-svg.inner .circle-bg-right {
+  stroke: var(--accent-emerald);
+}
+.venn-svg.inner .text-left, .venn-svg.inner .text-right {
+  fill: var(--color-text-main);
+}
+
+/* LEFT JOIN HIGHLIGHTS */
+.venn-svg.left-join .circle-bg-left {
+  fill: rgba(6, 182, 212, 0.3);
+  stroke: var(--accent-cyan);
+}
+.venn-svg.left-join .intersection-path {
+  fill: rgba(6, 182, 212, 0.45);
+  stroke: var(--accent-cyan);
+}
+.venn-svg.left-join .text-left {
+  fill: var(--accent-cyan);
+}
+
+/* RIGHT JOIN HIGHLIGHTS */
+.venn-svg.right-join .circle-bg-right {
+  fill: rgba(244, 63, 94, 0.3);
+  stroke: #f43f5e;
+}
+.venn-svg.right-join .intersection-path {
+  fill: rgba(244, 63, 94, 0.45);
+  stroke: #f43f5e;
+}
+.venn-svg.right-join .text-right {
+  fill: #f43f5e;
+}
+
+/* FULL JOIN HIGHLIGHTS */
+.venn-svg.full-join .circle-bg-left {
+  fill: rgba(6, 182, 212, 0.2);
+  stroke: var(--accent-cyan);
+}
+.venn-svg.full-join .circle-bg-right {
+  fill: rgba(244, 63, 94, 0.2);
+  stroke: #f43f5e;
+}
+.venn-svg.full-join .intersection-path {
+  fill: rgba(167, 139, 250, 0.35);
+  stroke: var(--ij-func);
+}
+.venn-svg.full-join .text-left {
+  fill: var(--accent-cyan);
+}
+.venn-svg.full-join .text-right {
+  fill: #f43f5e;
+}
+
+/* Light theme overrides for Venn SVG */
+body.light-theme .venn-svg .circle-bg-left,
+body.light-theme .venn-svg .circle-bg-right {
+  fill: rgba(0, 0, 0, 0.02);
+  stroke: rgba(0, 0, 0, 0.15);
+}
+body.light-theme .venn-svg text {
+  fill: #475569;
+}
+body.light-theme .venn-svg.inner .text-left,
+body.light-theme .venn-svg.inner .text-right {
+  fill: #0f172a;
+}
+body.light-theme .venn-svg.left-join .text-left {
+  fill: #0891b2;
+}
+body.light-theme .venn-svg.right-join .text-right {
+  fill: #e11d48;
+}
+body.light-theme .venn-svg.full-join .text-left {
+  fill: #0891b2;
+}
+body.light-theme .venn-svg.full-join .text-right {
+  fill: #e11d48;
+}

@@ -237,7 +237,7 @@
     rel="stylesheet">
 
   <!-- App Styles -->
-  <link rel="stylesheet" href="style.css?v=2.1">
+  <link rel="stylesheet" href="style.css?v=2.2">
 </head>
 
 <body class="light-theme">
@@ -328,6 +328,14 @@
             <circle cx="16" cy="12" r="5"></circle>
           </svg>
           조인 비교 실험실
+        </button>
+        <button id="nav-btn-join-syntax-lab" class="menu-item" data-target="panel-join-syntax-lab">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"
+            stroke-linecap="round" stroke-linejoin="round" class="menu-icon">
+            <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path>
+            <path d="M12 6a6 6 0 1 0 0 12 6 6 0 0 0 0-12z"></path>
+          </svg>
+          조인 문법 실습실
         </button>
         <button id="nav-btn-ash" class="menu-item" data-target="panel-ash">
           <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"
@@ -2041,6 +2049,179 @@ WHERE o.order_date = '2026-05-18';</code></pre>
           </div>
         </section>
 
+        <!-- 4b. JOIN SYNTAX LAB PANEL -->
+        <section id="panel-join-syntax-lab" class="content-panel">
+          <div class="panel-intro">
+            <p>ANSI-92 조인 표준 구문과 전통적인 Oracle 전용 조인 구문(<code>(+)</code> 기호 활용)의 문법적 차이를 비교하고, 각 조인(INNER, LEFT, RIGHT, FULL OUTER)의 논리적 매칭 결과를 확인해 보는 대화형 실습실입니다.</p>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px;">
+            <!-- Left Side: Source Tables & Controls & SQL -->
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+              
+              <!-- Source Tables Container -->
+              <div class="bg-glass" style="padding: 16px; border-radius: 8px; border: 1px solid var(--border-light);">
+                <div class="panel-section-title">원본 소스 테이블 (Source Tables)</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 10px;">
+                  <!-- EMP Table -->
+                  <div>
+                    <div style="font-size: 0.76rem; font-weight: 700; color: var(--accent-cyan); margin-bottom: 6px; font-family: var(--font-mono);">EMP (사원)</div>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.72rem; text-align: left; background: rgba(0,0,0,0.15); border: 1px solid var(--border-light); border-radius: 4px; overflow: hidden;">
+                      <thead>
+                        <tr style="background: rgba(255,255,255,0.05); border-bottom: 1px solid var(--border-light); color: var(--color-text-main);">
+                          <th style="padding: 6px 8px;">EMP_ID</th>
+                          <th style="padding: 6px 8px;">NAME</th>
+                          <th style="padding: 6px 8px;">DEPT_ID</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                          <td style="padding: 6px 8px; font-family: var(--font-mono);">101</td>
+                          <td style="padding: 6px 8px;">김민수</td>
+                          <td style="padding: 6px 8px; font-family: var(--font-mono); color: var(--accent-emerald);">10</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                          <td style="padding: 6px 8px; font-family: var(--font-mono);">102</td>
+                          <td style="padding: 6px 8px;">이영희</td>
+                          <td style="padding: 6px 8px; font-family: var(--font-mono); color: var(--accent-emerald);">20</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                          <td style="padding: 6px 8px; font-family: var(--font-mono);">103</td>
+                          <td style="padding: 6px 8px;">박철수</td>
+                          <td style="padding: 6px 8px; font-family: var(--font-mono); color: var(--accent-emerald);">30</td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 6px 8px; font-family: var(--font-mono);">104</td>
+                          <td style="padding: 6px 8px;">최지우</td>
+                          <td style="padding: 6px 8px; font-family: var(--font-mono); color: #ef4444; font-style: italic;">NULL</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <!-- DEPT Table -->
+                  <div>
+                    <div style="font-size: 0.76rem; font-weight: 700; color: #f43f5e; margin-bottom: 6px; font-family: var(--font-mono);">DEPT (부서)</div>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.72rem; text-align: left; background: rgba(0,0,0,0.15); border: 1px solid var(--border-light); border-radius: 4px; overflow: hidden;">
+                      <thead>
+                        <tr style="background: rgba(255,255,255,0.05); border-bottom: 1px solid var(--border-light); color: var(--color-text-main);">
+                          <th style="padding: 6px 8px;">DEPT_ID</th>
+                          <th style="padding: 6px 8px;">DEPT_NAME</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                          <td style="padding: 6px 8px; font-family: var(--font-mono); color: var(--accent-emerald);">10</td>
+                          <td style="padding: 6px 8px;">인사팀</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                          <td style="padding: 6px 8px; font-family: var(--font-mono); color: var(--accent-emerald);">20</td>
+                          <td style="padding: 6px 8px;">개발팀</td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 6px 8px; font-family: var(--font-mono); color: var(--accent-emerald);">40</td>
+                          <td style="padding: 6px 8px;">마케팅팀</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Join Controls -->
+              <div class="bg-glass" style="padding: 16px; border-radius: 8px; border: 1px solid var(--border-light); display: flex; flex-direction: column; gap: 12px;">
+                <div class="panel-section-title">조인 조건 설정 (Join Configuration)</div>
+                
+                <!-- Join Type Select Buttons -->
+                <div>
+                  <div style="font-size: 0.72rem; color: var(--color-text-muted); margin-bottom: 6px;">조인 연산 종류</div>
+                  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="btn-join-type active" data-type="inner" style="padding: 8px 12px; border: 1px solid var(--accent-cyan); background: rgba(6,182,212,0.15); color: var(--accent-cyan); border-radius: 6px; font-size: 0.78rem; font-weight: 700; cursor: pointer; transition: all 0.2s;">INNER JOIN</button>
+                    <button class="btn-join-type" data-type="left" style="padding: 8px 12px; border: 1px solid var(--border-light); background: transparent; color: var(--color-text-muted); border-radius: 6px; font-size: 0.78rem; font-weight: 700; cursor: pointer; transition: all 0.2s;">LEFT OUTER JOIN</button>
+                    <button class="btn-join-type" data-type="right" style="padding: 8px 12px; border: 1px solid var(--border-light); background: transparent; color: var(--color-text-muted); border-radius: 6px; font-size: 0.78rem; font-weight: 700; cursor: pointer; transition: all 0.2s;">RIGHT OUTER JOIN</button>
+                    <button class="btn-join-type" data-type="full" style="padding: 8px 12px; border: 1px solid var(--border-light); background: transparent; color: var(--color-text-muted); border-radius: 6px; font-size: 0.78rem; font-weight: 700; cursor: pointer; transition: all 0.2s;">FULL OUTER JOIN</button>
+                  </div>
+                </div>
+
+                <!-- Syntax Style Select Buttons -->
+                <div>
+                  <div style="font-size: 0.72rem; color: var(--color-text-muted); margin-bottom: 6px;">쿼리 문법 방식</div>
+                  <div style="display: flex; gap: 8px;">
+                    <button class="btn-join-syntax active" data-syntax="ansi" style="padding: 8px 14px; border: 1px solid var(--accent-cyan); background: rgba(6,182,212,0.15); color: var(--accent-cyan); border-radius: 6px; font-size: 0.78rem; font-weight: 700; cursor: pointer; transition: all 0.2s;">ANSI-92 표준 구문</button>
+                    <button class="btn-join-syntax" data-syntax="oracle" style="padding: 8px 14px; border: 1px solid var(--border-light); background: transparent; color: var(--color-text-muted); border-radius: 6px; font-size: 0.78rem; font-weight: 700; cursor: pointer; transition: all 0.2s;">Oracle 전통 구문 (+)</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Generated SQL Query -->
+              <div class="ij-code-wrapper">
+                <div class="ij-code-titlebar">
+                  <span class="ij-code-icon">📝</span> Generated Join SQL Query
+                </div>
+                <pre class="ij-code-block"><code id="join-syntax-sql">SELECT e.emp_id, e.name, d.dept_id, d.dept_name
+FROM emp e
+INNER JOIN dept d ON e.dept_id = d.dept_id;</code></pre>
+              </div>
+
+            </div>
+
+            <!-- Right Side: Venn Diagram & Results & Notes -->
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+              
+              <!-- Venn Diagram & Info Box -->
+              <div class="bg-glass" style="padding: 16px; border-radius: 8px; border: 1px solid var(--border-light); display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 200px;">
+                <div style="font-size: 0.8rem; font-weight: 700; color: var(--color-text-main); margin-bottom: 8px; align-self: flex-start;">조인 개념도 (Venn Diagram)</div>
+                
+                <svg class="venn-svg inner" id="join-venn-diagram" viewBox="0 0 280 160">
+                  <!-- Left Circle -->
+                  <circle cx="110" cy="80" r="50" class="circle-bg-left"></circle>
+                  <!-- Right Circle -->
+                  <circle cx="170" cy="80" r="50" class="circle-bg-right"></circle>
+                  <!-- Intersection Leaf -->
+                  <path d="M 140,40 A 50,50 0 0,1 140,120 A 50,50 0 0,1 140,40" class="intersection-path"></path>
+                  
+                  <!-- Labels -->
+                  <text x="80" y="83" text-anchor="middle" class="text-left">EMP (사원)</text>
+                  <text x="200" y="83" text-anchor="middle" class="text-right">DEPT (부서)</text>
+                  <text x="140" y="25" text-anchor="middle" style="font-size: 0.65rem; font-weight: 500;" id="venn-join-label">INNER JOIN MATCH</text>
+                </svg>
+              </div>
+
+              <!-- Results Table -->
+              <div class="bg-glass" style="padding: 16px; border-radius: 8px; border: 1px solid var(--border-light); flex-grow: 1;">
+                <div class="panel-section-title">조인 결과 셋 (Query Result Set)</div>
+                <div style="margin-top: 10px; overflow-x: auto;">
+                  <table style="width: 100%; border-collapse: collapse; font-size: 0.74rem; text-align: left; color: var(--color-text-muted);" id="join-results-table">
+                    <thead>
+                      <tr style="border-bottom: 2px solid var(--border-light); color: var(--color-text-main); font-weight: 700;">
+                        <th style="padding: 8px;">EMP_ID</th>
+                        <th style="padding: 8px;">NAME</th>
+                        <th style="padding: 8px;">DEPT_ID</th>
+                        <th style="padding: 8px;">DEPT_NAME</th>
+                      </tr>
+                    </thead>
+                    <tbody id="join-results-tbody">
+                      <!-- Rendered dynamically by JS -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Gotchas / DBA Advice -->
+              <div class="bg-glass" style="padding: 16px; border-radius: 8px; border-left: 4px solid var(--accent-cyan); display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="font-size: 1.1rem;">💡</span>
+                  <span style="font-size: 0.8rem; font-weight: 700; color: var(--color-text-main);" id="join-syntax-note-title">SQL 조인 가이드</span>
+                </div>
+                <div id="join-syntax-note-content" style="font-size: 0.76rem; color: var(--color-text-muted); line-height: 1.6; white-space: pre-line;">
+                  조인 조건을 설정하여 쿼리 실행 결과를 비교해 보세요.
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
         <!-- 5. CHALLENGE PANEL -->
         <section id="panel-challenge" class="content-panel">
           <div class="panel-intro">
@@ -3388,9 +3569,9 @@ EXEC DBMS_STATS.LOCK_TABLE_STATS('[SCHEMA_NAME]', '[TABLE_NAME]');
   </div>
 
   <!-- Javascript Modules -->
-  <script src="challenges.js?v=2.1"></script>
-  <script src="visualizers.js?v=2.1"></script>
-  <script src="app.js?v=2.1"></script>
+  <script src="challenges.js?v=2.2"></script>
+  <script src="visualizers.js?v=2.2"></script>
+  <script src="app.js?v=2.2"></script>
 
   <!-- External Parsers -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
