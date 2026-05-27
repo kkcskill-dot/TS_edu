@@ -2790,15 +2790,15 @@ body.light-theme #challenge-asis-sql {
 
 /* LEFT JOIN HIGHLIGHTS */
 .venn-svg.left-join .circle-bg-left {
-  fill: rgba(6, 182, 212, 0.3);
+  fill: rgba(6, 182, 212, 0.15);
   stroke: var(--accent-cyan);
 }
 .venn-svg.left-join .circle-bg-right {
   stroke: rgba(255, 255, 255, 0.08);
 }
 .venn-svg.left-join .intersection-path {
-  fill: rgba(6, 182, 212, 0.3);
-  stroke: var(--accent-cyan);
+  fill: rgba(16, 185, 129, 0.5);
+  stroke: var(--accent-emerald);
 }
 .venn-svg.left-join .text-left {
   fill: var(--accent-cyan);
@@ -2809,12 +2809,12 @@ body.light-theme #challenge-asis-sql {
   stroke: rgba(255, 255, 255, 0.08);
 }
 .venn-svg.right-join .circle-bg-right {
-  fill: rgba(244, 63, 94, 0.3);
+  fill: rgba(244, 63, 94, 0.15);
   stroke: #f43f5e;
 }
 .venn-svg.right-join .intersection-path {
-  fill: rgba(244, 63, 94, 0.3);
-  stroke: #f43f5e;
+  fill: rgba(16, 185, 129, 0.5);
+  stroke: var(--accent-emerald);
 }
 .venn-svg.right-join .text-right {
   fill: #f43f5e;
@@ -2822,22 +2822,22 @@ body.light-theme #challenge-asis-sql {
 
 /* FULL JOIN HIGHLIGHTS */
 .venn-svg.full-join .circle-bg-left {
-  fill: rgba(167, 139, 250, 0.25);
-  stroke: var(--ij-func);
+  fill: rgba(6, 182, 212, 0.15);
+  stroke: var(--accent-cyan);
 }
 .venn-svg.full-join .circle-bg-right {
-  fill: rgba(167, 139, 250, 0.25);
-  stroke: var(--ij-func);
+  fill: rgba(244, 63, 94, 0.15);
+  stroke: #f43f5e;
 }
 .venn-svg.full-join .intersection-path {
-  fill: rgba(167, 139, 250, 0.25);
-  stroke: var(--ij-func);
+  fill: rgba(16, 185, 129, 0.5);
+  stroke: var(--accent-emerald);
 }
 .venn-svg.full-join .text-left {
-  fill: var(--ij-func);
+  fill: var(--accent-cyan);
 }
 .venn-svg.full-join .text-right {
-  fill: var(--ij-func);
+  fill: #f43f5e;
 }
 
 /* Light theme overrides for Venn SVG */
@@ -2870,4 +2870,26 @@ body.light-theme .venn-svg.left-join .circle-bg-right {
 }
 body.light-theme .venn-svg.right-join .circle-bg-left {
   stroke: rgba(0, 0, 0, 0.06);
+}
+
+/* Light Theme Active Joins */
+body.light-theme .venn-svg.left-join .circle-bg-left {
+  fill: rgba(8, 145, 178, 0.1);
+  stroke: #0891b2;
+}
+body.light-theme .venn-svg.right-join .circle-bg-right {
+  fill: rgba(225, 29, 72, 0.1);
+  stroke: #e11d48;
+}
+body.light-theme .venn-svg.full-join .circle-bg-left {
+  fill: rgba(8, 145, 178, 0.1);
+  stroke: #0891b2;
+}
+body.light-theme .venn-svg.full-join .circle-bg-right {
+  fill: rgba(225, 29, 72, 0.1);
+  stroke: #e11d48;
+}
+body.light-theme .venn-svg.inner .circle-bg-left,
+body.light-theme .venn-svg.inner .circle-bg-right {
+  stroke: #059669;
 }
