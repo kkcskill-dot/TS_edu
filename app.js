@@ -1559,16 +1559,16 @@ const planQuizQuestions = {
     desc: "특정 쿼리의 DISPLAY_CURSOR 실행 계획 분석 결과, 중첩 루프 조인의 Inner Table 스캔 노드인 Id 5번 단계에서 Starts = 50,000, E-Rows = 1, A-Rows = 2, 누적 Buffers = 150,000 블록이 계측되었습니다. 이 상황에 대한 DBA로서의 정확한 진단과 튜닝 조치는 무엇입니까?",
     scenario: `<strong>[DBMS_XPLAN - Run-time Execution Plan]</strong>
 <pre style="background:rgba(0,0,0,0.15); padding:10px; border-radius:6px; font-family:var(--font-mono); font-size:0.75rem; color:var(--color-text-main); margin-top:8px; border:1px solid var(--border-light); overflow-x:auto;">
-------------------------------------------------------------------------------------------------------
-| Id  | Operation                     | Name          | Starts | E-Rows | A-Rows | Buffers   | Cost  |
-------------------------------------------------------------------------------------------------------
-|   0 | SELECT STATEMENT              |               |      1 |        |      2 |      150K |  8725 |
-|   1 |  NESTED LOOPS                 |               |      1 |      1 |      2 |      150K |  8725 |
-|   2 |   TABLE ACCESS BY INDEX ROWID | TB_USER       |      1 |      1 |     50 |       150 |     3 |
-|*  3 |    INDEX RANGE SCAN           | IX_USER_TYPE  |      1 |      1 |     50 |         4 |     2 |
-|   4 |   TABLE ACCESS BY INDEX ROWID | TB_ORDER      |  50,000 |      1 |      2 |      150K |  8722 |
-|*  5 |    INDEX RANGE SCAN           | IX_ORDER_DATE |  50,000 |      1 |      2 |      150K |     4 |
-------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------
+| Id  | Operation                     | Name          | Starts   | E-Rows | A-Rows | Buffers   | Cost  |
+--------------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT              |               |        1 |        |      2 |      150K |  8725 |
+|   1 |  NESTED LOOPS                 |               |        1 |      1 |      2 |      150K |  8725 |
+|   2 |   TABLE ACCESS BY INDEX ROWID | TB_USER       |        1 |      1 |     50 |       150 |     3 |
+|*  3 |    INDEX RANGE SCAN           | IX_USER_TYPE  |        1 |      1 |     50 |         4 |     2 |
+|   4 |   TABLE ACCESS BY INDEX ROWID | TB_ORDER      |   50,000 |      1 |      2 |      150K |  8722 |
+|*  5 |    INDEX RANGE SCAN           | IX_ORDER_DATE |   50,000 |      1 |      2 |      150K |     4 |
+--------------------------------------------------------------------------------------------------------
 </pre>
 <strong style="margin-top:10px; display:block;">[프로파일링 상세 데이터]</strong>
 <div style="font-size:0.8rem; color:var(--color-text-muted); margin-top:4px; line-height:1.5;">
