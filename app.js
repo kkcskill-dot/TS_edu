@@ -40,6 +40,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initAshAnalyzer();
   initAwrAnalyzer();
   initPlanDiagLab();
+  initAdvPlanDiag();
   initJoinLab();
   initPlanQuizPanel();
 
@@ -2149,6 +2150,597 @@ Starts 값이 비정상적으로 큰 노드를 찾아보세요.<br>
 
   // Initialize first scenario
   renderScenario("stale_stats");
+}
+
+/* -------------------------------------------------------------
+ * 9b. Advanced Plan Diagnosis Lab (플랜 진단 고급)
+ * 3-step: bottleneck → root cause → tuning action
+ * ------------------------------------------------------------- */
+function initAdvPlanDiag() {
+  const scenarios = {
+    partition_miss: {
+      title: "파티션 프루닝 실패",
+      sql: `SELECT /*+ FULL(s) */ o.order_id, s.ship_date, o.total_amt
+FROM orders o
+JOIN shipments s ON o.order_id = s.order_id
+WHERE TO_CHAR(s.ship_date, 'YYYYMM') = '202605'
+  AND o.status = 'COMPLETED';`,
+      meta: [
+        { title: "SHIPMENTS 테이블", items: [
+          "파티션 유형: <strong>RANGE</strong> (ship_date 기준, 월별)",
+          "파티션 수: <strong>120개</strong> (10년치)",
+          "총 행 수: <strong>8,500,000</strong>건",
+          "파티션 키: <code>SHIP_DATE</code> (DATE)",
+          "인덱스: PK_SHIPMENTS (ship_id), IDX_SHIP_ORDER (order_id)"
+        ]},
+        { title: "ORDERS 테이블", items: [
+          "일반 테이블 (비파티션)",
+          "총 행 수: <strong>120,000</strong>건",
+          "컬럼: status VARCHAR2(20) — 'COMPLETED','PENDING','CANCELLED'",
+          "인덱스: PK_ORDERS (order_id), IDX_ORD_STATUS (status)"
+        ]}
+      ],
+      plan: [
+        { id: 0, op: "SELECT STATEMENT",                   eRows: "",        aRows: "",        buffers: "",        starts: 1 },
+        { id: 1, op: "HASH JOIN",                           eRows: "4,200",   aRows: "3,850",   buffers: "245,800", starts: 1 },
+        { id: 2, op: " TABLE ACCESS FULL",                  eRows: "12,000",  aRows: "11,420",  buffers: "8,200",   starts: 1, note: "ORDERS" },
+        { id: 3, op: " PARTITION RANGE ALL",                eRows: "850,000", aRows: "850,000", buffers: "237,600", starts: 1 },
+        { id: 4, op: "  TABLE ACCESS FULL",                 eRows: "850,000", aRows: "850,000", buffers: "237,600", starts: 1, note: "SHIPMENTS" },
+      ],
+      bottleneckId: 3,
+      bottleneckMath: `<strong>병목 분석: PARTITION RANGE ALL (Id=3)</strong><br><br>
+E-Rows = 850,000 / A-Rows = 850,000 → 행 추정은 정확<br>
+그러나 <strong style="color:var(--ij-error);">Pstart=1, Pstop=120 → 전체 120개 파티션 풀 스캔</strong><br>
+Buffers = 237,600 (전체의 96.7%)<br><br>
+<strong>핵심:</strong> WHERE 절에 <code>TO_CHAR(ship_date, 'YYYYMM')</code> 함수를 적용하여<br>
+파티션 키 컬럼이 변환됨 → 옵티마이저가 파티션 프루닝 불가<br>
+→ PARTITION RANGE <strong style="color:var(--ij-error);">ALL</strong> (SINGLE/ITERATOR가 아닌 ALL)`,
+      causes: [
+        { id: "c1", label: "파티션 키 컬럼에 함수 적용으로 프루닝 무력화", correct: true },
+        { id: "c2", label: "SHIPMENTS 테이블 통계 미수집", correct: false },
+        { id: "c3", label: "Hash Join의 Build 테이블 선택 오류", correct: false },
+        { id: "c4", label: "orders.status 컬럼 히스토그램 부재", correct: false }
+      ],
+      causeExplain: {
+        correct: "파티션 키 컬럼(ship_date)에 TO_CHAR 함수를 씌우면 옵티마이저가 파티션 범위를 추론할 수 없어 전체 파티션을 스캔합니다.",
+        wrong: "통계나 히스토그램 문제가 아닙니다. E-Rows와 A-Rows가 일치하므로 통계는 정확합니다. 핵심은 파티션 키 변환입니다."
+      },
+      fixes: [
+        { id: "f1", label: "WHERE ship_date >= DATE'2026-05-01' AND ship_date < DATE'2026-06-01' 범위 조건으로 변환", correct: true },
+        { id: "f2", label: "SHIPMENTS 테이블에 글로벌 인덱스 생성", correct: false },
+        { id: "f3", label: "/*+ USE_NL(s) */ 힌트로 Nested Loop 강제", correct: false },
+        { id: "f4", label: "DBMS_STATS.GATHER_TABLE_STATS 재수집", correct: false }
+      ],
+      fixExplain: {
+        correct: `<strong>조치:</strong> 파티션 키 컬럼을 변환 없이 범위 조건으로 사용하면<br>
+PARTITION RANGE ALL → <strong style="color:var(--ij-success);">PARTITION RANGE SINGLE/ITERATOR</strong>로 변환<br><br>
+<code>WHERE s.ship_date >= DATE'2026-05-01'
+  AND s.ship_date < DATE'2026-06-01'</code><br><br>
+결과: 120개 파티션 → 1개 파티션만 스캔<br>
+예상 Buffers: 237,600 → <strong style="color:var(--ij-success);">~1,980</strong> (99.2% 감소)`,
+        wrong: "이 시나리오의 근본 원인은 파티션 프루닝 실패이므로 인덱스, 힌트, 통계 재수집은 효과가 없습니다."
+      },
+      finalReport: `<strong>종합 진단:</strong> SHIPMENTS 테이블(ship_date 기준 RANGE 파티션)의 WHERE 절에 TO_CHAR 함수가 적용되어 파티션 프루닝이 무력화되었습니다.<br><br>
+<strong>교훈:</strong><br>
+1. 파티션 키 컬럼에 절대로 함수를 적용하지 말 것<br>
+2. EXPLAIN PLAN에서 <code>Pstart</code>/<code>Pstop</code> 값 또는 PARTITION RANGE ALL 발생 여부 반드시 확인<br>
+3. 날짜 범위 검색 시 BETWEEN 또는 >= / < 연산자 사용 권장<br>
+4. <code>V$SQL_PLAN</code>에서 <code>PARTITION_START</code>, <code>PARTITION_STOP</code> 컬럼으로 프루닝 여부 검증 가능`
+    },
+
+    view_merge: {
+      title: "뷰 머지 억제",
+      sql: `SELECT *
+FROM (
+  SELECT e.emp_id, e.name, d.dept_name,
+         RANK() OVER (PARTITION BY d.dept_id ORDER BY e.salary DESC) AS rnk
+  FROM employees e
+  JOIN departments d ON e.dept_id = d.dept_id
+  WHERE d.location = 'SEOUL'
+) v
+WHERE v.rnk <= 3;`,
+      meta: [
+        { title: "EMPLOYEES 테이블", items: [
+          "총 행 수: <strong>100,000</strong>건",
+          "컬럼: emp_id (NUMBER PK), name, dept_id (NUMBER FK), salary (NUMBER)",
+          "인덱스: PK_EMP (emp_id), IDX_EMP_DEPT (dept_id)"
+        ]},
+        { title: "DEPARTMENTS 테이블", items: [
+          "총 행 수: <strong>50</strong>건",
+          "컬럼: dept_id (NUMBER PK), dept_name, location VARCHAR2(30)",
+          "인덱스: PK_DEPT (dept_id), IDX_DEPT_LOC (location)",
+          "서울 소속 부서: <strong>5개</strong>"
+        ]}
+      ],
+      plan: [
+        { id: 0, op: "SELECT STATEMENT",                    eRows: "",        aRows: "",       buffers: "",        starts: 1 },
+        { id: 1, op: "VIEW",                                 eRows: "25,000",  aRows: "25,000", buffers: "142,300", starts: 1, note: "인라인 뷰 미머지" },
+        { id: 2, op: " WINDOW SORT PUSHED RANK",             eRows: "25,000",  aRows: "25,000", buffers: "142,300", starts: 1 },
+        { id: 3, op: "  HASH JOIN",                          eRows: "25,000",  aRows: "25,000", buffers: "142,300", starts: 1 },
+        { id: 4, op: "   TABLE ACCESS BY INDEX ROWID",       eRows: "5",       aRows: "5",      buffers: "12",      starts: 1, note: "DEPARTMENTS" },
+        { id: 5, op: "    INDEX RANGE SCAN",                 eRows: "5",       aRows: "5",      buffers: "2",       starts: 1, note: "IDX_DEPT_LOC" },
+        { id: 6, op: "   TABLE ACCESS FULL",                 eRows: "100,000", aRows: "100,000",buffers: "142,288", starts: 1, note: "EMPLOYEES" },
+      ],
+      bottleneckId: 1,
+      bottleneckMath: `<strong>병목 분석: VIEW (Id=1)</strong><br><br>
+VIEW 노드가 존재 → 인라인 뷰가 머지되지 않고 독립 실행<br>
+→ 25,000행 전체를 Window Sort 후 RANK 필터링<br><br>
+<strong>실제로 필요한 행:</strong> 서울 5개 부서 × 상위 3명 = <strong>최대 15행</strong><br>
+<strong>처리된 행:</strong> 25,000행 (1,667배 과다 처리)<br>
+Buffers = 142,300 (EMPLOYEES 풀 스캔 142,288 블록 집중)<br><br>
+<strong>핵심:</strong> RANK() 분석 함수로 인해 뷰 머지가 자동 억제됨<br>
+→ 서울 부서 소속 전체 직원을 먼저 조인+정렬 후 필터`,
+      causes: [
+        { id: "c1", label: "분석 함수(RANK)로 인한 뷰 머지 자동 억제(NO_MERGE)", correct: true },
+        { id: "c2", label: "EMPLOYEES 테이블 인덱스 부재", correct: false },
+        { id: "c3", label: "DEPARTMENTS 통계 불일치", correct: false },
+        { id: "c4", label: "Hash Join Build 테이블 선택 오류", correct: false }
+      ],
+      causeExplain: {
+        correct: "인라인 뷰 내 분석 함수(RANK/ROW_NUMBER 등)가 있으면 옵티마이저는 뷰 머지를 자동 억제합니다. 뷰가 독립적으로 전체 결과를 생성한 뒤 외부 필터가 적용됩니다.",
+        wrong: "Hash Join과 인덱스는 정상 작동 중입니다. 문제는 뷰가 머지되지 않아 불필요한 대량 데이터를 처리하는 구조에 있습니다."
+      },
+      fixes: [
+        { id: "f1", label: "Lateral 인라인 뷰 + FETCH FIRST 3 ROWS 패턴으로 쿼리 재작성", correct: true },
+        { id: "f2", label: "/*+ MERGE(v) */ 힌트 추가", correct: false },
+        { id: "f3", label: "EMPLOYEES 테이블에 (dept_id, salary DESC) 복합 인덱스 생성", correct: false },
+        { id: "f4", label: "PGA AGGREGATE TARGET 증가로 Sort 메모리 확보", correct: false }
+      ],
+      fixExplain: {
+        correct: `<strong>조치:</strong> 부서별로 Lateral 조인 + FETCH FIRST로 필요한 행만 추출:<br><br>
+<code>SELECT d.dept_name, lat.*
+FROM departments d,
+  LATERAL (
+    SELECT e.emp_id, e.name, e.salary
+    FROM employees e
+    WHERE e.dept_id = d.dept_id
+    ORDER BY e.salary DESC
+    FETCH FIRST 3 ROWS ONLY
+  ) lat
+WHERE d.location = 'SEOUL';</code><br><br>
+결과: 5개 부서 × NL → 인덱스 스캔으로 15행만 처리<br>
+예상 Buffers: 142,300 → <strong style="color:var(--ij-success);">~80</strong>`,
+        wrong: "MERGE 힌트는 분석 함수 존재 시 무시됩니다. 인덱스/메모리 증가는 근본적 해결이 아닙니다."
+      },
+      finalReport: `<strong>종합 진단:</strong> RANK() 분석 함수가 포함된 인라인 뷰는 뷰 머지가 자동 억제되어, 필요한 15행 대신 25,000행을 처리했습니다.<br><br>
+<strong>교훈:</strong><br>
+1. 실행 계획에 <code>VIEW</code> 노드가 보이면 뷰 머지 억제 여부를 확인할 것<br>
+2. 분석 함수 + TOP-N 패턴에서는 Lateral 조인 또는 CROSS APPLY 활용<br>
+3. 12c 이상에서는 <code>FETCH FIRST N ROWS ONLY</code>가 NL + Index 스캔으로 최적화됨<br>
+4. <code>WINDOW SORT PUSHED RANK</code>는 정렬 후 랭킹이므로 전체 행 처리가 불가피`
+    },
+
+    implicit_conv: {
+      title: "묵시적 형변환",
+      sql: `SELECT c.cust_name, o.order_date, o.total_amt
+FROM customers c
+JOIN orders o ON c.cust_id = o.cust_id
+WHERE o.cust_id = '10042'
+  AND o.order_date >= SYSDATE - 90;`,
+      meta: [
+        { title: "ORDERS 테이블", items: [
+          "총 행 수: <strong>2,400,000</strong>건",
+          "cust_id 컬럼 타입: <strong>NUMBER(10)</strong>",
+          "order_date 컬럼 타입: DATE",
+          "인덱스: PK_ORDERS (order_id), <strong>IDX_ORDERS_CUST (cust_id)</strong>, IDX_ORDERS_DATE (order_date)"
+        ]},
+        { title: "CUSTOMERS 테이블", items: [
+          "총 행 수: <strong>85,000</strong>건",
+          "cust_id 컬럼 타입: <strong>NUMBER(10)</strong> — PK",
+          "인덱스: PK_CUSTOMERS (cust_id)"
+        ]}
+      ],
+      plan: [
+        { id: 0, op: "SELECT STATEMENT",                   eRows: "",        aRows: "",      buffers: "",        starts: 1 },
+        { id: 1, op: "NESTED LOOPS",                        eRows: "45",      aRows: "38",    buffers: "198,400", starts: 1 },
+        { id: 2, op: " TABLE ACCESS FULL",                  eRows: "45",      aRows: "38",    buffers: "198,380", starts: 1, note: "ORDERS" },
+        { id: 3, op: " TABLE ACCESS BY INDEX ROWID",        eRows: "1",       aRows: "1",     buffers: "20",      starts: 38, note: "CUSTOMERS" },
+        { id: 4, op: "  INDEX UNIQUE SCAN",                 eRows: "1",       aRows: "1",     buffers: "18",      starts: 38, note: "PK_CUSTOMERS" },
+      ],
+      bottleneckId: 2,
+      bottleneckMath: `<strong>병목 분석: TABLE ACCESS FULL - ORDERS (Id=2)</strong><br><br>
+E-Rows = 45 / A-Rows = 38 → 행 추정 정확<br>
+그러나 <strong style="color:var(--ij-error);">Buffers = 198,380</strong> (전체의 99.99%)<br><br>
+cust_id 컬럼: <strong>NUMBER</strong> 타입<br>
+WHERE 조건: <code>o.cust_id = '10042'</code> (문자열 리터럴)<br><br>
+→ 옵티마이저가 내부적으로 <code>TO_NUMBER(o.cust_id)</code>가 아닌<br>
+&nbsp;&nbsp;<strong style="color:var(--ij-error);">TO_NUMBER('10042')</strong> 변환 시도<br>
+→ 하지만 Predicate에 <code>INTERNAL_FUNCTION(cust_id)</code> 발생 시<br>
+&nbsp;&nbsp;인덱스 사용 불가 → Full Table Scan 유발<br><br>
+<strong>참고:</strong> cust_id에 IDX_ORDERS_CUST 인덱스가 존재하나 활용 불가`,
+      causes: [
+        { id: "c1", label: "NUMBER 컬럼에 문자열 리터럴 비교 → 묵시적 형변환으로 인덱스 무력화", correct: true },
+        { id: "c2", label: "ORDERS 테이블 통계 노후화", correct: false },
+        { id: "c3", label: "order_date 범위 조건이 너무 넓음(90일)", correct: false },
+        { id: "c4", label: "NL Join 대신 Hash Join을 선택해야 함", correct: false }
+      ],
+      causeExplain: {
+        correct: "NUMBER 타입 컬럼에 문자열 '10042'를 비교하면 옵티마이저가 내부적으로 형변환을 수행합니다. 이 과정에서 컬럼에 함수가 적용되는 효과가 발생하여 인덱스를 사용할 수 없게 됩니다.",
+        wrong: "E-Rows와 A-Rows가 거의 일치하므로 통계는 정상이며, 38건이라면 NL Join이 적절합니다. 문제는 데이터 타입 불일치입니다."
+      },
+      fixes: [
+        { id: "f1", label: "WHERE o.cust_id = 10042 (숫자 리터럴)로 수정", correct: true },
+        { id: "f2", label: "cust_id 컬럼을 VARCHAR2로 ALTER", correct: false },
+        { id: "f3", label: "FBI(Function-Based Index): CREATE INDEX ON orders(TO_CHAR(cust_id))", correct: false },
+        { id: "f4", label: "/*+ INDEX(o IDX_ORDERS_CUST) */ 힌트 강제", correct: false }
+      ],
+      fixExplain: {
+        correct: `<strong>조치:</strong> 바인드 변수 또는 리터럴의 데이터 타입을 컬럼과 일치시킵니다:<br><br>
+<code>WHERE o.cust_id = 10042  -- NUMBER 리터럴</code><br><br>
+또는 애플리케이션에서:<br>
+<code>PreparedStatement.setInt(1, 10042)  -- JDBC 타입 매칭</code><br><br>
+결과: TABLE ACCESS FULL → <strong style="color:var(--ij-success);">INDEX RANGE SCAN</strong><br>
+예상 Buffers: 198,380 → <strong style="color:var(--ij-success);">~6</strong> (인덱스 2 + 테이블 4)`,
+        wrong: "컬럼 타입 변경은 전체 시스템에 영향을 미치고, FBI는 불필요한 우회책이며, 힌트는 형변환 문제를 해결하지 못합니다."
+      },
+      finalReport: `<strong>종합 진단:</strong> WHERE 절에서 NUMBER 컬럼(cust_id)에 문자열 리터럴 '10042'을 사용하여 묵시적 형변환이 발생, 인덱스가 무력화되었습니다.<br><br>
+<strong>교훈:</strong><br>
+1. SQL 작성 시 바인드 변수/리터럴의 데이터 타입을 컬럼 타입과 반드시 일치시킬 것<br>
+2. 실행 계획의 Predicate에 <code>INTERNAL_FUNCTION</code> 또는 <code>TO_NUMBER</code> 존재 여부 확인<br>
+3. JDBC/OCI 바인딩 시 <code>setInt</code>/<code>setString</code> 매칭 점검<br>
+4. <code>V$SQL_PLAN</code>의 <code>FILTER_PREDICATES</code>에서 형변환 함수 발생 여부 모니터링`
+    },
+
+    card_feedback: {
+      title: "Cardinality Feedback",
+      sql: `SELECT p.product_name, SUM(oi.qty * oi.unit_price) AS revenue
+FROM order_items oi
+JOIN products p ON oi.product_id = p.product_id
+WHERE oi.category_cd = 'ELEC'
+  AND oi.warehouse_id = 7
+GROUP BY p.product_name
+ORDER BY revenue DESC;`,
+      meta: [
+        { title: "ORDER_ITEMS 테이블", items: [
+          "총 행 수: <strong>1,500,000</strong>건",
+          "category_cd VARCHAR2(10) — 분포: ELEC 8%, FOOD 35%, CLOTH 22%, 기타 35%",
+          "warehouse_id NUMBER — 분포: 1~12번 창고, 7번 창고 <strong>32%</strong> 집중",
+          "인덱스: PK_OI (item_id), <strong>IDX_OI_CAT (category_cd)</strong>, IDX_OI_WH (warehouse_id)",
+          "확장 통계: <strong style='color:var(--ij-error);'>미생성</strong> (컬럼 그룹 없음)"
+        ]},
+        { title: "PRODUCTS 테이블", items: [
+          "총 행 수: <strong>500</strong>건",
+          "컬럼: product_id (NUMBER PK), product_name VARCHAR2(100)",
+          "인덱스: PK_PRODUCTS (product_id)"
+        ]}
+      ],
+      plan: [
+        { id: 0, op: "SELECT STATEMENT",                   eRows: "",        aRows: "",       buffers: "",        starts: 1 },
+        { id: 1, op: "SORT ORDER BY",                       eRows: "120",     aRows: "85",     buffers: "312,400", starts: 1 },
+        { id: 2, op: " HASH GROUP BY",                      eRows: "120",     aRows: "85",     buffers: "312,400", starts: 1 },
+        { id: 3, op: "  HASH JOIN",                         eRows: "120",     aRows: "48,200", buffers: "312,400", starts: 1 },
+        { id: 4, op: "   TABLE ACCESS FULL",                eRows: "500",     aRows: "500",    buffers: "45",      starts: 1, note: "PRODUCTS" },
+        { id: 5, op: "   TABLE ACCESS BY INDEX ROWID BATCH",eRows: "120",     aRows: "48,200", buffers: "312,355", starts: 1, note: "ORDER_ITEMS" },
+        { id: 6, op: "    INDEX RANGE SCAN",                eRows: "120",     aRows: "48,200", buffers: "9,800",   starts: 1, note: "IDX_OI_CAT" },
+      ],
+      bottleneckId: 5,
+      bottleneckMath: `<strong>병목 분석: TABLE ACCESS BY INDEX ROWID BATCH (Id=5)</strong><br><br>
+E-Rows = 120 / A-Rows = 48,200<br>
+<strong style="color:var(--ij-error);">오차율 = |48,200 - 120| / 120 × 100 = 40,067%</strong><br><br>
+인덱스 IDX_OI_CAT(category_cd)에서 120건 예상 → 48,200건 실반환<br>
+Buffers = 312,355 (Random I/O 대량 발생)<br><br>
+<strong>원인 추론:</strong><br>
+• category_cd = 'ELEC' 단독 선택도: 적정<br>
+• warehouse_id = 7 단독 선택도: 적정<br>
+• <strong style="color:var(--ij-error);">두 컬럼 결합 선택도:</strong> 옵티마이저가 독립 가정으로<br>
+&nbsp;&nbsp;0.01 × 0.08 = 0.0008 추정 → 실제 0.032 (40배 차이)<br>
+→ 컬럼 간 상관관계(Correlation)를 반영하지 못함`,
+      causes: [
+        { id: "c1", label: "다중 컬럼 결합 Cardinality 과소추정 (컬럼 간 상관관계 미반영)", correct: true },
+        { id: "c2", label: "IDX_OI_CAT 인덱스의 클러스터링 팩터 불량", correct: false },
+        { id: "c3", label: "ORDER_ITEMS 테이블 통계 미수집", correct: false },
+        { id: "c4", label: "Hash Join Build 메모리 부족 (One-Pass)", correct: false }
+      ],
+      causeExplain: {
+        correct: "옵티마이저는 기본적으로 WHERE 조건의 각 술어를 독립적으로 가정하여 선택도를 곱합니다. 하지만 category_cd='ELEC'이면 warehouse_id=7일 확률이 높은 상관관계가 존재하면 실제 행 수가 추정치를 크게 초과합니다.",
+        wrong: "E-Rows=120 vs A-Rows=48,200의 40,000% 오차가 핵심입니다. 인덱스 구조나 메모리 문제가 아닌, Cardinality 추정 자체의 오류입니다."
+      },
+      fixes: [
+        { id: "f1", label: "확장 통계(Extended Statistics) 생성: DBMS_STATS.CREATE_EXTENDED_STATS(컬럼 그룹)", correct: true },
+        { id: "f2", label: "(category_cd, warehouse_id) 복합 인덱스 생성", correct: false },
+        { id: "f3", label: "/*+ OPT_ESTIMATE(TABLE oi ROWS=48000) */ 힌트 사용", correct: false },
+        { id: "f4", label: "SQL Plan Baseline 고정으로 플랜 변경 방지", correct: false }
+      ],
+      fixExplain: {
+        correct: `<strong>조치:</strong> 컬럼 그룹 확장 통계를 생성하여 결합 선택도를 정확히 추정:<br><br>
+<code>SELECT DBMS_STATS.CREATE_EXTENDED_STATS(
+  'SCHEMA', 'ORDER_ITEMS',
+  '(CATEGORY_CD, WAREHOUSE_ID)'
+) FROM dual;
+
+EXEC DBMS_STATS.GATHER_TABLE_STATS(
+  'SCHEMA', 'ORDER_ITEMS',
+  METHOD_OPT => 'FOR ALL COLUMNS SIZE AUTO'
+);</code><br><br>
+결과: E-Rows 120 → <strong style="color:var(--ij-success);">~48,000</strong> (정확 추정)<br>
+→ 옵티마이저가 INDEX RANGE SCAN 대신 Full Scan + Hash Join 선택<br>
+→ Random I/O 312,355 → Sequential I/O ~25,000 블록으로 전환`,
+        wrong: "복합 인덱스는 I/O 효율만 개선하고 근본 추정 오류를 해결하지 못합니다. 힌트/Baseline은 유지보수 비용이 높은 우회책입니다."
+      },
+      finalReport: `<strong>종합 진단:</strong> category_cd와 warehouse_id 두 컬럼 간 데이터 상관관계로 인해 옵티마이저의 독립성 가정이 40,067%의 Cardinality 추정 오차를 발생시켰습니다.<br><br>
+<strong>교훈:</strong><br>
+1. E-Rows vs A-Rows 오차가 10배 이상이면 Cardinality 추정 오류를 의심할 것<br>
+2. 다중 조건의 결합 선택도는 <code>DBMS_STATS.CREATE_EXTENDED_STATS</code>로 보정<br>
+3. 12c 이상에서는 <code>Adaptive Statistics</code>와 <code>SQL Plan Directives</code>가 자동 보정<br>
+4. <code>V$SQL_PLAN</code>에서 <code>CARDINALITY</code> vs <code>OUTPUT_ROWS</code> 비교로 상시 모니터링`
+    }
+  };
+
+  let currentKey = "partition_miss";
+  let currentStep = 0; // 0=not started, 1=bottleneck, 2=cause, 3=fix
+  let score = 0;
+
+  const planContainer = document.getElementById("adv-diag-plan-container");
+  const sqlEl = document.getElementById("adv-diag-sql");
+  const instructionTitle = document.getElementById("adv-instruction-title");
+  const instructionDesc = document.getElementById("adv-instruction-desc");
+  const optionsArea = document.getElementById("adv-options-area");
+  const optionsTitle = document.getElementById("adv-options-title");
+  const optionsList = document.getElementById("adv-options-list");
+  const mathWrapper = document.getElementById("adv-math-wrapper");
+  const mathContent = document.getElementById("adv-math-content");
+  const finalReport = document.getElementById("adv-final-report");
+  const finalScore = document.getElementById("adv-final-score");
+  const finalFeedback = document.getElementById("adv-final-feedback");
+  const stepInstruction = document.getElementById("adv-step-instruction");
+
+  function resetState() {
+    currentStep = 0;
+    score = 0;
+    optionsArea.style.display = "none";
+    mathWrapper.style.display = "none";
+    finalReport.style.display = "none";
+    stepInstruction.style.display = "block";
+    instructionTitle.textContent = "Step 1: 병목 노드를 클릭하세요";
+    instructionDesc.innerHTML = '좌측 실행 계획에서 E-Rows vs A-Rows 오차, Starts 반복 횟수, Buffers 집중도를 종합 분석하여 <strong>가장 심각한 병목 노드</strong>를 클릭하세요.';
+    updateStepChips(1);
+    // remove selection classes from plan rows
+    planContainer.querySelectorAll("tr").forEach(tr => {
+      tr.classList.remove("ij-correct", "ij-wrong", "ij-answer-hint");
+    });
+  }
+
+  function updateStepChips(activeStep) {
+    document.querySelectorAll("#adv-step-progress .adv-step-chip").forEach(chip => {
+      const s = parseInt(chip.dataset.step);
+      if (s < activeStep) {
+        chip.style.border = "1px solid var(--accent-emerald)";
+        chip.style.background = "rgba(16,185,129,0.12)";
+        chip.style.color = "var(--accent-emerald)";
+      } else if (s === activeStep) {
+        chip.style.border = "1px solid var(--accent-cyan)";
+        chip.style.background = "rgba(6,182,212,0.12)";
+        chip.style.color = "var(--accent-cyan)";
+      } else {
+        chip.style.border = "1px solid var(--border-light)";
+        chip.style.background = "transparent";
+        chip.style.color = "var(--color-text-muted)";
+      }
+    });
+  }
+
+  function renderScenario(key) {
+    currentKey = key;
+    resetState();
+    const s = scenarios[key];
+    sqlEl.textContent = s.sql;
+
+    // active button
+    document.querySelectorAll(".btn-adv-scenario").forEach(btn => {
+      if (btn.dataset.scenario === key) {
+        btn.style.border = "1px solid var(--accent-cyan)";
+        btn.style.background = "rgba(6,182,212,0.15)";
+        btn.style.color = "var(--accent-cyan)";
+      } else {
+        btn.style.border = "1px solid var(--border-light)";
+        btn.style.background = "transparent";
+        btn.style.color = "var(--color-text-muted)";
+      }
+    });
+
+    // render schema metadata
+    const metaContainer = document.getElementById("adv-meta-container");
+    if (s.meta && s.meta.length) {
+      metaContainer.innerHTML = s.meta.map(m => `
+        <div style="background: rgba(0,0,0,0.08); border: 1px solid var(--border-light); border-radius: 6px; padding: 12px;">
+          <div style="font-size: 0.74rem; font-weight: 700; color: var(--accent-cyan); margin-bottom: 8px; display:flex; align-items:center; gap:6px;">
+            <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            ${m.title}
+          </div>
+          <ul style="margin:0; padding-left: 16px; font-size: 0.74rem; color: var(--color-text-muted); line-height: 1.7; list-style: disc;">
+            ${m.items.map(it => `<li>${it}</li>`).join('')}
+          </ul>
+        </div>
+      `).join('');
+      metaContainer.style.display = "grid";
+    } else {
+      metaContainer.style.display = "none";
+    }
+
+    // render plan table
+    let html = `<table class="ij-plan-table">
+      <thead><tr>
+        <th>Id</th><th>Operation</th><th class="r">E-Rows</th><th class="r">A-Rows</th><th class="r">Buffers</th><th class="r">Starts</th>
+      </tr></thead><tbody>`;
+    s.plan.forEach(row => {
+      const clickable = row.eRows !== "" && row.aRows !== "";
+      html += `<tr data-row-id="${row.id}" class="${clickable ? 'clickable plan-adv-row' : ''}">
+        <td class="col-id">${row.id}</td>
+        <td class="col-op">${row.op}${row.note ? ' <span style="color:var(--ij-text-dim);font-size:0.7rem;">(' + row.note + ')</span>' : ''}</td>
+        <td class="r col-erows">${row.eRows}</td>
+        <td class="r col-arows">${row.aRows}</td>
+        <td class="r col-buf">${row.buffers}</td>
+        <td class="r col-starts">${row.starts}</td>
+      </tr>`;
+    });
+    html += `</tbody></table>`;
+    planContainer.innerHTML = html;
+
+    // bind click
+    planContainer.querySelectorAll(".plan-adv-row").forEach(tr => {
+      tr.addEventListener("click", () => {
+        if (currentStep !== 0) return; // only step 1
+        handleStep1(parseInt(tr.dataset.rowId));
+      });
+    });
+  }
+
+  function handleStep1(rowId) {
+    const s = scenarios[currentKey];
+    const correct = rowId === s.bottleneckId;
+
+    // highlight row
+    planContainer.querySelectorAll(".plan-adv-row").forEach(tr => {
+      const rid = parseInt(tr.dataset.rowId);
+      tr.classList.remove("ij-correct", "ij-wrong", "ij-answer-hint");
+      if (rid === rowId) {
+        tr.classList.add(correct ? "ij-correct" : "ij-wrong");
+      } else if (rid === s.bottleneckId && !correct) {
+        tr.classList.add("ij-answer-hint");
+      }
+    });
+
+    if (correct) {
+      score += 40;
+      currentStep = 1;
+      // show math
+      mathWrapper.style.display = "block";
+      mathContent.innerHTML = s.bottleneckMath;
+      // move to step 2
+      updateStepChips(2);
+      instructionTitle.textContent = "Step 1 완료! → Step 2로 진행합니다";
+      instructionDesc.innerHTML = "병목 노드를 정확히 식별했습니다. 아래에서 근본 원인을 선택하세요.";
+      setTimeout(() => showStep2(), 600);
+    } else {
+      score += 5;
+      instructionTitle.textContent = "오답 — 다시 분석해 보세요";
+      instructionDesc.innerHTML = `Id=${rowId}은 주요 병목이 아닙니다. <strong>Buffers 점유율이 가장 높거나</strong> E-Rows/A-Rows 오차가 극단적인 노드를 찾으세요. 정답 노드가 힌트로 표시됩니다.`;
+      // allow retry
+      planContainer.querySelectorAll(".plan-adv-row").forEach(tr => {
+        tr.addEventListener("click", function retry() {
+          if (currentStep !== 0) return;
+          handleStep1(parseInt(tr.dataset.rowId));
+          tr.removeEventListener("click", retry);
+        });
+      });
+    }
+  }
+
+  function showStep2() {
+    const s = scenarios[currentKey];
+    stepInstruction.style.display = "none";
+    optionsArea.style.display = "block";
+    optionsTitle.textContent = "Step 2: 근본 원인을 선택하세요";
+    renderOptions(s.causes, (chosen) => {
+      const correct = chosen.correct;
+      if (correct) {
+        score += 30;
+        mathContent.innerHTML += `<br><br><hr style="border-color:var(--ij-border);margin:10px 0;">
+          <strong style="color:var(--ij-success);">근본 원인 정답!</strong><br>${s.causeExplain.correct}`;
+      } else {
+        score += 5;
+        mathContent.innerHTML += `<br><br><hr style="border-color:var(--ij-border);margin:10px 0;">
+          <strong style="color:var(--ij-error);">오답:</strong> ${s.causeExplain.wrong}<br>
+          <strong>정답:</strong> ${s.causes.find(c => c.correct).label}`;
+      }
+      currentStep = 2;
+      updateStepChips(3);
+      setTimeout(() => showStep3(), 500);
+    });
+  }
+
+  function showStep3() {
+    const s = scenarios[currentKey];
+    optionsTitle.textContent = "Step 3: 최적 튜닝 조치를 선택하세요";
+    renderOptions(s.fixes, (chosen) => {
+      const correct = chosen.correct;
+      if (correct) {
+        score += 30;
+        mathContent.innerHTML += `<br><br><hr style="border-color:var(--ij-border);margin:10px 0;">
+          <strong style="color:var(--ij-success);">튜닝 조치 정답!</strong><br>${s.fixExplain.correct}`;
+      } else {
+        score += 5;
+        mathContent.innerHTML += `<br><br><hr style="border-color:var(--ij-border);margin:10px 0;">
+          <strong style="color:var(--ij-error);">오답:</strong> ${s.fixExplain.wrong}<br>
+          <strong>정답:</strong> ${s.fixes.find(f => f.correct).label}`;
+      }
+      currentStep = 3;
+      optionsArea.style.display = "none";
+      showFinalReport();
+    });
+  }
+
+  function renderOptions(items, onSelect) {
+    optionsList.innerHTML = "";
+    items.forEach(item => {
+      const btn = document.createElement("button");
+      btn.style.cssText = "width:100%; text-align:left; padding: 12px 14px; border: 1px solid var(--border-light); background: rgba(0,0,0,0.08); color: var(--color-text-main); border-radius: 6px; font-size: 0.78rem; line-height: 1.5; cursor: pointer; transition: all 0.15s ease;";
+      btn.textContent = item.label;
+      btn.addEventListener("mouseenter", () => { btn.style.borderColor = "var(--accent-cyan)"; btn.style.background = "rgba(6,182,212,0.06)"; });
+      btn.addEventListener("mouseleave", () => { btn.style.borderColor = "var(--border-light)"; btn.style.background = "rgba(0,0,0,0.08)"; });
+      btn.addEventListener("click", () => {
+        // disable all buttons
+        optionsList.querySelectorAll("button").forEach(b => {
+          b.disabled = true;
+          b.style.cursor = "default";
+          b.style.opacity = "0.5";
+        });
+        // highlight selected
+        if (item.correct) {
+          btn.style.borderColor = "var(--accent-emerald)";
+          btn.style.background = "rgba(16,185,129,0.12)";
+          btn.style.color = "var(--accent-emerald)";
+        } else {
+          btn.style.borderColor = "#ef4444";
+          btn.style.background = "rgba(239,68,68,0.08)";
+          btn.style.color = "#ef4444";
+        }
+        btn.style.opacity = "1";
+        // highlight correct one if wrong
+        if (!item.correct) {
+          optionsList.querySelectorAll("button").forEach((b, idx) => {
+            if (items[idx].correct) {
+              b.style.borderColor = "var(--accent-emerald)";
+              b.style.background = "rgba(16,185,129,0.08)";
+              b.style.color = "var(--accent-emerald)";
+              b.style.opacity = "1";
+            }
+          });
+        }
+        onSelect(item);
+      });
+      optionsList.appendChild(btn);
+    });
+  }
+
+  function showFinalReport() {
+    finalReport.style.display = "block";
+    const s = scenarios[currentKey];
+
+    // Score badge
+    let grade, gradeColor;
+    if (score >= 90) { grade = "MASTER"; gradeColor = "var(--accent-emerald)"; }
+    else if (score >= 60) { grade = "PASS"; gradeColor = "var(--accent-cyan)"; }
+    else { grade = "RETRY"; gradeColor = "#ef4444"; }
+
+    finalScore.textContent = `${score}점 — ${grade}`;
+    finalScore.style.background = score >= 60 ? "rgba(16,185,129,0.12)" : "rgba(239,68,68,0.1)";
+    finalScore.style.color = gradeColor;
+
+    finalFeedback.innerHTML = s.finalReport;
+  }
+
+  // Event bindings
+  document.querySelectorAll(".btn-adv-scenario").forEach(btn => {
+    btn.addEventListener("click", () => renderScenario(btn.dataset.scenario));
+  });
+
+  document.getElementById("btn-adv-reset").addEventListener("click", () => {
+    renderScenario(currentKey);
+  });
+
+  // Initialize
+  renderScenario("partition_miss");
 }
 
 /* -------------------------------------------------------------
