@@ -237,7 +237,7 @@
     rel="stylesheet">
 
   <!-- App Styles -->
-  <link rel="stylesheet" href="style.css?v=2.4">
+  <link rel="stylesheet" href="style.css?v=2.5">
 </head>
 
 <body class="light-theme">
@@ -1098,7 +1098,7 @@
                   </table>
 
                   <div
-                    style="background: var(--bg-textbook-box-cyan); border-left: 3px solid var(--accent-cyan); padding: 12px; border-radius: 4px; font-size: 0.78rem;">
+                    style="background: var(--bg-textbook-box-cyan); border: 1px solid rgba(6, 182, 212, 0.15); padding: 12px; border-radius: 4px; font-size: 0.78rem;">
                     <strong>실무 락 대기 트리(Lock Tree) 추적 기법:</strong><br>
                     여러 세션이 연속으로 밀려 대기가 길어졌을 때, <code>CONNECT BY PRIOR SESSION_ID = BLOCKING_SESSION</code> 쿼리를 통해 계층적
                     트리를 구성하여
@@ -1115,7 +1115,7 @@
 
                   <div style="display: flex; flex-direction: column; gap: 12px;">
                     <div
-                      style="background: rgba(245, 158, 11, 0.03); border: 1px solid rgba(245, 158, 11, 0.15); border-left: 4px solid var(--accent-orange); border-radius: 4px; padding: 12px;">
+                      style="background: rgba(245, 158, 11, 0.03); border: 1px solid rgba(245, 158, 11, 0.15); border-radius: 4px; padding: 12px;">
                       <span style="font-weight: 700; color: var(--accent-orange); font-size: 0.85rem;">db file
                         sequential read
                         (단일 블록 물리 읽기 대기)</span>
@@ -1131,7 +1131,7 @@
                     </div>
 
                     <div
-                      style="background: rgba(245, 158, 11, 0.03); border: 1px solid rgba(245, 158, 11, 0.15); border-left: 4px solid var(--accent-orange); border-radius: 4px; padding: 12px;">
+                      style="background: rgba(245, 158, 11, 0.03); border: 1px solid rgba(245, 158, 11, 0.15); border-radius: 4px; padding: 12px;">
                       <span style="font-weight: 700; color: var(--accent-orange); font-size: 0.85rem;">db file scattered
                         read
                         (다중 블록 물리 읽기 대기)</span>
@@ -1150,7 +1150,7 @@
                     </div>
 
                     <div
-                      style="background: rgba(239, 68, 68, 0.03); border: 1px solid rgba(239, 68, 68, 0.15); border-left: 4px solid var(--accent-crimson); border-radius: 4px; padding: 12px;">
+                      style="background: rgba(239, 68, 68, 0.03); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 4px; padding: 12px;">
                       <span style="font-weight: 700; color: var(--accent-crimson); font-size: 0.85rem;">enq: TX - row
                         lock
                         contention (행 레벨 배타적 DML 락 대기)</span>
@@ -1168,7 +1168,7 @@
                     </div>
 
                     <div
-                      style="background: rgba(239, 68, 68, 0.03); border: 1px solid rgba(239, 68, 68, 0.15); border-left: 4px solid var(--accent-crimson); border-radius: 4px; padding: 12px;">
+                      style="background: rgba(239, 68, 68, 0.03); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 4px; padding: 12px;">
                       <span style="font-weight: 700; color: var(--accent-crimson); font-size: 0.85rem;">latch: shared
                         pool /
                         library cache (메모리 구조체 래치 경합 대기)</span>
@@ -1195,7 +1195,7 @@
 
                   <div style="display: flex; flex-direction: column; gap: 16px;">
                     <div
-                      style="border-left: 3px solid var(--accent-crimson); padding-left: 12px; background: rgba(239, 68, 68, 0.01); padding-top: 4px; padding-bottom: 4px;">
+                      style="border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 4px; padding: 12px; background: rgba(239, 68, 68, 0.01);">
                       <strong style="color:var(--color-text-main); font-size:0.82rem;">[이슈 1] 예외 처리 설계 결함으로 인한 락 경합 이슈
                         (Connection
                         Leak)</strong>
@@ -1211,7 +1211,7 @@
                     </div>
 
                     <div
-                      style="border-left: 3px solid var(--accent-orange); padding-left: 12px; background: rgba(245, 158, 11, 0.01); padding-top: 4px; padding-bottom: 4px;">
+                      style="border: 1px solid rgba(245, 158, 11, 0.15); border-radius: 4px; padding: 12px; background: rgba(245, 158, 11, 0.01);">
                       <strong style="color:var(--color-text-main); font-size:0.82rem;">[이슈 2] 상수 대입형 쿼리 남발에 따른 CPU 고갈 이슈
                         (Hard Parse)</strong>
                       <p style="font-size:0.76rem; color:var(--color-text-muted); margin-top:4px; line-height:1.4;">
@@ -1446,7 +1446,7 @@
 
                   <div style="display: flex; flex-direction: column; gap: 12px;">
                     <div
-                      style="background: rgba(245, 158, 11, 0.03); border: 1px solid rgba(245, 158, 11, 0.15); border-left: 4px solid var(--accent-orange); border-radius: 4px; padding: 12px;">
+                      style="background: rgba(245, 158, 11, 0.03); border: 1px solid rgba(245, 158, 11, 0.15); border-radius: 4px; padding: 12px;">
                       <span style="font-weight: 700; color: var(--accent-orange); font-size: 0.85rem;">db file
                         sequential read
                         (단일 블록 물리 읽기 대기)</span>
@@ -1462,7 +1462,7 @@
                     </div>
 
                     <div
-                      style="background: rgba(245, 158, 11, 0.03); border: 1px solid rgba(245, 158, 11, 0.15); border-left: 4px solid var(--accent-orange); border-radius: 4px; padding: 12px;">
+                      style="background: rgba(245, 158, 11, 0.03); border: 1px solid rgba(245, 158, 11, 0.15); border-radius: 4px; padding: 12px;">
                       <span style="font-weight: 700; color: var(--accent-orange); font-size: 0.85rem;">db file scattered
                         read
                         (다중 블록 물리 읽기 대기)</span>
@@ -1481,7 +1481,7 @@
                     </div>
 
                     <div
-                      style="background: rgba(239, 68, 68, 0.03); border: 1px solid rgba(239, 68, 68, 0.15); border-left: 4px solid var(--accent-crimson); border-radius: 4px; padding: 12px;">
+                      style="background: rgba(239, 68, 68, 0.03); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 4px; padding: 12px;">
                       <span style="font-weight: 700; color: var(--accent-crimson); font-size: 0.85rem;">enq: TX - row
                         lock
                         contention (행 레벨 배타적 DML 락 대기)</span>
@@ -1499,7 +1499,7 @@
                     </div>
 
                     <div
-                      style="background: rgba(239, 68, 68, 0.03); border: 1px solid rgba(239, 68, 68, 0.15); border-left: 4px solid var(--accent-crimson); border-radius: 4px; padding: 12px;">
+                      style="background: rgba(239, 68, 68, 0.03); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 4px; padding: 12px;">
                       <span style="font-weight: 700; color: var(--accent-crimson); font-size: 0.85rem;">latch: shared
                         pool /
                         library cache (메모리 구조체 래치 경합 대기)</span>
@@ -1526,7 +1526,7 @@
 
                   <div style="display: flex; flex-direction: column; gap: 16px;">
                     <div
-                      style="border-left: 3px solid var(--accent-crimson); padding-left: 12px; background: rgba(239, 68, 68, 0.01); padding-top: 4px; padding-bottom: 4px;">
+                      style="border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 4px; padding: 12px; background: rgba(239, 68, 68, 0.01);">
                       <strong style="color:var(--color-text-main); font-size:0.82rem;">[이슈 1] 예외 처리 설계 결함으로 인한 락 경합 이슈
                         (Connection
                         Leak)</strong>
@@ -1542,7 +1542,7 @@
                     </div>
 
                     <div
-                      style="border-left: 3px solid var(--accent-orange); padding-left: 12px; background: rgba(245, 158, 11, 0.01); padding-top: 4px; padding-bottom: 4px;">
+                      style="border: 1px solid rgba(245, 158, 11, 0.15); border-radius: 4px; padding: 12px; background: rgba(245, 158, 11, 0.01);">
                       <strong style="color:var(--color-text-main); font-size:0.82rem;">[이슈 2] 상수 대입형 쿼리 남발에 따른 CPU 고갈 이슈
                         (Hard Parse)</strong>
                       <p style="font-size:0.76rem; color:var(--color-text-muted); margin-top:4px; line-height:1.4;">
@@ -2208,7 +2208,7 @@ INNER JOIN dept d ON e.dept_id = d.dept_id;</code></pre>
               </div>
 
               <!-- Gotchas / DBA Advice -->
-              <div class="bg-glass" style="padding: 16px; border-radius: 8px; border-left: 4px solid var(--accent-cyan); display: flex; flex-direction: column; gap: 8px;">
+              <div class="bg-glass" style="padding: 16px; border-radius: 8px; border: 1px solid var(--border-light); display: flex; flex-direction: column; gap: 8px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <span style="font-size: 1.1rem;">💡</span>
                   <span style="font-size: 0.8rem; font-weight: 700; color: var(--color-text-main);" id="join-syntax-note-title">SQL 조인 가이드</span>
@@ -2402,7 +2402,7 @@ INNER JOIN dept d ON e.dept_id = d.dept_id;</code></pre>
 
               <!-- Feedback / DBA Assessment Report Box -->
               <div id="quiz-feedback-box" class="bg-glass"
-                style="display: none; padding: 20px; border-radius: 8px; border-left: 4px solid var(--accent-cyan); flex-direction: column; gap: 12px;">
+                style="display: none; padding: 20px; border-radius: 8px; border: 1px solid var(--border-light); flex-direction: column; gap: 12px;">
                 <div style="display: flex; align-items: center; gap: 10px;">
                   <span id="quiz-result-badge"
                     style="font-family: var(--font-mono); font-size: 0.75rem; font-weight: 700; padding: 4px 10px; border-radius: 4px;">정답</span>
@@ -2478,7 +2478,7 @@ INNER JOIN dept d ON e.dept_id = d.dept_id;</code></pre>
 
               <!-- Feedback / DBA Assessment Report Box -->
               <div id="plan-quiz-feedback-box" class="bg-glass"
-                style="display: none; padding: 20px; border-radius: 8px; border-left: 4px solid var(--accent-cyan); flex-direction: column; gap: 12px;">
+                style="display: none; padding: 20px; border-radius: 8px; border: 1px solid var(--border-light); flex-direction: column; gap: 12px;">
                 <div style="display: flex; align-items: center; gap: 10px;">
                   <span id="plan-quiz-result-badge"
                     style="font-family: var(--font-mono); font-size: 0.75rem; font-weight: 700; padding: 4px 10px; border-radius: 4px;">정답</span>
@@ -3569,9 +3569,9 @@ EXEC DBMS_STATS.LOCK_TABLE_STATS('[SCHEMA_NAME]', '[TABLE_NAME]');
   </div>
 
   <!-- Javascript Modules -->
-  <script src="challenges.js?v=2.4"></script>
-  <script src="visualizers.js?v=2.4"></script>
-  <script src="app.js?v=2.4"></script>
+  <script src="challenges.js?v=2.5"></script>
+  <script src="visualizers.js?v=2.5"></script>
+  <script src="app.js?v=2.5"></script>
 
   <!-- External Parsers -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
