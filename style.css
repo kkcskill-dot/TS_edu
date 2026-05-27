@@ -427,7 +427,7 @@ pre {
 .sidebar-menu {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   flex-grow: 1;
 }
 
@@ -439,7 +439,7 @@ pre {
   font-size: 0.85rem;
   font-weight: 500;
   text-align: left;
-  padding: 8px 12px;
+  padding: 5px 12px;
   border-radius: 6px;
   cursor: pointer;
   display: flex;
@@ -454,10 +454,9 @@ pre {
 }
 
 .menu-item.active {
-  background: linear-gradient(to right, rgba(6, 182, 212, 0.15), rgba(6, 182, 212, 0.02));
+  background: linear-gradient(to right, rgba(6, 182, 212, 0.12), rgba(6, 182, 212, 0.02));
   color: var(--accent-cyan);
-  border-left: 3px solid var(--accent-cyan);
-  box-shadow: inset 1px 0 0 rgba(6, 182, 212, 0.1);
+  border-left: none;
 }
 
 .menu-icon {
@@ -474,8 +473,8 @@ pre {
   text-transform: uppercase;
   color: var(--color-text-muted);
   letter-spacing: 1.5px;
-  margin-top: 16px;
-  margin-bottom: 4px;
+  margin-top: 8px;
+  margin-bottom: 2px;
   padding-left: 12px;
   opacity: 0.5;
   display: flex;
@@ -485,7 +484,7 @@ pre {
 }
 
 .menu-group-title:first-of-type {
-  margin-top: 8px;
+  margin-top: 4px;
 }
 
 .menu-group-title::after {
