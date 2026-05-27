@@ -237,7 +237,7 @@
     rel="stylesheet">
 
   <!-- App Styles -->
-  <link rel="stylesheet" href="style.css?v=1.8">
+  <link rel="stylesheet" href="style.css?v=1.9">
 </head>
 
 <body class="light-theme">
@@ -735,9 +735,12 @@
               </div>
 
               <!-- 1. DBA Standard Text View (DBMS_XPLAN Console Style) -->
-              <div id="explain-text-viewport" class="sql-terminal"
-                style="height: 320px; white-space: pre; line-height: 1.45; overflow-x: auto;">
-                <!-- DBMS_XPLAN output will be rendered here -->
+              <div class="terminal-container">
+                <div class="code-title">DBMS_XPLAN Output</div>
+                <div id="explain-text-viewport" class="sql-terminal"
+                  style="height: 320px; white-space: pre; line-height: 1.45; overflow-x: auto;">
+                  <!-- DBMS_XPLAN output will be rendered here -->
+                </div>
               </div>
 
               <!-- 2. Original Graphical Tree View -->
@@ -878,8 +881,11 @@
                 <span class="session-status" id="session-a-status">연결됨 (ACTIVE)</span>
               </div>
               <div class="session-body">
-                <div class="sql-terminal" id="session-a-terminal">
-                  <!-- Steps of SQL executed -->
+                <div class="terminal-container">
+                  <div class="code-title">SQL*Plus</div>
+                  <div class="sql-terminal" id="session-a-terminal">
+                    <!-- Steps of SQL executed -->
+                  </div>
                 </div>
                 <button id="btn-session-a-step" class="btn-primary w-full">다음 쿼리 실행하기 (Step)</button>
               </div>
@@ -926,8 +932,11 @@
                 <span class="session-status" id="session-b-status">연결됨 (ACTIVE)</span>
               </div>
               <div class="session-body">
-                <div class="sql-terminal" id="session-b-terminal">
-                  <!-- Steps of SQL executed -->
+                <div class="terminal-container">
+                  <div class="code-title">SQL*Plus</div>
+                  <div class="sql-terminal" id="session-b-terminal">
+                    <!-- Steps of SQL executed -->
+                  </div>
                 </div>
                 <button id="btn-session-b-step" class="btn-primary w-full" disabled>다음 쿼리 실행하기 (Step)</button>
               </div>
@@ -1226,7 +1235,7 @@
               <div class="terminal-container">
                 <div class="code-title">DBA Terminal Output</div>
                 <div class="sql-terminal" id="ash-terminal"
-                  style="font-size: 0.78rem; font-family: var(--font-mono); height: 180px; overflow-y: auto;">
+                  style="height: 180px; overflow-y: auto;">
                   <span class="terminal-prompt">SQL&gt;</span> 과거 이슈 이력을 시뮬레이션하려면 위의 'ASH 조회' 버튼을 누르세요.
                 </div>
               </div>
@@ -1557,7 +1566,7 @@
               <div class="terminal-container">
                 <div class="code-title">DBA Terminal Output</div>
                 <div class="sql-terminal" id="awr-terminal"
-                  style="font-size: 0.78rem; font-family: var(--font-mono); height: 180px; overflow-y: auto;">
+                  style="height: 180px; overflow-y: auto;">
                   <span class="terminal-prompt">SQL&gt;</span> 과거 이슈 이력을 시뮬레이션하려면 위의 'AWR 추출' 버튼을 누르세요.
                 </div>
               </div>
@@ -3255,9 +3264,9 @@ EXEC DBMS_STATS.LOCK_TABLE_STATS('[SCHEMA_NAME]', '[TABLE_NAME]');
   </div>
 
   <!-- Javascript Modules -->
-  <script src="challenges.js?v=1.8"></script>
-  <script src="visualizers.js?v=1.8"></script>
-  <script src="app.js?v=1.8"></script>
+  <script src="challenges.js?v=1.9"></script>
+  <script src="visualizers.js?v=1.9"></script>
+  <script src="app.js?v=1.9"></script>
 
   <!-- External Parsers -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
