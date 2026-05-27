@@ -237,7 +237,7 @@
     rel="stylesheet">
 
   <!-- App Styles -->
-  <link rel="stylesheet" href="style.css?v=1.7">
+  <link rel="stylesheet" href="style.css?v=1.8">
 </head>
 
 <body class="light-theme">
@@ -359,6 +359,14 @@
             <circle cx="12" cy="12" r="10"></circle>
           </svg>
           성능진단 퀴즈
+        </button>
+        <button id="nav-btn-plan-quiz" class="menu-item" data-target="panel-plan-quiz">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"
+            stroke-linecap="round" stroke-linejoin="round" class="menu-icon">
+            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+          </svg>
+          실행계획 퀴즈
         </button>
       </nav>
 
@@ -2096,6 +2104,82 @@ WHERE o.order_date = '2026-05-18';</code></pre>
           </div>
         </section>
 
+        <!-- 7b. EXECUTION PLAN QUIZ PANEL -->
+        <section id="panel-plan-quiz" class="content-panel">
+          <div class="panel-intro">
+            <p>비용 기반 옵티마이저(CBO)의 메커니즘, 런타임 실행 계획(E-Rows vs A-Rows) 분석, 인덱스 스캔 효율 및 SPM 플랜 고정 기법 등 SQL 진단의 고난도 문제를 분석하고 해결책을 제시하세요.
+            </p>
+          </div>
+
+          <div class="challenge-layout" style="display: grid; grid-template-columns: 1fr; gap: 20px;">
+            <!-- Quiz Card Container -->
+            <div class="challenge-left bg-glass"
+              style="padding: 24px; display: flex; flex-direction: column; gap: 20px;">
+              <!-- Question Selector Tabs -->
+              <div
+                style="display: flex; gap: 10px; border-bottom: 1px solid var(--border-light); padding-bottom: 12px; overflow-x: auto;">
+                <button class="plan-quiz-tab-btn active" data-pq="1"
+                  style="background: rgba(6, 182, 212, 0.1); border: 1px solid rgba(6, 182, 212, 0.25); border-radius: 6px; padding: 8px 16px; color: var(--accent-cyan); font-weight: 700; cursor: pointer; transition: all 0.2s; white-space: nowrap;">
+                  Q1. NL 조인 Starts/Buffers
+                </button>
+                <button class="plan-quiz-tab-btn" data-pq="2"
+                  style="background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 8px 16px; color: var(--color-text-muted); font-weight: 500; cursor: pointer; transition: all 0.2s; white-space: nowrap;">
+                  Q2. DBMS_XPLAN 런타임 추출
+                </button>
+                <button class="plan-quiz-tab-btn" data-pq="3"
+                  style="background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 8px 16px; color: var(--color-text-muted); font-weight: 500; cursor: pointer; transition: all 0.2s; white-space: nowrap;">
+                  Q3. Skip Scan 효율 조건
+                </button>
+                <button class="plan-quiz-tab-btn" data-pq="4"
+                  style="background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 8px 16px; color: var(--color-text-muted); font-weight: 500; cursor: pointer; transition: all 0.2s; white-space: nowrap;">
+                  Q4. 통계 STALE & Lock
+                </button>
+                <button class="plan-quiz-tab-btn" data-pq="5"
+                  style="background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 8px 16px; color: var(--color-text-muted); font-weight: 500; cursor: pointer; transition: all 0.2s; white-space: nowrap;">
+                  Q5. 묵시적 형변환 병목
+                </button>
+                <button class="plan-quiz-tab-btn" data-pq="6"
+                  style="background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 8px 16px; color: var(--color-text-muted); font-weight: 500; cursor: pointer; transition: all 0.2s; white-space: nowrap;">
+                  Q6. SPM 플랜 고정 기법
+                </button>
+              </div>
+
+              <!-- Question Content Area -->
+              <div id="plan-quiz-question-box">
+                <!-- Will be dynamically populated by JS -->
+              </div>
+
+              <!-- Options Area -->
+              <div id="plan-quiz-options-box" style="display: flex; flex-direction: column; gap: 12px;">
+                <!-- Will be dynamically populated by JS -->
+              </div>
+
+              <!-- Action Bar -->
+              <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+                <button id="btn-submit-plan-quiz" class="btn-primary"
+                  style="padding: 10px 20px; font-weight: 700; border-radius: 6px; cursor: pointer;">
+                  진단 소견서 제출 ➔
+                </button>
+              </div>
+
+              <!-- Feedback / DBA Assessment Report Box -->
+              <div id="plan-quiz-feedback-box" class="bg-glass"
+                style="display: none; padding: 20px; border-radius: 8px; border-left: 4px solid var(--accent-cyan); flex-direction: column; gap: 12px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <span id="plan-quiz-result-badge"
+                    style="font-family: var(--font-mono); font-size: 0.75rem; font-weight: 700; padding: 4px 10px; border-radius: 4px;">정답</span>
+                  <h4 id="plan-quiz-result-title" style="margin: 0; color: var(--color-text-main); font-weight: 700;">진단 성공
+                  </h4>
+                </div>
+                <p id="plan-quiz-result-desc"
+                  style="margin: 0; font-size: 0.85rem; color: var(--color-text-muted); line-height: 1.6; white-space: pre-line;">
+                </p>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
         <!-- 6. TEXTBOOK PANEL -->
         <section id="panel-textbook" class="content-panel">
           <div class="textbook-container bg-glass"
@@ -3171,9 +3255,9 @@ EXEC DBMS_STATS.LOCK_TABLE_STATS('[SCHEMA_NAME]', '[TABLE_NAME]');
   </div>
 
   <!-- Javascript Modules -->
-  <script src="challenges.js?v=1.7"></script>
-  <script src="visualizers.js?v=1.7"></script>
-  <script src="app.js?v=1.7"></script>
+  <script src="challenges.js?v=1.8"></script>
+  <script src="visualizers.js?v=1.8"></script>
+  <script src="app.js?v=1.8"></script>
 
   <!-- External Parsers -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>

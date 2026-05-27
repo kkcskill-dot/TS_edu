@@ -41,6 +41,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initAwrAnalyzer();
   initPlanDiagLab();
   initJoinLab();
+  initPlanQuizPanel();
 
   // Choose a random tip to start
   rotateDbaTip();
@@ -79,6 +80,8 @@ function initRouter() {
         renderBTreeSimulator(parseInt(searchInput.value) || 62);
       } else if (targetPanel === "panel-quiz") {
         initQuizPanel();
+      } else if (targetPanel === "panel-plan-quiz") {
+        initPlanQuizPanel();
       }
     });
   });
@@ -1544,6 +1547,389 @@ function displayQuizFeedback(qNum, selectedId) {
   }
 
   desc.innerHTML = opt.feedback;
+}
+
+/* -------------------------------------------------------------
+ * 8b. Execution Plan Quiz Controller (실행계획 퀴즈)
+ * ------------------------------------------------------------- */
+const planQuizQuestions = {
+  1: {
+    qNum: 1,
+    title: "중첩 루프 조인(Nested Loops) 하위 노드의 Starts/Buffers 병목 진단",
+    desc: "특정 쿼리의 DISPLAY_CURSOR 실행 계획 분석 결과, 중첩 루프 조인의 Inner Table 스캔 노드인 Id 5번 단계에서 Starts = 50,000, E-Rows = 1, A-Rows = 2, 누적 Buffers = 150,000 블록이 계측되었습니다. 이 상황에 대한 DBA로서의 정확한 진단과 튜닝 조치는 무엇입니까?",
+    scenario: `<strong>[DBMS_XPLAN - Run-time Execution Plan]</strong>
+<pre style="background:rgba(0,0,0,0.15); padding:10px; border-radius:6px; font-family:var(--font-mono); font-size:0.75rem; color:var(--color-text-main); margin-top:8px; border:1px solid var(--border-light); overflow-x:auto;">
+------------------------------------------------------------------------------------------------------
+| Id  | Operation                     | Name          | Starts | E-Rows | A-Rows | Buffers   | Cost  |
+------------------------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT              |               |      1 |        |      2 |      150K |  8725 |
+|   1 |  NESTED LOOPS                 |               |      1 |      1 |      2 |      150K |  8725 |
+|   2 |   TABLE ACCESS BY INDEX ROWID | TB_USER       |      1 |      1 |     50 |       150 |     3 |
+|*  3 |    INDEX RANGE SCAN           | IX_USER_TYPE  |      1 |      1 |     50 |         4 |     2 |
+|   4 |   TABLE ACCESS BY INDEX ROWID | TB_ORDER      |  50,000 |      1 |      2 |      150K |  8722 |
+|*  5 |    INDEX RANGE SCAN           | IX_ORDER_DATE |  50,000 |      1 |      2 |      150K |     4 |
+------------------------------------------------------------------------------------------------------
+</pre>
+<strong style="margin-top:10px; display:block;">[프로파일링 상세 데이터]</strong>
+<div style="font-size:0.8rem; color:var(--color-text-muted); margin-top:4px; line-height:1.5;">
+• <strong>Id 5 (Inner Table Access):</strong> 50,000번 호출(<code>Starts=50,000</code>)되었으며, 총 15만 블록(<code>Buffers=150,000</code>)을 논리적으로 읽었습니다.<br>
+• <strong>수리적 균형 계산:</strong> 단일 수행당 평균 실제 출력 건수 = 2건 / 50,000회 = 0.00004건 (E-Rows 예상치인 1건과 정합). 단일 수행당 평균 Buffers = 150,000 / 50,000 = 3 블록 (인덱스 탐색 성능 최적 상태).
+</div>`,
+    options: [
+      {
+        id: "pq1-opt-A",
+        title: "TB_ORDER 테이블의 IX_ORDER_DATE 인덱스에 결합 인덱스 컬럼을 재정렬하거나 함수 기반 인덱스를 추가하여 인덱스 스캔 Buffers를 0으로 단축",
+        desc: "인덱스 스캔 조건절 자체의 I/O 블록 효율을 극대화하여 15만 Buffers 부하를 하드웨어적으로 경감시킵니다.",
+        isCorrect: false,
+        feedback: "오답입니다. 인덱스 레인지 스캔은 매번 루트 노드에서 리프 노드까지 트리를 수직 탐색하므로 단 1건만 조회하더라도 최소 3개의 블록 I/O(Root->Branch->Leaf)가 기본적으로 소모됩니다. 따라서 단일 수행당 평균 Buffers = 3 블록은 인덱스 수준에서 더 단축할 수 없는 최적 상태입니다. 인덱스 자체의 설계 결함이 아니므로 인덱스를 변경해도 루프 횟수가 50,000번 누적되는 근본 부하를 해결하지 못합니다."
+      },
+      {
+        id: "pq1-opt-B",
+        title: "옵티마이저의 예상(E-Rows=1)과 실제 수행당 실측 건수(A-Rows/Starts = 0.00004)는 거의 일치하지만, 조인 루프 횟수(Starts = 50,000)의 누적으로 인해 미시적 자원이 누적된 병목이므로 HASH JOIN 방식으로 조인 경로를 전환",
+        desc: "인덱스 탐색은 정상 작동하나 대량 조인 루프(Starts 50,000)로 인한 Buffers 누적이 병목의 원인이므로 HASH JOIN을 선택하도록 쿼리 및 통계를 튜닝합니다.",
+        isCorrect: true,
+        feedback: "정답입니다! 단일 인덱스 탐색(회당 3블록)은 지극히 효율적이지만, 중첩 루프 조인의 하위 노드로 배치되어 50,000번 반복 실행(Starts 누적)되면서 총 Buffers가 150,000블록까지 누적되어 병목을 초래했습니다. 이 경우 대량 조인 연산에 적합한 HASH JOIN을 사용하도록 조인 경로를 전환하는 것이 유일하고 정석적인 해결 방법입니다."
+      },
+      {
+        id: "pq1-opt-C",
+        title: "인덱스 RANGE SCAN의 Starts 횟수를 줄이기 위해 SGA 버퍼 캐시(db_cache_size) 크기를 10배 늘려 디스크 물리 I/O(Reads)를 완전히 소멸",
+        desc: "물리적 디스크 읽기를 소멸시키고 메모리 상에서만 Nested Loops가 돌아가도록 하드웨어 버퍼 용량을 크게 확장시킵니다.",
+        isCorrect: false,
+        feedback: "오답입니다. 버퍼 캐시를 확장하면 물리적 디스크 I/O인 Reads는 줄일 수 있으나, CPU가 메모리를 탐색하는 논리적 I/O인 Buffers 부하는 전혀 경감하지 못하며, 여전히 CPU 사용량 급증 현상(Latch/Mutex 경합)이 잔존하게 됩니다."
+      }
+    ]
+  },
+  2: {
+    qNum: 2,
+    title: "DBMS_XPLAN.DISPLAY_CURSOR 런타임 프로파일링 지표 추출",
+    desc: "실행 계획을 분석하기 위해 Library Cache에 로드된 커서의 실제 런타임 수행 통계(Actual Rows, Starts, Buffers 등)를 완벽히 출력하려고 합니다. 이때 SQL 힌트와 DBMS_XPLAN.DISPLAY_CURSOR 호출 방식의 가장 정석적인 조합은 무엇입니까?",
+    scenario: `<strong>[Library Cache Cursor Status]</strong>
+<div style="font-size:0.8rem; color:var(--color-text-muted); margin-top:4px; line-height:1.5;">
+• <strong>목표:</strong> 단순 옵티마이저 예측치(E-Rows, Cost) 외에, 런타임 중 실제 수행된 반복 횟수(Starts), 실측 처리 건수(A-Rows), 논리적 I/O 블록 수(Buffers)를 실행 계획과 함께 테이블로 추출하려 함.
+</div>`,
+    options: [
+      {
+        id: "pq2-opt-A",
+        title: "수행할 SQL에 /*+ EXPLAIN */ 힌트를 지정하여 가동하고, DBMS_XPLAN.DISPLAY_CURSOR(format => 'TYPICAL') 함수를 호출",
+        desc: "EXPLAIN 힌트로 런타임 정보를 커서에 수집하고 기본 포맷으로 실행 계획 테이블을 로드합니다.",
+        isCorrect: false,
+        feedback: "오답입니다. /*+ EXPLAIN */ 이라는 힌트는 존재하지 않으며, TYPICAL 포맷은 옵티마이저의 단순 예측치(E-Rows, Cost, Bytes 등)만 출력하고 실제 수행 통계(Starts, A-Rows, Buffers)는 전혀 수집 및 출력하지 않습니다."
+      },
+      {
+        id: "pq2-opt-B",
+        title: "수행할 SQL에 /*+ GATHER_PLAN_STATISTICS */ 힌트를 기입하여 실행한 후, DBMS_XPLAN.DISPLAY_CURSOR('SQL_ID', NULL, 'ALLSTATS LAST +COST +BYTES +NOTE') 함수를 호출",
+        desc: "쿼리 실행 시 실제 로우 소스 통계를 수집하도록 명시하고, DISPLAY_CURSOR에 ALLSTATS LAST 포맷을 주어 가장 최근 실행 시의 런타임 매트릭을 추출합니다.",
+        isCorrect: true,
+        feedback: "정답입니다! 런타임 실행 통계를 수집하도록 /*+ GATHER_PLAN_STATISTICS */ 힌트를 기입하여 SQL을 구동하고, DISPLAY_CURSOR 함수에 ALLSTATS LAST 옵션을 인자로 주어야 실제 수행 런타임 프로파일링 지표가 실행 계획 트리 옆에 정상적으로 추출됩니다."
+      },
+      {
+        id: "pq2-opt-C",
+        title: "EXPLAIN PLAN FOR 구문을 실행하여 Plan Table에 가상 실행 계획을 적재한 뒤, DBMS_XPLAN.DISPLAY(format => 'ALL') 함수를 호출",
+        desc: "정적 분석 기법으로 플랜 테이블에 예측 경로를 저장한 후 상세 컬럼 정보(ALL)를 바탕으로 포맷팅하여 분석합니다.",
+        isCorrect: false,
+        feedback: "오답입니다. EXPLAIN PLAN 명령과 DBMS_XPLAN.DISPLAY는 SQL을 실제로 실행하지 않고 데이터 딕셔너리 정보만 참조하여 예상치를 조회하는 정적(Static) 방식입니다. 런타임 지표(Starts, A-Rows, Buffers)는 실제로 SQL을 구동해야만 수집되므로 이 방법으로는 절대 추출할 수 없습니다."
+      }
+    ]
+  },
+  3: {
+    qNum: 3,
+    title: "결합 인덱스 선두 컬럼 누락 시 INDEX SKIP SCAN 효율성 판단",
+    desc: "결합 인덱스가 (DEPT_CODE, EMP_NAME) 순서로 구성된 상태에서 WHERE EMP_NAME = '홍길동' 조건만으로 조회할 때, 옵티마이저가 선택할 수 있는 INDEX SKIP SCAN의 작동 메커니즘과 그 효율성을 지배하는 핵심 딕셔너리 지표는 무엇입니까?",
+    scenario: `<strong>[Composite Index Definition]</strong>
+<pre style="background:rgba(0,0,0,0.15); padding:10px; border-radius:6px; font-family:var(--font-mono); font-size:0.75rem; color:var(--color-text-main); margin-top:8px; border:1px solid var(--border-light); overflow-x:auto;">
+Index Name       : IDX_EMP_DEPT_NAME
+Column List      : DEPT_CODE (1st), EMP_NAME (2nd)
+Query SQL        : SELECT * FROM tb_emp WHERE emp_name = '홍길동';
+</pre>`,
+    options: [
+      {
+        id: "pq3-opt-A",
+        title: "선두 컬럼인 DEPT_CODE의 고유 값 수(NUM_DISTINCT)가 매우 적어야 효율적이며, 고유 값이 많으면 스킵 오버헤드가 폭증해 오히려 Full Scan보다 훨씬 느려짐",
+        desc: "선두 컬럼의 카디널리티가 극도로 낮을 때(예: 성별, 부서코드 몇 개) 가상 서브 인덱스 분기 개수가 최소화되어 인덱스 스킵 스캔이 극적인 성능을 냅니다.",
+        isCorrect: true,
+        feedback: "정답입니다! Index Skip Scan은 선두 컬럼의 고유 값별로 가상의 서브 인덱스를 가상화하여 탐색하는 원리입니다. 따라서 선두 컬럼의 NUM_DISTINCT가 적을수록 스킵 루프 횟수가 적어 극도로 효율적이지만, 선두 컬럼 종류가 수백~수천 개로 많아지면 수천 번의 스킵(수직 탐색)이 발생해 테이블 전체 풀 스캔보다 훨씬 높은 I/O 부하를 초래합니다."
+      },
+      {
+        id: "pq3-opt-B",
+        title: "선두 컬럼 DEPT_CODE의 CLUSTERING_FACTOR가 테이블 전체 레코드 수(NUM_ROWS)에 정합해야만 옵티마이저가 리프 블록 건너뛰기 연산을 안전하게 활성화",
+        desc: "인덱스 정렬도와 물리 블록 정렬도가 완벽히 매칭되어야 옵티마이저가 Skip Scan 스케줄링 비용을 절감하여 활성화시킵니다.",
+        isCorrect: false,
+        feedback: "오답입니다. CLUSTERING_FACTOR는 인덱스의 정렬 상태가 실제 테이블 블록의 물리적 저장 정렬과 얼마나 부합하는지를 나타내며, 이는 테이블 랜덤 I/O 비용과 직결됩니다. Skip Scan의 작동 메커니즘 및 스킵 분기 횟수는 오직 선두 컬럼의 고유 값 갯수(NUM_DISTINCT)에 결정됩니다."
+      },
+      {
+        id: "pq3-opt-C",
+        title: "선두 컬럼인 DEPT_CODE에 TO_CHAR나 TO_NUMBER와 같은 가공 함수가 조건절에 명시적으로 추가되어야 인덱스 스킵 분기가 구동",
+        desc: "선두 컬럼을 명시적으로 함수 변환하여 옵티마이저에게 강제로 이 컬럼을 스킵하고 후행 컬럼을 타라는 지시를 내립니다.",
+        isCorrect: false,
+        feedback: "오답입니다. 선두 컬럼 가공은 인덱스 자체를 완전히 무력화(Unusable)시켜 Skip Scan을 포함한 어떤 인덱스 스캔도 불가능하게 만듭니다. 인덱스를 사용하려면 컬럼 가공이 전혀 없어야 하며, Skip Scan은 선두 컬럼이 아예 조건절에서 누락되었을 때 옵티마이저가 비용 계산 후 자동 가동합니다."
+      }
+    ]
+  },
+  4: {
+    qNum: 4,
+    title: "통계 정보 노후화(STALE) 기준과 Lock 메커니즘",
+    desc: "대용량 데이터를 처리하는 온라인 배치 작업 후에 통계 정보가 갱신되지 않아 옵티마이저가 비효율적인 실행 계획을 수립하는 플랜 변경 장애가 발생했습니다. 오라클의 자동 통계 수집(Auto Task)에서 테이블 통계의 STALE(노후화) 판정 기준과, 특정 주요 테이블의 플랜 변동을 막기 위한 정석 예방책은 무엇입니까?",
+    scenario: `<strong>[Database Configuration & Dictionary]</strong>
+<div style="font-size:0.8rem; color:var(--color-text-muted); margin-top:4px; line-height:1.5;">
+• <strong>현상:</strong> 야간 자동 통계 수집 후, 특정 이력 테이블의 실행 계획이 돌변하여 아침마다 주간 온라인 서비스 장애가 발생함.<br>
+• <strong>목표:</strong> 해당 테이블의 통계가 자동으로 수집되어 비용 산출이 매번 뒤바뀌는 현상을 방어하고자 함.
+</div>`,
+    options: [
+      {
+        id: "pq4-opt-A",
+        title: "테이블의 전체 레코드 중 DML 변경이 1% 이상 발생 시 STALE로 마킹되며, 이를 예방하기 위해 DBMS_STATS.SET_TABLE_PREFS로 샘플 비율을 100% 강제 고정",
+        desc: "미세한 데이터 변경도 즉시 노후화 상태로 마킹하고 샘플링 비율을 최대(100%)로 채워 정합성을 영구 유지합니다.",
+        isCorrect: false,
+        feedback: "오답입니다. STALE 판정 기준은 1%가 아닌 10%이며, 샘플 비율을 100%로 고정하면 통계 수집의 정밀도는 올라가지만 수집을 위한 CPU와 Disk I/O 자원을 극심하게 소모하게 될 뿐, 야간 수집 자체를 막을 수는 없습니다."
+      },
+      {
+        id: "pq4-opt-B",
+        title: "테이블의 전체 레코드 중 DML 변경이 10% 이상 발생 시 STALE로 마킹되며, 플랜의 급격한 변동을 막기 위해 DBMS_STATS.LOCK_TABLE_STATS 프로시저로 통계를 고정",
+        desc: "10% 초과 DML 발생 시 STALE로 간주되는 규칙을 이해하고, 중요 테이블은 통계 정보를 고정(Lock)하여 자동 수집기가 계획을 임의로 변경하지 못하게 차단합니다.",
+        isCorrect: true,
+        feedback: "정답입니다! 오라클은 테이블 데이터 변경량이 10%를 넘으면 노후화(STALE)로 규정하고 자동 야간 통계 수집 대상으로 마킹합니다. 특정 주요 테이블의 통계 정보가 강제로 변경되어 실행 계획이 돌변하는 것을 막으려면 LOCK_TABLE_STATS를 사용해 통계 수집을 영구 차단하고 고정하는 것이 정석입니다."
+      },
+      {
+        id: "pq4-opt-C",
+        title: "테이블에 데이터가 1건이라도 DML되면 즉시 STALE로 판정되며, 플랜을 고정하려면 쿼리에 매번 /*+ OPT_PARAM('_optimizer_use_feedback', 'true') */ 힌트를 사용",
+        desc: "실시간 노후화 정책과 카디널리티 피드백 강제 힌트를 조합하여 런타임 학습 플랜을 강제로 유지시킵니다.",
+        isCorrect: false,
+        feedback: "오답입니다. 데이터 1건 변경으로 STALE 판정이 내려지지 않으며, 카디널리티 피드백(_optimizer_use_feedback)은 런타임 시에 예측 오차를 학습하는 기능으로 플랜을 안정적으로 고정하기는커녕 매번 플랜이 유동적으로 흔들리는 원인이 됩니다."
+      }
+    ]
+  },
+  5: {
+    qNum: 5,
+    title: "조건절 묵시적 형변환에 의한 INDEX FULL/TABLE ACCESS FULL 병목",
+    desc: "회원번호 컬럼 MEMBER_NO는 VARCHAR2(10)로 정의되어 있고 이에 대한 단일 인덱스 IX_MEMBER_NO가 존재합니다. 그러나 아래 실행 계획처럼 TO_NUMBER(\"MEMBER_NO\") = 20260012로 변환되며 TABLE ACCESS FULL 병목이 발생했습니다. 이 현상의 원인과 해결 방안은 무엇입니까?",
+    scenario: `<strong>[DBMS_XPLAN - Target SQL Execution Plan]</strong>
+<pre style="background:rgba(0,0,0,0.15); padding:10px; border-radius:6px; font-family:var(--font-mono); font-size:0.75rem; color:var(--color-text-main); margin-top:8px; border:1px solid var(--border-light); overflow-x:auto;">
+-----------------------------------------------------------------------
+| Id  | Operation         | Name      | Starts | E-Rows | Buffers |
+-----------------------------------------------------------------------
+|   0 | SELECT STATEMENT  |           |      1 |        |   24500 |
+|*  1 |  TABLE ACCESS FULL| TB_MEMBER |      1 |      1 |   24500 |
+-----------------------------------------------------------------------
+Predicate Information (identified by operation id):
+---------------------------------------------------
+   1 - filter(TO_NUMBER("MEMBER_NO")=20260012)
+</pre>`,
+    options: [
+      {
+        id: "pq5-opt-A",
+        title: "우변의 비교 값을 숫자형으로 명시했기 때문에 발생하였으므로, 쿼리에 /*+ INDEX(IX_MEMBER_NO) */ 힌트를 강제 기입하여 함수 연산을 인덱스 레벨로 소멸",
+        desc: "인덱스 강제 적용 힌트를 주어 옵티마이저가 묵시적 형변환 식을 무시하고 강제로 IX_MEMBER_NO 인덱스를 타게 합니다.",
+        isCorrect: false,
+        feedback: "오답입니다. 인덱스 선두 컬럼 자체가 함수식(TO_NUMBER)으로 변환되어 감싸졌기 때문에, 아무리 INDEX 힌트를 주어도 옵티마이저는 인덱스 정렬 값을 해독하지 못하여 힌트를 완전 무시하고 TABLE ACCESS FULL을 타게 됩니다."
+      },
+      {
+        id: "pq5-opt-B",
+        title: "애플리케이션(예: Java PreparedStatement)에서 바인드 변수를 숫자형(setInt)으로 전달하여 옵티마이저가 컬럼 전체에 TO_NUMBER 형변환을 적용한 것이 원인이므로, 바인드 변수를 문자형(setString)으로 전달하도록 코드를 교정",
+        desc: "비교 대상인 상수 값이 숫자 형태로 들어와 우선순위 상 좌변의 VARCHAR2 컬럼 전체에 TO_NUMBER 가공이 일어난 것이 원인이므로 바인드 변수의 바인딩 데이터 타입을 String으로 일치시킵니다.",
+        isCorrect: true,
+        feedback: "정답입니다! 컬럼은 VARCHAR2이고 바인드 변수는 NUMBER인 경우, 데이터 타입 우선순위에 따라 오라클은 좌변의 컬럼 데이터 전체를 숫자로 바꾸는 TO_NUMBER(MEMBER_NO) 묵시적 형변환을 강행합니다. 컬럼이 함수로 가공되면서 인덱스를 타지 못하게 되므로, 애플리케이션 파라미터 전달 타입을 문자열로 정확히 맞춰주어야 합니다."
+      },
+      {
+        id: "pq5-opt-C",
+        title: "MEMBER_NO 컬럼의 데이터 중 숫자가 아닌 문자 블록이 존재하여 발생하였으므로, 해당 컬럼의 모든 레코드를 숫자로 형변환한 뒤 ALTER TABLE 명령으로 타입을 NUMBER로 강제 축소",
+        desc: "컬럼 내 비숫자형 데이터를 정제하고 테이블 메타데이터 타입 자체를 NUMBER 타입으로 영구 구조 마이그레이션합니다.",
+        isCorrect: false,
+        feedback: "오답입니다. 컬럼 타입을 물리적으로 NUMBER로 바꿀 수는 있으나, 기존 비즈니스상의 영문/특수기호 혼재 가능성이 있는 문자열 데이터를 깨뜨리게 되고, 운영 중인 대용량 데이터베이스 테이블 컬럼 속성을 직접 바꾸는 것은 서비스 정지 및 정합성 유실을 부르는 대단히 위험한 시도입니다."
+      }
+    ]
+  },
+  6: {
+    qNum: 6,
+    title: "플랜 변경(Plan Regression) 장애 발생 시 실무 복원 기법",
+    desc: "어제까지 0.1초 만에 수행되던 핵심 조회 쿼리가 갑자기 30초 이상 소요되며 CPU 사용량을 점유하고 있습니다. 쿼리 소스 코드는 수정되지 않았으며, DISPLAY_AWR 분석 결과 실행 계획의 Plan Hash Value가 바뀌었습니다. 힌트를 사용해 소스 코드를 빌드/배포하지 않고, 운영 중인 DB 수준에서 기존의 정상 플랜으로 긴급 원복하여 고정하는 가장 바람직한 조치는 무엇입니까?",
+    scenario: `<strong>[AWR Execution Plan Flip History]</strong>
+<pre style="background:rgba(0,0,0,0.15); padding:10px; border-radius:6px; font-family:var(--font-mono); font-size:0.75rem; color:var(--color-text-main); margin-top:8px; border:1px solid var(--border-light); overflow-x:auto;">
+SQL_ID: 8g4bcqq5dfc96
+----------------------------------------------------------------------------
+Capture Time         Plan Hash Value   Optimizer Cost   Elapsed Time / Row
+----------------------------------------------------------------------------
+2026-05-25 10:00:00  1234567           12               0.1 ms (Good Plan)
+2026-05-26 23:00:00  9876543 (Current) 8722             45,000.0 ms (Bad Plan)
+----------------------------------------------------------------------------
+</pre>`,
+    options: [
+      {
+        id: "pq6-opt-A",
+        title: "ALTER SYSTEM FLUSH SHARED_POOL을 즉각 가동하여 메모리에 있는 모든 악성 쿼리의 락 정보를 초기화하고 소프트 파싱을 재수행하게 유도",
+        desc: "SGA 공유 영역 메모리를 강제로 지워(Flush) 악성 쿼리 커서 캐시를 휘발시켜 컴파일을 유도합니다.",
+        isCorrect: false,
+        feedback: "오답입니다. Shared Pool을 날려버리는 작업은 락이나 플랜 고정을 제어하지 못하며, 오히려 라이브러리 캐시에 상주하는 정상적인 실행계획까지 전부 파괴해 수천 개의 쿼리를 일제히 하드 파싱하게 만들어 데이터베이스 CPU 가용률을 100% 장애로 빠뜨리는 위험천만한 조치입니다."
+      },
+      {
+        id: "pq6-opt-B",
+        title: "DBMS_SPM.LOAD_PLANS_FROM_CURSOR_CACHE를 사용하여 메모리에 상주하고 있는 정상 실행 계획(Good Plan Hash Value)을 SQL Plan Baseline으로 고정(fixed => 'YES') 등록",
+        desc: "SQL Plan Management(SPM) 기능을 활용하여, 성능 검증이 끝난 이전의 우수한 계획(PHV 1234567)을 베이스라인에 등록하고 이를 옵티마이저에게 강제하여 해결합니다.",
+        isCorrect: true,
+        feedback: "정답입니다! 힌트를 기입하기 위해 소스 코드를 배포하거나 재기동하기 어려운 운영 환경에서는, SQL Plan Management(SPM) 패키지를 가동하여 기존의 우수했던 실행 계획 해시(PHV 1234567)를 SQL Plan Baseline으로 등록해주는 것이 가장 안전하고 빠른 긴급 구제 기법입니다. 옵티마이저는 등록된 Baseline 플랜을 강제 준수하게 됩니다."
+      },
+      {
+        id: "pq6-opt-C",
+        title: "DBMS_STATS.GATHER_TABLE_STATS를 estimate_percent => 100으로 호출하여 테이블의 통계 정보를 전체 재수집함으로써 옵티마이저의 비용 공식을 물리적으로 강제 초기화",
+        desc: "통계 오차를 완전히 없애기 위해 전체 테이블 데이터 블록을 100% 정밀 재검색해 통계를 갱신합니다.",
+        isCorrect: false,
+        feedback: "오답입니다. 통계 정보를 재수집하더라도 옵티마이저가 왜 잘못된 결론을 내렸는지 해결하지 않은 상태라면 동일하게 나쁜 플랜(PHV 9876543)을 반복 생성할 확률이 매우 높으며, 대용량 테이블의 100% 수집 연산 자체가 운영 서버 디스크 I/O를 크게 마비시킵니다."
+      }
+    ]
+  }
+};
+
+let currentPlanQuizQ = 1;
+let selectedPlanQuizOptId = null;
+let answeredPlanQuizState = {};
+
+function initPlanQuizPanel() {
+  const tabBtns = document.querySelectorAll(".plan-quiz-tab-btn");
+  tabBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+      tabBtns.forEach(b => {
+        b.style.background = "transparent";
+        b.style.borderColor = "transparent";
+        b.style.color = "var(--color-text-muted)";
+        b.style.fontWeight = "500";
+        b.classList.remove("active");
+      });
+      btn.style.background = "rgba(6, 182, 212, 0.1)";
+      btn.style.borderColor = "rgba(6, 182, 212, 0.25)";
+      btn.style.color = "var(--accent-cyan)";
+      btn.style.fontWeight = "700";
+      btn.classList.add("active");
+
+      const qNum = parseInt(btn.getAttribute("data-pq")) || 1;
+      loadPlanQuizQuestion(qNum);
+    });
+  });
+
+  const submitBtn = document.getElementById("btn-submit-plan-quiz");
+  if (submitBtn) {
+    submitBtn.onclick = submitPlanQuizAnswer;
+  }
+
+  loadPlanQuizQuestion(1);
+}
+
+function loadPlanQuizQuestion(qNum) {
+  currentPlanQuizQ = qNum;
+  const data = planQuizQuestions[qNum];
+  if (!data) return;
+
+  const questionBox = document.getElementById("plan-quiz-question-box");
+  if (questionBox) {
+    questionBox.innerHTML = `
+      <h3 style="margin: 0 0 10px 0; color: var(--color-text-main); font-size: 1.1rem; font-weight: 700;">
+        Q${qNum}. ${data.title}
+      </h3>
+      <p style="margin: 0 0 16px 0; font-size: 0.88rem; color: var(--color-text-muted); line-height: 1.6;">
+        ${data.desc}
+      </p>
+      <div class="scenario-box bg-glass" style="border: 1px solid var(--border-light); border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+        ${data.scenario}
+      </div>
+    `;
+  }
+
+  const optionsBox = document.getElementById("plan-quiz-options-box");
+  if (optionsBox) {
+    optionsBox.innerHTML = '';
+
+    const savedState = answeredPlanQuizState[qNum];
+    selectedPlanQuizOptId = savedState ? savedState.selectedId : null;
+
+    data.options.forEach(opt => {
+      const div = document.createElement("div");
+      div.className = "tuning-option";
+      if (selectedPlanQuizOptId === opt.id) {
+        div.classList.add("selected");
+      }
+      div.setAttribute("data-opt-id", opt.id);
+      div.style.border = "1px solid var(--border-light)";
+      div.style.borderRadius = "8px";
+      div.style.padding = "14px";
+      div.style.cursor = "pointer";
+      div.style.transition = "all 0.2s";
+
+      div.onclick = () => {
+        if (savedState && savedState.submitted) return;
+        document.querySelectorAll("#plan-quiz-options-box .tuning-option").forEach(o => o.classList.remove("selected"));
+        div.classList.add("selected");
+        selectedPlanQuizOptId = opt.id;
+      };
+
+      div.innerHTML = `
+        <div style="font-weight: 700; color: var(--color-text-main); font-size: 0.9rem; margin-bottom: 4px;">
+          ${opt.title}
+        </div>
+        <div style="font-size: 0.8rem; color: var(--color-text-muted); line-height: 1.4;">
+          ${opt.desc}
+        </div>
+      `;
+      optionsBox.appendChild(div);
+    });
+
+    const feedbackBox = document.getElementById("plan-quiz-feedback-box");
+    const submitBtn = document.getElementById("btn-submit-plan-quiz");
+    if (feedbackBox && submitBtn) {
+      if (savedState && savedState.submitted) {
+        displayPlanQuizFeedback(qNum, savedState.selectedId);
+      } else {
+        feedbackBox.style.display = "none";
+        submitBtn.style.display = "block";
+      }
+    }
+  }
+}
+
+function submitPlanQuizAnswer() {
+  if (!selectedPlanQuizOptId) {
+    alert("원하시는 진단 소견(답안)을 선택해 주세요!");
+    return;
+  }
+
+  answeredPlanQuizState[currentPlanQuizQ] = {
+    selectedId: selectedPlanQuizOptId,
+    submitted: true
+  };
+
+  displayPlanQuizFeedback(currentPlanQuizQ, selectedPlanQuizOptId);
+}
+
+function displayPlanQuizFeedback(qNum, selectedId) {
+  const data = planQuizQuestions[qNum];
+  const opt = data.options.find(o => o.id === selectedId);
+  if (!opt) return;
+
+  const feedbackBox = document.getElementById("plan-quiz-feedback-box");
+  const badge = document.getElementById("plan-quiz-result-badge");
+  const title = document.getElementById("plan-quiz-result-title");
+  const desc = document.getElementById("plan-quiz-result-desc");
+  const submitBtn = document.getElementById("btn-submit-plan-quiz");
+
+  if (feedbackBox && badge && title && desc && submitBtn) {
+    feedbackBox.style.display = "flex";
+    submitBtn.style.display = "none";
+
+    if (opt.isCorrect) {
+      badge.innerText = "진단 성공";
+      badge.style.background = "rgba(16, 185, 129, 0.15)";
+      badge.style.color = "var(--accent-emerald)";
+      feedbackBox.style.borderLeftColor = "var(--accent-emerald)";
+      title.innerText = "올바른 DBA 성능 조치안입니다!";
+      title.style.color = "var(--accent-emerald)";
+    } else {
+      badge.innerText = "진단 오류";
+      badge.style.background = "rgba(239, 68, 68, 0.15)";
+      badge.style.color = "#f87171";
+      feedbackBox.style.borderLeftColor = "#ef4444";
+      title.innerText = "주의: 잘못된 진단 접근입니다.";
+      title.style.color = "#f87171";
+    }
+
+    desc.innerHTML = opt.feedback;
+  }
 }
 
 /* -------------------------------------------------------------
