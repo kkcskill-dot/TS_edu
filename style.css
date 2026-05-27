@@ -2781,9 +2781,6 @@ body.light-theme #challenge-asis-sql {
   fill: rgba(16, 185, 129, 0.35);
   stroke: var(--accent-emerald);
 }
-.venn-svg.inner .circle-bg-left, .venn-svg.inner .circle-bg-right {
-  stroke: var(--accent-emerald);
-}
 .venn-svg.inner .text-left, .venn-svg.inner .text-right {
   fill: var(--color-text-main);
 }
@@ -2888,8 +2885,4 @@ body.light-theme .venn-svg.full-join .circle-bg-left {
 body.light-theme .venn-svg.full-join .circle-bg-right {
   fill: rgba(225, 29, 72, 0.1);
   stroke: #e11d48;
-}
-body.light-theme .venn-svg.inner .circle-bg-left,
-body.light-theme .venn-svg.inner .circle-bg-right {
-  stroke: #059669;
 }
