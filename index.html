@@ -237,10 +237,38 @@
     rel="stylesheet">
 
   <!-- App Styles -->
-  <link rel="stylesheet" href="style.css?v=2.6">
+  <link rel="stylesheet" href="style.css?v=2.7">
 </head>
 
 <body class="light-theme">
+
+  <!-- ===== 인증 토큰 게이트 (Access Token Gate) ===== -->
+  <div id="auth-gate" class="auth-gate">
+    <div class="auth-card">
+      <div class="auth-logo">TS class</div>
+      <div class="auth-subtitle">기술서비스팀 DBA Lab</div>
+      <p class="auth-desc">접속하려면 인증 토큰을 입력하세요.</p>
+      <form id="auth-form" class="auth-form" autocomplete="off">
+        <input type="password" id="auth-input" class="auth-input" placeholder="인증 토큰"
+          autocomplete="off" spellcheck="false" aria-label="인증 토큰">
+        <button type="submit" class="auth-btn">접속</button>
+      </form>
+      <div id="auth-error" class="auth-error" aria-live="polite"></div>
+    </div>
+  </div>
+  <script>
+    // 이미 인증된 세션이면 게이트를 즉시 숨겨 깜빡임(FOUC)을 방지한다.
+    (function () {
+      try {
+        if (sessionStorage.getItem('ts_auth_ok') === '1') {
+          var g = document.getElementById('auth-gate');
+          if (g) g.style.display = 'none';
+        }
+      } catch (e) { }
+    })();
+  </script>
+  <!-- ===== /인증 토큰 게이트 ===== -->
+
   <div class="app-container">
 
     <!-- Left Navigation Sidebar -->
@@ -3569,9 +3597,9 @@ EXEC DBMS_STATS.LOCK_TABLE_STATS('[SCHEMA_NAME]', '[TABLE_NAME]');
   </div>
 
   <!-- Javascript Modules -->
-  <script src="challenges.js?v=2.6"></script>
-  <script src="visualizers.js?v=2.6"></script>
-  <script src="app.js?v=2.6"></script>
+  <script src="challenges.js?v=2.7"></script>
+  <script src="visualizers.js?v=2.7"></script>
+  <script src="app.js?v=2.7"></script>
 
   <!-- External Parsers -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -3665,6 +3693,85 @@ EXEC DBMS_STATS.LOCK_TABLE_STATS('[SCHEMA_NAME]', '[TABLE_NAME]');
       // Render when textbook menu is clicked
       document.getElementById('nav-btn-textbook').addEventListener('click', () => {
         setTimeout(renderActiveTextbook, 50);
+      });
+    });
+  </script>
+
+  <!-- ===== 인증 토큰 게이트 로직 + 접속 로그 ===== -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      // 인증 토큰은 평문 대신 해시(cyrb53)로만 비교한다 → 소스 보기에 토큰 문자열이 노출되지 않음.
+      // (단, 클라이언트 측 소프트 게이트이므로 완벽한 보안은 아님)
+      const AUTH_SEED = 0x5f3a2b;
+      const AUTH_HASH = 4936454413363700;
+      const cyrb53 = (str, seed = 0) => {
+        let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
+        for (let i = 0, ch; i < str.length; i++) {
+          ch = str.charCodeAt(i);
+          h1 = Math.imul(h1 ^ ch, 2654435761);
+          h2 = Math.imul(h2 ^ ch, 1597334677);
+        }
+        h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
+        h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+        h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
+        h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+        return 4294967296 * (2097151 & h2) + (h1 >>> 0);
+      };
+      const gate = document.getElementById("auth-gate");
+      const form = document.getElementById("auth-form");
+      const input = document.getElementById("auth-input");
+      const errorBox = document.getElementById("auth-error");
+      if (!gate || !form || !input) return;
+
+      const card = gate.querySelector(".auth-card");
+
+      const isAuthed = () => {
+        try { return sessionStorage.getItem("ts_auth_ok") === "1"; } catch (e) { return false; }
+      };
+
+      // 접속 로그 기록: /tsclass/__visit 호출 -> Nginx access.log(tsclass_visits.log)에 1줄 기록.
+      // 서버에 location 설정이 없으면 404가 나도 동작에는 영향 없음(무시).
+      const logVisit = () => {
+        try {
+          fetch("__visit?t=" + Date.now(), { method: "GET", cache: "no-store", keepalive: true })
+            .catch(() => { });
+        } catch (e) { }
+      };
+
+      const grantAccess = (recordVisit) => {
+        try { sessionStorage.setItem("ts_auth_ok", "1"); } catch (e) { }
+        if (recordVisit) logVisit();   // 토큰 입력 성공 시에만 기록
+        gate.classList.add("auth-hide");
+        document.body.style.overflow = "";
+        setTimeout(() => { gate.style.display = "none"; }, 380);
+      };
+
+      if (isAuthed()) {
+        // 같은 세션에서 새로고침: 재접속 기록 없이 통과
+        gate.style.display = "none";
+        document.body.style.overflow = "";
+      } else {
+        gate.style.display = "flex";
+        document.body.style.overflow = "hidden";
+        setTimeout(() => input.focus(), 120);
+      }
+
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const val = (input.value || "").trim();
+        if (cyrb53(val, AUTH_SEED) === AUTH_HASH) {
+          errorBox.textContent = "";
+          grantAccess(true);
+        } else {
+          errorBox.textContent = "인증 토큰이 올바르지 않습니다.";
+          if (card) {
+            card.classList.remove("auth-shake");
+            void card.offsetWidth; // 애니메이션 재실행을 위한 reflow
+            card.classList.add("auth-shake");
+          }
+          input.value = "";
+          input.focus();
+        }
       });
     });
   </script>

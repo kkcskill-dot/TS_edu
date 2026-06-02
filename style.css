@@ -2885,3 +2885,134 @@ body.light-theme .venn-svg.full-join .circle-bg-right {
   fill: rgba(225, 29, 72, 0.1);
   stroke: #e11d48;
 }
+
+/* -------------------------------------------------------------
+ * 인증 토큰 게이트 (Access Token Gate)
+ * 사이트 라이트 테마와 동일한 톤(흰 카드 + 시안/에메랄드 포인트)으로 맞춤.
+ * ------------------------------------------------------------- */
+.auth-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 50% 22%, rgba(8, 145, 178, 0.08) 0%, rgba(248, 250, 252, 0) 55%),
+    var(--bg-deep, #f8fafc);
+  transition: opacity 0.38s ease, visibility 0.38s ease;
+}
+
+.auth-gate.auth-hide {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  padding: 42px 36px 32px;
+  text-align: center;
+  background: var(--bg-darker, #ffffff);
+  border: 1px solid var(--border-light, rgba(15, 23, 42, 0.08));
+  border-top: 3px solid var(--accent-cyan, #0891b2);
+  border-radius: 16px;
+  box-shadow: var(--shadow-glass, 0 8px 32px rgba(15, 23, 42, 0.08)), 0 0 0 1px rgba(15, 23, 42, 0.02);
+}
+
+.auth-logo {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 800;
+  font-size: 2rem;
+  letter-spacing: 0.5px;
+  background: linear-gradient(135deg, var(--accent-cyan, #0891b2), var(--accent-emerald, #059669));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.auth-subtitle {
+  margin-top: 4px;
+  color: var(--color-text-muted, #475569);
+  font-size: 0.72rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.auth-desc {
+  margin: 28px 0 18px;
+  color: var(--color-text-main, #0f172a);
+  font-size: 0.9rem;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 13px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border-light, rgba(15, 23, 42, 0.12));
+  background: var(--bg-deep, #f8fafc);
+  color: var(--color-text-main, #0f172a);
+  font-size: 0.95rem;
+  font-family: var(--font-mono), monospace;
+  letter-spacing: 1px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.auth-input::placeholder {
+  color: var(--color-text-dark, #94a3b8);
+  letter-spacing: normal;
+}
+
+.auth-input:focus {
+  border-color: var(--accent-cyan, #0891b2);
+  box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.15);
+}
+
+.auth-btn {
+  width: 100%;
+  padding: 13px 16px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent-cyan, #0891b2), var(--accent-emerald, #059669));
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: filter 0.2s ease, box-shadow 0.2s ease, transform 0.12s ease;
+}
+
+.auth-btn:hover {
+  filter: brightness(1.05);
+  box-shadow: 0 6px 18px rgba(8, 145, 178, 0.25);
+}
+
+.auth-btn:active {
+  transform: translateY(1px);
+}
+
+.auth-error {
+  min-height: 18px;
+  margin-top: 14px;
+  color: var(--accent-crimson, #dc2626);
+  font-size: 0.82rem;
+}
+
+.auth-shake {
+  animation: authShake 0.4s ease;
+}
+
+@keyframes authShake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}
