@@ -62,9 +62,13 @@ fi
 hr() { printf '%s\n' "------------------------------------------------------------"; }
 
 # ---- 로그 소스 수집 (현재 + 로테이션/압축 파일) ---------------------------
+# logrotate 명명 방식이 두 가지라 모두 대응한다:
+#   숫자형 :  tsclass_visits.log / .log.1 / .log.2.gz
+#   날짜형 :  tsclass_visits.log / .log-20260604.gz / .log-20260605   (dateext)
+# 따라서 "<LOG>*" 글롭으로 현재 파일과 모든 로테이션 파일을 한 번에 수집한다.
 shopt -s nullglob
 SOURCES=()
-for f in "$LOG" "$LOG".*; do
+for f in "$LOG"*; do
   [[ -f "$f" ]] && SOURCES+=("$f")
 done
 shopt -u nullglob
