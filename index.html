@@ -237,7 +237,7 @@
     rel="stylesheet">
 
   <!-- App Styles -->
-  <link rel="stylesheet" href="style.css?v=2.7">
+  <link rel="stylesheet" href="style.css?v=2.8">
 </head>
 
 <body class="light-theme">
@@ -348,6 +348,32 @@
             <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"></circle>
           </svg>
           플랜 진단 (고급)
+        </button>
+        <button id="nav-btn-card-est" class="menu-item" data-target="panel-card-est">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"
+            stroke-linecap="round" stroke-linejoin="round" class="menu-icon">
+            <line x1="18" y1="20" x2="18" y2="10"></line>
+            <line x1="12" y1="20" x2="12" y2="4"></line>
+            <line x1="6" y1="20" x2="6" y2="14"></line>
+          </svg>
+          실측 카디널리티 (A-Rows)
+        </button>
+        <button id="nav-btn-trace" class="menu-item" data-target="panel-trace">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"
+            stroke-linecap="round" stroke-linejoin="round" class="menu-icon">
+            <polyline points="4 17 10 11 4 5"></polyline>
+            <line x1="12" y1="19" x2="20" y2="19"></line>
+          </svg>
+          SQL Trace / TKPROF
+        </button>
+        <button id="nav-btn-bind-parse" class="menu-item" data-target="panel-bind-parse">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"
+            stroke-linecap="round" stroke-linejoin="round" class="menu-icon">
+            <path d="M4 7V4h16v3"></path>
+            <path d="M9 20h6"></path>
+            <path d="M12 4v16"></path>
+          </svg>
+          바인드 변수 & 파싱
         </button>
         <button id="nav-btn-join-lab" class="menu-item" data-target="panel-join-lab">
           <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"
@@ -1844,6 +1870,229 @@ WHERE o.order_date = '2026-05-18';</code></pre>
                 진단 초기화
               </button>
             </div>
+          </div>
+        </section>
+
+        <!-- ACTUAL CARDINALITY (A-ROWS vs E-ROWS) PANEL -->
+        <section id="panel-card-est" class="content-panel">
+          <div class="panel-intro">
+            <p><code>GATHER_PLAN_STATISTICS</code> / <code>DBMS_XPLAN.DISPLAY_CURSOR(ALLSTATS LAST)</code>로 수집한 실행 계획에서 <strong>예상 행수(E-Rows)</strong>와 <strong>실측 행수(A-Rows)</strong>의 오차가 처음 발생하는 노드를 찾는 읽기 훈련입니다. 오차가 시작된 노드를 클릭하세요.</p>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 16px;">
+            <!-- Left: Scenario & Plan -->
+            <div class="bg-glass" style="padding: 20px; border-radius: 8px; border: 1px solid var(--border-light);">
+              <div class="panel-section-title">카디널리티 오차 시나리오</div>
+              <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
+                <button class="btn-card-scenario active" data-scenario="join_explode"
+                  style="padding: 8px 14px; border: 1px solid var(--accent-cyan); background: rgba(6,182,212,0.15); color: var(--accent-cyan); border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease;">
+                  조인 카디널리티 폭발
+                </button>
+                <button class="btn-card-scenario" data-scenario="filter_under"
+                  style="padding: 8px 14px; border: 1px solid var(--border-light); background: transparent; color: var(--color-text-muted); border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease;">
+                  필터 과소추정
+                </button>
+                <button class="btn-card-scenario" data-scenario="nl_overestimate"
+                  style="padding: 8px 14px; border: 1px solid var(--border-light); background: transparent; color: var(--color-text-muted); border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease;">
+                  과대추정 (불필요 NL)
+                </button>
+              </div>
+
+              <div class="ij-code-wrapper" style="margin-bottom: 14px;">
+                <div class="ij-code-titlebar">
+                  <span class="ij-code-icon">&#128196;</span> SQL Query
+                </div>
+                <pre class="ij-code-block"><code id="card-sql">-- 시나리오를 선택하세요</code></pre>
+              </div>
+
+              <div class="ij-code-wrapper">
+                <div class="ij-code-titlebar">
+                  <span class="ij-code-icon">&#9881;</span> DISPLAY_CURSOR (ALLSTATS LAST)
+                </div>
+                <div id="card-plan-container" class="ij-plan-container" style="max-height: 340px;">
+                  <!-- Rendered by JS -->
+                </div>
+              </div>
+              <div style="font-size: 0.72rem; color: var(--color-text-muted); margin-top: 8px; line-height: 1.6;">
+                💡 핵심 공식: <code>예상 총 행수 = Starts × E-Rows</code> 를 <code>A-Rows</code>와 비교하세요. 오차는 <strong>가장 안쪽(자식) 노드</strong>에서 시작해 부모로 전파됩니다.
+              </div>
+            </div>
+
+            <!-- Right: Diagnosis -->
+            <div class="bg-glass" style="padding: 20px; border-radius: 8px; border: 1px solid var(--border-light); display: flex; flex-direction: column;">
+              <div class="panel-section-title">오차 진단</div>
+
+              <div id="card-instr" style="background: rgba(0,0,0,0.12); border: 1px solid var(--border-light); border-radius: 8px; padding: 14px; margin-bottom: 12px;">
+                <div style="font-size: 0.78rem; font-weight: 700; color: var(--accent-cyan); margin-bottom: 6px;" id="card-instr-title">오차 발원 노드를 클릭하세요</div>
+                <div style="font-size: 0.76rem; color: var(--color-text-muted); line-height: 1.6;" id="card-instr-desc">
+                  각 노드의 <code>Starts × E-Rows</code> 와 <code>A-Rows</code>를 비교해, 예측이 처음으로 크게 빗나간(오차율이 폭증한) <strong>최하위 노드</strong>를 찾아 클릭하세요.
+                </div>
+              </div>
+
+              <div class="ij-code-wrapper" id="card-math-wrapper" style="display: none;">
+                <div class="ij-code-titlebar">
+                  <span class="ij-code-icon">&#128202;</span> 오차 정밀 분석
+                </div>
+                <div id="card-math-content" class="ij-result-block"></div>
+              </div>
+
+              <button id="btn-card-reset" style="margin-top: auto; padding: 8px 16px; background: transparent; border: 1px solid var(--border-light); color: var(--color-text-muted); border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease;">
+                다시 풀기
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- SQL TRACE / TKPROF PANEL -->
+        <section id="panel-trace" class="content-panel">
+          <div class="panel-intro">
+            <p>10046 SQL Trace를 <code>TKPROF</code>로 정리한 출력에서 성능 문제를 3단계로 진단합니다: <strong>Step 1</strong> 문제 통계 라인 식별 → <strong>Step 2</strong> 근본 원인 → <strong>Step 3</strong> 튜닝 조치.</p>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 16px;">
+            <!-- Left: Scenario & TKPROF -->
+            <div class="bg-glass" style="padding: 20px; border-radius: 8px; border: 1px solid var(--border-light);">
+              <div class="panel-section-title">TKPROF 사례</div>
+              <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
+                <button class="btn-trace-scenario active" data-scenario="hard_parse"
+                  style="padding: 8px 14px; border: 1px solid var(--accent-cyan); background: rgba(6,182,212,0.15); color: var(--accent-cyan); border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease;">
+                  하드파싱 폭주
+                </button>
+                <button class="btn-trace-scenario" data-scenario="array_fetch"
+                  style="padding: 8px 14px; border: 1px solid var(--border-light); background: transparent; color: var(--color-text-muted); border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease;">
+                  Row-by-Row 페치
+                </button>
+                <button class="btn-trace-scenario" data-scenario="full_scan"
+                  style="padding: 8px 14px; border: 1px solid var(--border-light); background: transparent; color: var(--color-text-muted); border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease;">
+                  버퍼 과다 (풀스캔)
+                </button>
+              </div>
+
+              <div class="ij-code-wrapper" style="margin-bottom: 14px;">
+                <div class="ij-code-titlebar">
+                  <span class="ij-code-icon">&#128196;</span> SQL
+                </div>
+                <pre class="ij-code-block"><code id="trace-sql">-- 시나리오를 선택하세요</code></pre>
+              </div>
+
+              <div class="ij-code-wrapper">
+                <div class="ij-code-titlebar">
+                  <span class="ij-code-icon">&#9881;</span> TKPROF Output — Call Statistics
+                </div>
+                <div id="trace-tkprof-container" class="ij-plan-container">
+                  <!-- Rendered by JS -->
+                </div>
+              </div>
+              <div id="trace-context" style="font-size: 0.72rem; color: var(--color-text-muted); margin-top: 8px; line-height: 1.7;"></div>
+            </div>
+
+            <!-- Right: 3-Step -->
+            <div class="bg-glass" style="padding: 20px; border-radius: 8px; border: 1px solid var(--border-light); display: flex; flex-direction: column;">
+              <div class="panel-section-title">3단계 진단</div>
+
+              <div id="trace-step-progress" style="display: flex; gap: 4px; margin-bottom: 16px;">
+                <div class="trace-step-chip active" data-step="1" style="flex:1; text-align:center; padding: 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 700; border: 1px solid var(--accent-cyan); background: rgba(6,182,212,0.12); color: var(--accent-cyan); transition: all 0.3s ease;">
+                  STEP 1<br><span style="font-weight: 400; font-size: 0.68rem;">문제 통계 식별</span>
+                </div>
+                <div class="trace-step-chip" data-step="2" style="flex:1; text-align:center; padding: 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 700; border: 1px solid var(--border-light); background: transparent; color: var(--color-text-muted); transition: all 0.3s ease;">
+                  STEP 2<br><span style="font-weight: 400; font-size: 0.68rem;">근본 원인</span>
+                </div>
+                <div class="trace-step-chip" data-step="3" style="flex:1; text-align:center; padding: 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 700; border: 1px solid var(--border-light); background: transparent; color: var(--color-text-muted); transition: all 0.3s ease;">
+                  STEP 3<br><span style="font-weight: 400; font-size: 0.68rem;">튜닝 조치</span>
+                </div>
+              </div>
+
+              <div id="trace-step-content" style="flex: 1; display: flex; flex-direction: column; gap: 12px;">
+                <div id="trace-instr" style="background: rgba(0,0,0,0.12); border: 1px solid var(--border-light); border-radius: 8px; padding: 14px;">
+                  <div style="font-size: 0.78rem; font-weight: 700; color: var(--accent-cyan); margin-bottom: 6px;" id="trace-instr-title">Step 1: 문제 통계 라인을 클릭하세요</div>
+                  <div style="font-size: 0.76rem; color: var(--color-text-muted); line-height: 1.6;" id="trace-instr-desc">
+                    좌측 TKPROF에서 count, cpu/elapsed, query(논리적 읽기), rows를 비교해 <strong>가장 비정상적인 통계 라인</strong>(Parse/Execute/Fetch)을 클릭하세요.
+                  </div>
+                </div>
+
+                <div id="trace-options-area" style="display: none; flex: 1;">
+                  <div style="font-size: 0.76rem; font-weight: 700; color: var(--accent-cyan); margin-bottom: 10px;" id="trace-options-title">근본 원인을 선택하세요:</div>
+                  <div id="trace-options-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                </div>
+
+                <div class="ij-code-wrapper" id="trace-math-wrapper" style="display: none;">
+                  <div class="ij-code-titlebar">
+                    <span class="ij-code-icon">&#128202;</span> 분석 결과
+                  </div>
+                  <div id="trace-math-content" class="ij-result-block"></div>
+                </div>
+
+                <div id="trace-final-report" style="display: none; background: rgba(0,0,0,0.12); border: 1px solid var(--border-light); border-radius: 8px; padding: 14px; flex: 1;">
+                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                    <span style="font-size: 1.1rem;">&#128104;&#8205;&#128187;</span>
+                    <span style="font-size: 0.78rem; font-weight: 700; color: var(--accent-cyan);">TKPROF 진단 보고서</span>
+                    <span id="trace-final-score" style="margin-left: auto; padding: 4px 12px; border-radius: 20px; font-size: 0.72rem; font-weight: 800; background: rgba(100,100,100,0.2); color: var(--color-text-muted);">-</span>
+                  </div>
+                  <div id="trace-final-feedback" style="font-size: 0.78rem; color: var(--color-text-muted); line-height: 1.8;"></div>
+                </div>
+              </div>
+
+              <button id="btn-trace-reset" style="margin-top: 12px; padding: 8px 16px; background: transparent; border: 1px solid var(--border-light); color: var(--color-text-muted); border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease;">
+                진단 초기화
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- BIND VARIABLE & PARSING PANEL -->
+        <section id="panel-bind-parse" class="content-panel">
+          <div class="panel-intro">
+            <p>동일한 조회를 <strong>리터럴 SQL</strong>과 <strong>바인드 변수</strong>로 N번 실행했을 때 파싱 비용·라이브러리 캐시·Shared Pool 사용이 어떻게 갈리는지 비교합니다. 하드/소프트 파스의 차이를 체감하세요.</p>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <!-- Controls -->
+            <div class="bg-glass" style="padding: 16px 20px; border-radius: 8px; border: 1px solid var(--border-light);">
+              <div style="display: flex; align-items: center; gap: 24px; flex-wrap: wrap;">
+                <div style="font-size: 0.8rem; color: var(--color-text-muted);">
+                  시나리오: <strong style="color: var(--color-text-main);">고객 ID로 주문 조회</strong> 를 서로 다른 ID로 반복 실행
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <label style="font-size: 0.78rem; font-weight: 700; color: var(--accent-cyan); white-space: nowrap;">실행 횟수 (N)</label>
+                  <select id="bind-exec-count" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-light); color: var(--color-text-main); padding: 6px 10px; border-radius: 6px; font-family: var(--font-mono); font-size: 0.78rem;">
+                    <option value="100">100 회</option>
+                    <option value="1000" selected>1,000 회</option>
+                    <option value="10000">10,000 회</option>
+                    <option value="100000">100,000 회</option>
+                  </select>
+                </div>
+                <button id="btn-bind-run"
+                  style="padding: 8px 20px; background: var(--accent-cyan); color: #000; border: none; border-radius: 6px; font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease; white-space: nowrap;">
+                  실행 비교
+                </button>
+              </div>
+
+              <!-- SQL patterns -->
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px;">
+                <div class="ij-code-wrapper">
+                  <div class="ij-code-titlebar"><span class="ij-code-icon">&#10060;</span> 리터럴 (값이 SQL에 박힘)</div>
+                  <pre class="ij-code-block"><code>SELECT * FROM orders
+ WHERE cust_id = <span style="color:var(--ij-error)">10042</span>;   -- 매 실행 텍스트가 달라짐
+SELECT * FROM orders
+ WHERE cust_id = <span style="color:var(--ij-error)">10043</span>;   -- → 새 SQL_ID → 하드파스</code></pre>
+                </div>
+                <div class="ij-code-wrapper">
+                  <div class="ij-code-titlebar"><span class="ij-code-icon">&#9989;</span> 바인드 변수 (텍스트 1개 재사용)</div>
+                  <pre class="ij-code-block"><code>SELECT * FROM orders
+ WHERE cust_id = <span style="color:var(--ij-success)">:id</span>;     -- 텍스트 고정 → 동일 SQL_ID
+-- :id 값만 10042, 10043 … 으로 교체
+-- → 1회 하드파스 후 소프트파스/실행 재사용</code></pre>
+                </div>
+              </div>
+            </div>
+
+            <!-- Comparison results (rendered by JS) -->
+            <div id="bind-results" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+              <!-- Rendered by JS -->
+            </div>
+
+            <!-- Verdict / teaching note -->
+            <div id="bind-verdict" class="bg-glass" style="padding: 16px 20px; border-radius: 8px; border: 1px solid var(--border-light); display: none; font-size: 0.8rem; color: var(--color-text-muted); line-height: 1.8;"></div>
           </div>
         </section>
 
@@ -3597,9 +3846,9 @@ EXEC DBMS_STATS.LOCK_TABLE_STATS('[SCHEMA_NAME]', '[TABLE_NAME]');
   </div>
 
   <!-- Javascript Modules -->
-  <script src="challenges.js?v=2.7"></script>
-  <script src="visualizers.js?v=2.7"></script>
-  <script src="app.js?v=2.7"></script>
+  <script src="challenges.js?v=2.8"></script>
+  <script src="visualizers.js?v=2.8"></script>
+  <script src="app.js?v=2.8"></script>
 
   <!-- External Parsers -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>

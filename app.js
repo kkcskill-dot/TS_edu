@@ -41,6 +41,9 @@ document.addEventListener("DOMContentLoaded", () => {
   initAwrAnalyzer();
   initPlanDiagLab();
   initAdvPlanDiag();
+  initCardEstLab();
+  initTraceTkprofLab();
+  initBindParseLab();
   initJoinLab();
   initPlanQuizPanel();
   initJoinSyntaxLab();
@@ -2744,6 +2747,567 @@ EXEC DBMS_STATS.GATHER_TABLE_STATS(
 
   // Initialize
   renderScenario("partition_miss");
+}
+
+/* -------------------------------------------------------------
+ * 9-A. 실측 카디널리티 진단 (A-Rows vs E-Rows)
+ * ------------------------------------------------------------- */
+function initCardEstLab() {
+  const container = document.getElementById("card-plan-container");
+  if (!container) return;
+  const sqlEl = document.getElementById("card-sql");
+  const instrTitle = document.getElementById("card-instr-title");
+  const instrDesc = document.getElementById("card-instr-desc");
+  const mathWrapper = document.getElementById("card-math-wrapper");
+  const mathContent = document.getElementById("card-math-content");
+
+  const scenarios = {
+    join_explode: {
+      title: "조인 카디널리티 폭발",
+      sql: `SELECT c.grade, COUNT(*) cnt
+FROM customers c
+JOIN orders o ON c.cust_id = o.cust_id
+WHERE c.region = 'SEOUL'
+GROUP BY c.grade;`,
+      plan: [
+        { id: 0, op: "SELECT STATEMENT",        starts: 1, eRows: "",      aRows: "" },
+        { id: 1, op: "HASH GROUP BY",            starts: 1, eRows: "5",     aRows: "5",         aTime: "00:00:02", buffers: "162,400" },
+        { id: 2, op: " HASH JOIN",               starts: 1, eRows: "150",   aRows: "1,200,000", aTime: "00:00:02", buffers: "162,400", origin: true },
+        { id: 3, op: "  TABLE ACCESS FULL",      starts: 1, eRows: "1,000", aRows: "1,000",     aTime: "00:00:00", buffers: "120",     note: "CUSTOMERS" },
+        { id: 4, op: "  TABLE ACCESS FULL",      starts: 1, eRows: "60,000",aRows: "60,000",    aTime: "00:00:00", buffers: "162,280", note: "ORDERS" },
+      ],
+      originId: 2,
+      analysis: `<strong>오차 발원: HASH JOIN (Id=2)</strong><br><br>
+자식 노드(Id=3 CUSTOMERS, Id=4 ORDERS)는 E-Rows = A-Rows로 <strong style="color:var(--ij-success);">정확</strong>합니다.<br>
+오차는 두 테이블을 조인하는 <strong>이 노드에서 처음 발생</strong>합니다.<br><br>
+E-Rows = 150 / A-Rows = 1,200,000<br>
+<strong style="color:var(--ij-error);">오차율 = 1,200,000 / 150 = 8,000배 (과소추정)</strong><br><br>
+<strong>해석:</strong> 옵티마이저의 <strong>조인 선택도(join selectivity)</strong> 추정 오류입니다. 보통 1:N 관계의 데이터 편중, 누락된 FK/조인 통계, 또는 다대다 조인에서 발생합니다.<br><br>
+<strong>조치 방향:</strong> 조인 컬럼 통계/히스토그램 점검, 컬럼 그룹 확장 통계, 필요 시 <code>GATHER_PLAN_STATISTICS</code>로 실측 확인 후 카디널리티 힌트 검토.<br>
+<strong>전파:</strong> 상위 GROUP BY(Id=1)는 1.2M행을 받아 처리 → Buffers 162,400 집중.`
+    },
+    filter_under: {
+      title: "필터 과소추정",
+      sql: `SELECT * FROM order_items
+WHERE category_cd = 'ELEC'
+  AND warehouse_id = 7;`,
+      plan: [
+        { id: 0, op: "SELECT STATEMENT",                  starts: 1, eRows: "",   aRows: "" },
+        { id: 1, op: "TABLE ACCESS BY INDEX ROWID BATCHED",starts: 1, eRows: "120",aRows: "48,200", aTime: "00:00:01", buffers: "44,300", note: "ORDER_ITEMS" },
+        { id: 2, op: " INDEX RANGE SCAN",                  starts: 1, eRows: "120",aRows: "48,200", aTime: "00:00:00", buffers: "1,180",  note: "IDX_OI_CAT", origin: true },
+      ],
+      originId: 2,
+      analysis: `<strong>오차 발원: INDEX RANGE SCAN (Id=2)</strong><br><br>
+가장 안쪽 노드에서 이미 E-Rows = 120 인데 A-Rows = 48,200 입니다.<br>
+상위 노드(Id=1)는 같은 오차를 그대로 물려받을 뿐, <strong>발원지는 최하위 인덱스 스캔</strong>입니다.<br><br>
+<strong style="color:var(--ij-error);">오차율 = 48,200 / 120 ≈ 402배 (과소추정)</strong><br><br>
+<strong>해석:</strong> 두 술어 <code>category_cd='ELEC'</code> 와 <code>warehouse_id=7</code> 의 선택도를 옵티마이저가 <strong>독립</strong>으로 곱했지만, 실제로는 상관관계가 있어 결합 선택도가 훨씬 큽니다.<br><br>
+<strong>조치 방향:</strong> 컬럼 그룹 확장 통계 <code>DBMS_STATS.CREATE_EXTENDED_STATS('(CATEGORY_CD, WAREHOUSE_ID)')</code> 생성 후 재수집 → E-Rows가 실측에 근접.`
+    },
+    nl_overestimate: {
+      title: "과대추정 (불필요한 Nested Loops)",
+      sql: `SELECT o.order_id, c.cust_name
+FROM orders o
+JOIN customers c ON c.cust_id = o.cust_id
+WHERE o.status = 'CANCELLED'
+  AND o.order_date >= SYSDATE - 1;`,
+      plan: [
+        { id: 0, op: "SELECT STATEMENT",            starts: 1,  eRows: "",      aRows: "" },
+        { id: 1, op: "NESTED LOOPS",                 starts: 1,  eRows: "50,000",aRows: "12", aTime: "00:00:00", buffers: "1,090" },
+        { id: 2, op: " TABLE ACCESS BY INDEX ROWID", starts: 1,  eRows: "50,000",aRows: "12", aTime: "00:00:00", buffers: "1,054", note: "ORDERS", origin: true },
+        { id: 3, op: "  INDEX RANGE SCAN",           starts: 1,  eRows: "50,000",aRows: "12", aTime: "00:00:00", buffers: "1,040", note: "IDX_ORD_STATUS" },
+        { id: 4, op: " TABLE ACCESS BY INDEX ROWID", starts: 12, eRows: "1",     aRows: "1",  aTime: "00:00:00", buffers: "36",    note: "CUSTOMERS" },
+        { id: 5, op: "  INDEX UNIQUE SCAN",          starts: 12, eRows: "1",     aRows: "1",  aTime: "00:00:00", buffers: "24",    note: "PK_CUSTOMERS" },
+      ],
+      originId: 2,
+      analysis: `<strong>오차 발원: TABLE ACCESS BY INDEX ROWID — ORDERS (Id=2)</strong><br><br>
+구동 집합을 만드는 이 노드에서 E-Rows = 50,000 / A-Rows = 12 로 처음 빗나갑니다.<br>
+(Id=4/5는 Starts=12 × E-Rows=1 = 12 = A-Rows 로 정확)<br><br>
+<strong style="color:var(--ij-success);">이번엔 과대추정:</strong> 예상 50,000 ≫ 실제 12<br>
+<strong>오차율 = 50,000 / 12 ≈ 4,167배 과대</strong><br><br>
+<strong>해석:</strong> <code>status='CANCELLED'</code> 단독으로는 흔하지만, <code>order_date >= SYSDATE-1</code>(최근 1일)과 결합하면 실제론 극소수입니다. 과대추정은 옵티마이저가 <strong>풀스캔/해시조인을 잘못 선택</strong>하게 만들 수 있습니다(여기선 다행히 NL).<br><br>
+<strong>조치 방향:</strong> 날짜+상태 결합 선택도 보정(확장 통계/히스토그램). 과대추정은 과소추정만큼 위험하다는 점을 기억하세요.`
+    }
+  };
+
+  let currentKey = "join_explode";
+  let solved = false;
+
+  function render(key) {
+    currentKey = key;
+    solved = false;
+    const s = scenarios[key];
+    sqlEl.textContent = s.sql;
+    mathWrapper.style.display = "none";
+    mathContent.innerHTML = "";
+    instrTitle.textContent = "오차 발원 노드를 클릭하세요";
+    instrDesc.innerHTML = '각 노드의 <code>Starts × E-Rows</code> 와 <code>A-Rows</code>를 비교해, 예측이 처음으로 크게 빗나간(오차율이 폭증한) <strong>최하위 노드</strong>를 찾아 클릭하세요.';
+
+    document.querySelectorAll(".btn-card-scenario").forEach(btn => {
+      const on = btn.dataset.scenario === key;
+      btn.style.border = on ? "1px solid var(--accent-cyan)" : "1px solid var(--border-light)";
+      btn.style.background = on ? "rgba(6,182,212,0.15)" : "transparent";
+      btn.style.color = on ? "var(--accent-cyan)" : "var(--color-text-muted)";
+    });
+
+    let html = `<table class="ij-plan-table"><thead><tr>
+      <th>Id</th><th>Operation</th><th class="r">Starts</th><th class="r">E-Rows</th><th class="r">A-Rows</th><th class="r">A-Time</th><th class="r">Buffers</th>
+    </tr></thead><tbody>`;
+    s.plan.forEach(row => {
+      const clickable = row.eRows !== "" && row.aRows !== "";
+      html += `<tr data-row-id="${row.id}" class="${clickable ? 'clickable card-row' : ''}">
+        <td class="col-id">${row.id}</td>
+        <td class="col-op">${row.op}${row.note ? ' <span style="color:var(--ij-text-dim);font-size:0.7rem;">(' + row.note + ')</span>' : ''}</td>
+        <td class="r col-starts">${row.starts || ''}</td>
+        <td class="r col-erows">${row.eRows}</td>
+        <td class="r col-arows">${row.aRows}</td>
+        <td class="r">${row.aTime || ''}</td>
+        <td class="r col-buf">${row.buffers || ''}</td>
+      </tr>`;
+    });
+    html += `</tbody></table>`;
+    container.innerHTML = html;
+
+    container.querySelectorAll(".card-row").forEach(tr => {
+      tr.addEventListener("click", () => handleClick(parseInt(tr.dataset.rowId)));
+    });
+  }
+
+  function handleClick(rowId) {
+    if (solved) return;
+    const s = scenarios[currentKey];
+    const correct = rowId === s.originId;
+    container.querySelectorAll(".card-row").forEach(tr => {
+      const rid = parseInt(tr.dataset.rowId);
+      tr.classList.remove("ij-correct", "ij-wrong", "ij-answer-hint");
+      if (rid === rowId) tr.classList.add(correct ? "ij-correct" : "ij-wrong");
+      else if (rid === s.originId && !correct) tr.classList.add("ij-answer-hint");
+    });
+
+    if (correct) {
+      solved = true;
+      instrTitle.textContent = "정답! 오차 발원 노드를 찾았습니다";
+      instrDesc.innerHTML = "오차는 이 노드에서 시작해 부모로 전파됩니다. 아래 정밀 분석을 확인하세요.";
+      mathWrapper.style.display = "block";
+      mathContent.innerHTML = s.analysis;
+    } else {
+      instrTitle.textContent = "오답 — 더 안쪽 노드를 보세요";
+      instrDesc.innerHTML = `Id=${rowId}은 발원지가 아닙니다. <strong>자식 노드까지 정확하다가 이 노드에서 처음 E-Rows와 A-Rows가 갈라지는</strong> 지점을 찾으세요. 정답이 힌트로 표시됩니다.`;
+    }
+  }
+
+  document.querySelectorAll(".btn-card-scenario").forEach(btn => {
+    btn.addEventListener("click", () => render(btn.dataset.scenario));
+  });
+  const resetBtn = document.getElementById("btn-card-reset");
+  if (resetBtn) resetBtn.addEventListener("click", () => render(currentKey));
+
+  render("join_explode");
+}
+
+/* -------------------------------------------------------------
+ * 9-B. SQL Trace / TKPROF 읽기 (3단계 진단)
+ * ------------------------------------------------------------- */
+function initTraceTkprofLab() {
+  const container = document.getElementById("trace-tkprof-container");
+  if (!container) return;
+  const sqlEl = document.getElementById("trace-sql");
+  const contextEl = document.getElementById("trace-context");
+  const instr = document.getElementById("trace-instr");
+  const instrTitle = document.getElementById("trace-instr-title");
+  const instrDesc = document.getElementById("trace-instr-desc");
+  const optionsArea = document.getElementById("trace-options-area");
+  const optionsTitle = document.getElementById("trace-options-title");
+  const optionsList = document.getElementById("trace-options-list");
+  const mathWrapper = document.getElementById("trace-math-wrapper");
+  const mathContent = document.getElementById("trace-math-content");
+  const finalReport = document.getElementById("trace-final-report");
+  const finalScore = document.getElementById("trace-final-score");
+  const finalFeedback = document.getElementById("trace-final-feedback");
+
+  const scenarios = {
+    hard_parse: {
+      title: "하드파싱 폭주",
+      sql: `-- 애플리케이션이 값을 SQL에 직접 결합 (바인드 미사용)
+SELECT * FROM orders WHERE cust_id = 10042;
+SELECT * FROM orders WHERE cust_id = 10043;  -- … 10만 회`,
+      rows: [
+        { call: "Parse",   count: "100,000", cpu: "12.40", elapsed: "13.10", disk: "0", query: "0",       current: "0", rowsv: "0",       bottleneck: true },
+        { call: "Execute", count: "100,000", cpu: "2.10",  elapsed: "2.30",  disk: "0", query: "300,000", current: "0", rowsv: "0" },
+        { call: "Fetch",   count: "100,000", cpu: "1.80",  elapsed: "2.00",  disk: "0", query: "400,000", current: "0", rowsv: "100,000" },
+      ],
+      context: `Misses in library cache during parse: <strong style="color:var(--ij-error);">99,980</strong><br>Optimizer mode: ALL_ROWS · Parsing user id: 84`,
+      bottleneckCall: "Parse",
+      bottleneckMath: `<strong>병목: Parse (count=100,000)</strong><br><br>
+실행 횟수(100,000)와 <strong>Parse 횟수(100,000)가 1:1</strong> → 매 실행마다 새로 파싱.<br>
+Library cache miss 99,980 → 거의 전부 <strong style="color:var(--ij-error);">하드파스</strong>.<br>
+Parse CPU 12.40s 가 전체 CPU의 약 76% 점유.`,
+      causes: [
+        { id: "c1", label: "바인드 변수 미사용 → SQL 텍스트가 매번 달라져 하드파싱 발생", correct: true },
+        { id: "c2", label: "Fetch 배열 크기(arraysize)가 너무 작음", correct: false },
+        { id: "c3", label: "인덱스 부재로 풀스캔 반복", correct: false },
+        { id: "c4", label: "Shared Pool 크기가 과도하게 큼", correct: false }
+      ],
+      causeExplain: {
+        correct: "리터럴 값이 SQL에 박혀 매번 다른 SQL_ID가 생성되고, 라이브러리 캐시에서 재사용할 커서가 없어 하드파스가 폭증합니다.",
+        wrong: "Fetch/인덱스 문제가 아닙니다. Parse 횟수와 library cache miss가 핵심 단서입니다."
+      },
+      fixes: [
+        { id: "f1", label: "바인드 변수 사용 (WHERE cust_id = :id)", correct: true },
+        { id: "f2", label: "arraysize를 100으로 증가", correct: false },
+        { id: "f3", label: "orders.cust_id 인덱스 생성", correct: false },
+        { id: "f4", label: "SHARED_POOL_SIZE 증설", correct: false }
+      ],
+      fixExplain: {
+        correct: `<strong>조치:</strong> 값을 바인드 변수로 분리해 SQL 텍스트를 고정합니다.<br><br>
+<code>SELECT * FROM orders WHERE cust_id = :id;</code><br><br>
+결과: 하드파스 100,000 → <strong style="color:var(--ij-success);">1</strong>, 나머지는 소프트파스. Parse CPU 12.40s → ~0.3s.<br>
+긴급 우회: <code>CURSOR_SHARING=FORCE</code> (근본책은 아님).`,
+        wrong: "arraysize/인덱스/Shared Pool 증설은 하드파싱 자체를 줄이지 못합니다."
+      },
+      finalReport: `<strong>종합 진단:</strong> 바인드 변수 미사용으로 10만 건 거의 전부가 하드파스되어 Parse 단계가 병목이 되었습니다.<br><br>
+<strong>교훈:</strong><br>
+1. TKPROF에서 <code>Parse count ≈ Execute count</code> 이고 library cache miss가 크면 하드파싱 의심<br>
+2. 바인드 변수로 커서 공유 → Parse CPU 급감<br>
+3. <code>v$sql</code>에서 유사 SQL이 리터럴만 다른 채 다수 존재하는지 확인<br>
+4. <code>CURSOR_SHARING</code>은 임시방편, 애플리케이션 바인딩이 정석`
+    },
+    array_fetch: {
+      title: "Row-by-Row 페치",
+      sql: `-- 50만 행을 1건씩 페치 (arraysize=1)
+SELECT order_id, amt FROM big_orders;`,
+      rows: [
+        { call: "Parse",   count: "1",       cpu: "0.00", elapsed: "0.00",  disk: "0",     query: "0",         current: "0", rowsv: "0" },
+        { call: "Execute", count: "1",       cpu: "0.00", elapsed: "0.00",  disk: "0",     query: "0",         current: "0", rowsv: "0" },
+        { call: "Fetch",   count: "500,001", cpu: "8.20", elapsed: "42.50", disk: "1,200", query: "1,500,300", current: "0", rowsv: "500,000", bottleneck: true },
+      ],
+      context: `rows / Fetch ≈ <strong style="color:var(--ij-error);">1.0</strong> (500,000 rows ÷ 500,001 fetch calls)<br>SQL*Net roundtrips to/from client: <strong>500,001</strong>`,
+      bottleneckCall: "Fetch",
+      bottleneckMath: `<strong>병목: Fetch (count=500,001)</strong><br><br>
+Fetch 호출 수(500,001)가 반환 행(500,000)과 <strong>거의 1:1</strong> → 한 번에 1행씩 페치.<br>
+elapsed 42.5s 중 대부분이 <strong style="color:var(--ij-error);">SQL*Net round-trip 대기</strong>(500,001회).<br>
+query 1,500,300 (≈ 3 블록/행)도 round-trip마다 반복.`,
+      causes: [
+        { id: "c1", label: "Fetch arraysize=1 → 행을 1건씩 가져와 네트워크 왕복 폭증", correct: true },
+        { id: "c2", label: "바인드 변수 미사용으로 하드파싱", correct: false },
+        { id: "c3", label: "정렬(SORT)이 디스크로 spill", correct: false },
+        { id: "c4", label: "옵티마이저 통계 노후화", correct: false }
+      ],
+      causeExplain: {
+        correct: "클라이언트 fetch 배열 크기가 1이면 행마다 SQL*Net 왕복이 발생합니다. Fetch count가 rows와 같다는 점이 결정적 단서입니다.",
+        wrong: "Parse/Execute는 각 1회로 정상입니다. 문제는 Fetch 호출 횟수입니다."
+      },
+      fixes: [
+        { id: "f1", label: "Fetch arraysize/배치 크기를 100~1000으로 증가", correct: true },
+        { id: "f2", label: "쿼리에 바인드 변수 적용", correct: false },
+        { id: "f3", label: "PGA_AGGREGATE_TARGET 증설", correct: false },
+        { id: "f4", label: "big_orders 통계 재수집", correct: false }
+      ],
+      fixExplain: {
+        correct: `<strong>조치:</strong> 배열 페치 크기를 키웁니다.<br><br>
+<code>SET ARRAYSIZE 1000  -- SQL*Plus
+stmt.setFetchSize(1000); // JDBC</code><br><br>
+결과: Fetch 호출 500,001 → ~500, SQL*Net 왕복 1000배 감소, elapsed 42.5s → ~3s.`,
+        wrong: "바인드/PGA/통계는 round-trip 횟수를 줄이지 못합니다."
+      },
+      finalReport: `<strong>종합 진단:</strong> arraysize=1로 50만 행을 1건씩 페치해 SQL*Net 왕복이 병목이 되었습니다.<br><br>
+<strong>교훈:</strong><br>
+1. <code>Fetch count ≈ rows</code> → 배열 페치 미사용 신호<br>
+2. arraysize/fetchSize를 키우면 왕복 횟수가 급감<br>
+3. elapsed ≫ cpu 이고 SQL*Net 대기가 크면 네트워크 왕복 의심<br>
+4. 대량 추출은 배치 페치 + 적절한 커밋 주기 설계`
+    },
+    full_scan: {
+      title: "버퍼 과다 (풀스캔)",
+      sql: `SELECT * FROM order_items
+WHERE warehouse_id = 7
+  AND ship_flag = 'N';   -- 인덱스 없음`,
+      rows: [
+        { call: "Parse",   count: "1",  cpu: "0.01", elapsed: "0.02", disk: "0",      query: "0",         current: "0", rowsv: "0" },
+        { call: "Execute", count: "1",  cpu: "0.00", elapsed: "0.00", disk: "0",      query: "0",         current: "0", rowsv: "0" },
+        { call: "Fetch",   count: "35", cpu: "3.90", elapsed: "9.80", disk: "18,400", query: "2,250,000", current: "0", rowsv: "500", bottleneck: true },
+      ],
+      context: `반환 행 500건에 <strong style="color:var(--ij-error);">query(논리적 읽기) 2,250,000</strong> 블록 → 행당 4,500 블록.<br>Row Source: TABLE ACCESS <strong>FULL</strong> ORDER_ITEMS (1,500,000 rows)`,
+      bottleneckCall: "Fetch",
+      bottleneckMath: `<strong>병목: Fetch (query=2,250,000)</strong><br><br>
+반환 행은 500건뿐인데 논리적 읽기(query)가 <strong>2,250,000 블록</strong>.<br>
+<strong style="color:var(--ij-error);">블록/행 = 4,500</strong> → 150만 행 테이블을 매번 풀스캔.<br>
+disk 18,400 (물리적 읽기)도 동반 → 인덱스가 없어 전수 검색.`,
+      causes: [
+        { id: "c1", label: "조건 컬럼에 인덱스가 없어 TABLE ACCESS FULL 반복", correct: true },
+        { id: "c2", label: "Fetch arraysize가 작아서", correct: false },
+        { id: "c3", label: "바인드 변수 미사용", correct: false },
+        { id: "c4", label: "Hash Join build 메모리 부족", correct: false }
+      ],
+      causeExplain: {
+        correct: "선택도 높은 조건(500/1,500,000)인데 인덱스가 없어 매 실행 전체 블록을 훑습니다. query 블록 대비 rows가 극단적으로 작은 것이 단서입니다.",
+        wrong: "Fetch 횟수(35)는 적정합니다. 문제는 행당 논리적 읽기(블록 수)입니다."
+      },
+      fixes: [
+        { id: "f1", label: "(warehouse_id, ship_flag) 복합 인덱스 생성", correct: true },
+        { id: "f2", label: "arraysize 증가", correct: false },
+        { id: "f3", label: "바인드 변수 적용", correct: false },
+        { id: "f4", label: "PARALLEL 힌트로 풀스캔 가속", correct: false }
+      ],
+      fixExplain: {
+        correct: `<strong>조치:</strong> 선택도 높은 조건에 복합 인덱스를 만듭니다.<br><br>
+<code>CREATE INDEX ix_oi_wh_ship
+  ON order_items(warehouse_id, ship_flag);</code><br><br>
+결과: TABLE ACCESS FULL → INDEX RANGE SCAN, query 2,250,000 → <strong style="color:var(--ij-success);">~520</strong> 블록.`,
+        wrong: "arraysize/바인드/병렬은 논리적 읽기량 자체를 줄이지 못합니다(병렬은 자원만 더 씀)."
+      },
+      finalReport: `<strong>종합 진단:</strong> 인덱스 부재로 500건 조회에 225만 블록을 읽는 풀스캔이 병목이 되었습니다.<br><br>
+<strong>교훈:</strong><br>
+1. TKPROF에서 <code>query ≫ rows</code>(행당 블록 과다)이면 비효율 스캔 의심<br>
+2. 선택도 높은 술어에는 인덱스(복합 포함) 적용<br>
+3. disk 동반 시 물리 I/O까지 유발 → 응답시간 악화<br>
+4. <code>v$sql_plan</code>/Row Source Operation에서 FULL 여부 확인`
+    }
+  };
+
+  let currentKey = "hard_parse";
+  let currentStep = 0; // 0=identify, 1=cause done→ etc
+  let score = 0;
+
+  function updateChips(active) {
+    document.querySelectorAll("#trace-step-progress .trace-step-chip").forEach(chip => {
+      const s = parseInt(chip.dataset.step);
+      if (s < active) { chip.style.border = "1px solid var(--accent-emerald)"; chip.style.background = "rgba(16,185,129,0.12)"; chip.style.color = "var(--accent-emerald)"; }
+      else if (s === active) { chip.style.border = "1px solid var(--accent-cyan)"; chip.style.background = "rgba(6,182,212,0.12)"; chip.style.color = "var(--accent-cyan)"; }
+      else { chip.style.border = "1px solid var(--border-light)"; chip.style.background = "transparent"; chip.style.color = "var(--color-text-muted)"; }
+    });
+  }
+
+  function render(key) {
+    currentKey = key;
+    currentStep = 0;
+    score = 0;
+    const s = scenarios[key];
+    sqlEl.textContent = s.sql;
+    contextEl.innerHTML = s.context;
+    optionsArea.style.display = "none";
+    mathWrapper.style.display = "none";
+    finalReport.style.display = "none";
+    instr.style.display = "block";
+    instrTitle.textContent = "Step 1: 문제 통계 라인을 클릭하세요";
+    instrDesc.innerHTML = "좌측 TKPROF에서 count, cpu/elapsed, query(논리적 읽기), rows를 비교해 <strong>가장 비정상적인 통계 라인</strong>(Parse/Execute/Fetch)을 클릭하세요.";
+    updateChips(1);
+
+    document.querySelectorAll(".btn-trace-scenario").forEach(btn => {
+      const on = btn.dataset.scenario === key;
+      btn.style.border = on ? "1px solid var(--accent-cyan)" : "1px solid var(--border-light)";
+      btn.style.background = on ? "rgba(6,182,212,0.15)" : "transparent";
+      btn.style.color = on ? "var(--accent-cyan)" : "var(--color-text-muted)";
+    });
+
+    let html = `<table class="ij-plan-table"><thead><tr>
+      <th>call</th><th class="r">count</th><th class="r">cpu</th><th class="r">elapsed</th><th class="r">disk</th><th class="r">query</th><th class="r">current</th><th class="r">rows</th>
+    </tr></thead><tbody>`;
+    s.rows.forEach(r => {
+      html += `<tr data-call="${r.call}" class="clickable trace-row">
+        <td class="col-op">${r.call}</td>
+        <td class="r col-starts">${r.count}</td>
+        <td class="r">${r.cpu}</td>
+        <td class="r">${r.elapsed}</td>
+        <td class="r">${r.disk}</td>
+        <td class="r col-buf">${r.query}</td>
+        <td class="r">${r.current}</td>
+        <td class="r col-arows">${r.rowsv}</td>
+      </tr>`;
+    });
+    html += `</tbody></table>`;
+    container.innerHTML = html;
+
+    container.querySelectorAll(".trace-row").forEach(tr => {
+      tr.addEventListener("click", () => { if (currentStep === 0) handleStep1(tr.dataset.call); });
+    });
+  }
+
+  function handleStep1(call) {
+    const s = scenarios[currentKey];
+    const correct = call === s.bottleneckCall;
+    container.querySelectorAll(".trace-row").forEach(tr => {
+      tr.classList.remove("ij-correct", "ij-wrong", "ij-answer-hint");
+      if (tr.dataset.call === call) tr.classList.add(correct ? "ij-correct" : "ij-wrong");
+      else if (tr.dataset.call === s.bottleneckCall && !correct) tr.classList.add("ij-answer-hint");
+    });
+    if (correct) {
+      score += 40;
+      currentStep = 1;
+      mathWrapper.style.display = "block";
+      mathContent.innerHTML = s.bottleneckMath;
+      updateChips(2);
+      instrTitle.textContent = "Step 1 완료! → Step 2";
+      instrDesc.innerHTML = "문제 통계 라인을 정확히 찾았습니다. 근본 원인을 선택하세요.";
+      setTimeout(showStep2, 600);
+    } else {
+      score += 5;
+      instrTitle.textContent = "오답 — 다시 보세요";
+      instrDesc.innerHTML = `${call} 라인은 핵심 병목이 아닙니다. count·query·rows의 <strong>비율</strong>이 비정상인 라인을 찾으세요. 정답이 힌트로 표시됩니다.`;
+    }
+  }
+
+  function showStep2() {
+    const s = scenarios[currentKey];
+    instr.style.display = "none";
+    optionsArea.style.display = "block";
+    optionsTitle.textContent = "Step 2: 근본 원인을 선택하세요";
+    renderOptions(s.causes, (chosen) => {
+      if (chosen.correct) { score += 30; mathContent.innerHTML += `<br><br><hr style="border-color:var(--ij-border);margin:10px 0;"><strong style="color:var(--ij-success);">근본 원인 정답!</strong><br>${s.causeExplain.correct}`; }
+      else { score += 5; mathContent.innerHTML += `<br><br><hr style="border-color:var(--ij-border);margin:10px 0;"><strong style="color:var(--ij-error);">오답:</strong> ${s.causeExplain.wrong}<br><strong>정답:</strong> ${s.causes.find(c => c.correct).label}`; }
+      updateChips(3);
+      setTimeout(showStep3, 500);
+    });
+  }
+
+  function showStep3() {
+    const s = scenarios[currentKey];
+    optionsTitle.textContent = "Step 3: 튜닝 조치를 선택하세요";
+    renderOptions(s.fixes, (chosen) => {
+      if (chosen.correct) { score += 30; mathContent.innerHTML += `<br><br><hr style="border-color:var(--ij-border);margin:10px 0;"><strong style="color:var(--ij-success);">튜닝 조치 정답!</strong><br>${s.fixExplain.correct}`; }
+      else { score += 5; mathContent.innerHTML += `<br><br><hr style="border-color:var(--ij-border);margin:10px 0;"><strong style="color:var(--ij-error);">오답:</strong> ${s.fixExplain.wrong}<br><strong>정답:</strong> ${s.fixes.find(f => f.correct).label}`; }
+      optionsArea.style.display = "none";
+      showFinal();
+    });
+  }
+
+  function renderOptions(items, onSelect) {
+    optionsList.innerHTML = "";
+    items.forEach((item, idx) => {
+      const btn = document.createElement("button");
+      btn.style.cssText = "width:100%; text-align:left; padding: 12px 14px; border: 1px solid var(--border-light); background: rgba(0,0,0,0.08); color: var(--color-text-main); border-radius: 6px; font-size: 0.78rem; line-height: 1.5; cursor: pointer; transition: all 0.15s ease;";
+      btn.textContent = item.label;
+      btn.addEventListener("mouseenter", () => { if (!btn.disabled) { btn.style.borderColor = "var(--accent-cyan)"; btn.style.background = "rgba(6,182,212,0.06)"; } });
+      btn.addEventListener("mouseleave", () => { if (!btn.disabled) { btn.style.borderColor = "var(--border-light)"; btn.style.background = "rgba(0,0,0,0.08)"; } });
+      btn.addEventListener("click", () => {
+        optionsList.querySelectorAll("button").forEach(b => { b.disabled = true; b.style.cursor = "default"; b.style.opacity = "0.5"; });
+        if (item.correct) { btn.style.borderColor = "var(--accent-emerald)"; btn.style.background = "rgba(16,185,129,0.12)"; btn.style.color = "var(--accent-emerald)"; }
+        else { btn.style.borderColor = "#ef4444"; btn.style.background = "rgba(239,68,68,0.08)"; btn.style.color = "#ef4444"; }
+        btn.style.opacity = "1";
+        if (!item.correct) {
+          optionsList.querySelectorAll("button").forEach((b, i) => { if (items[i].correct) { b.style.borderColor = "var(--accent-emerald)"; b.style.background = "rgba(16,185,129,0.08)"; b.style.color = "var(--accent-emerald)"; b.style.opacity = "1"; } });
+        }
+        onSelect(item);
+      });
+      optionsList.appendChild(btn);
+    });
+  }
+
+  function showFinal() {
+    finalReport.style.display = "block";
+    const s = scenarios[currentKey];
+    let grade, color;
+    if (score >= 90) { grade = "MASTER"; color = "var(--accent-emerald)"; }
+    else if (score >= 60) { grade = "PASS"; color = "var(--accent-cyan)"; }
+    else { grade = "RETRY"; color = "#ef4444"; }
+    finalScore.textContent = `${score}점 — ${grade}`;
+    finalScore.style.background = score >= 60 ? "rgba(16,185,129,0.12)" : "rgba(239,68,68,0.1)";
+    finalScore.style.color = color;
+    finalFeedback.innerHTML = s.finalReport;
+  }
+
+  document.querySelectorAll(".btn-trace-scenario").forEach(btn => {
+    btn.addEventListener("click", () => render(btn.dataset.scenario));
+  });
+  const resetBtn = document.getElementById("btn-trace-reset");
+  if (resetBtn) resetBtn.addEventListener("click", () => render(currentKey));
+
+  render("hard_parse");
+}
+
+/* -------------------------------------------------------------
+ * 9-C. 바인드 변수 & 파싱 시뮬레이터
+ * ------------------------------------------------------------- */
+function initBindParseLab() {
+  const runBtn = document.getElementById("btn-bind-run");
+  if (!runBtn) return;
+  const countSel = document.getElementById("bind-exec-count");
+  const resultsEl = document.getElementById("bind-results");
+  const verdictEl = document.getElementById("bind-verdict");
+
+  // 파싱 비용 추정(교육용 상수)
+  const HARD_MS = 0.12;   // 하드파스 1회당 CPU(ms)
+  const SOFT_MS = 0.006;  // 소프트파스 1회당 CPU(ms)
+  const CURSOR_KB = 6;    // 커서 1개당 Shared Pool 점유(KB)
+
+  const fmt = (n) => n.toLocaleString();
+  const fmtMs = (ms) => ms >= 1000 ? (ms / 1000).toFixed(2) + " s" : ms.toFixed(1) + " ms";
+
+  function compute(N) {
+    return {
+      literal: {
+        hard: N, soft: 0, cursors: N,
+        hit: 0,
+        parseMs: N * HARD_MS,
+        poolKB: N * CURSOR_KB
+      },
+      bind: {
+        hard: 1, soft: N - 1, cursors: 1,
+        hit: N > 0 ? ((N - 1) / N) * 100 : 0,
+        parseMs: HARD_MS + (N - 1) * SOFT_MS,
+        poolKB: CURSOR_KB
+      }
+    };
+  }
+
+  function card(title, accent, m, N, maxParse, maxPool) {
+    const metric = (label, val, danger) => `
+      <div style="display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--border-light); font-size:0.78rem;">
+        <span style="color:var(--color-text-muted);">${label}</span>
+        <span style="font-weight:700; color:${danger ? 'var(--ij-error)' : 'var(--color-text-main)'}; font-family:var(--font-mono);">${val}</span>
+      </div>`;
+    const parsePct = maxParse > 0 ? (m.parseMs / maxParse * 100) : 0;
+    const poolPct = maxPool > 0 ? (m.poolKB / maxPool * 100) : 0;
+    return `
+      <div class="bg-glass" style="padding:18px 20px; border-radius:8px; border:1px solid ${accent};">
+        <div style="font-size:0.9rem; font-weight:800; color:${accent}; margin-bottom:12px;">${title}</div>
+        ${metric("하드 파스 (Hard Parse)", fmt(m.hard), m.hard > 1)}
+        ${metric("소프트 파스 (Soft Parse)", fmt(m.soft), false)}
+        ${metric("고유 커서 (Shared Pool)", fmt(m.cursors) + " 개", m.cursors > 1)}
+        ${metric("라이브러리 캐시 적중률", m.hit.toFixed(1) + " %", m.hit < 50)}
+        ${metric("파싱 CPU (추정)", fmtMs(m.parseMs), m.parseMs > maxParse * 0.5 && maxParse > 0 && m.parseMs === maxParse)}
+        <div style="margin-top:12px;">
+          <div style="font-size:0.7rem; color:var(--color-text-muted); margin-bottom:3px;">파싱 CPU</div>
+          <div style="background:rgba(0,0,0,0.18); border-radius:4px; height:10px; overflow:hidden;">
+            <div style="height:100%; width:${parsePct}%; background:${accent}; transition:width 0.6s ease;"></div>
+          </div>
+        </div>
+        <div style="margin-top:8px;">
+          <div style="font-size:0.7rem; color:var(--color-text-muted); margin-bottom:3px;">Shared Pool 점유</div>
+          <div style="background:rgba(0,0,0,0.18); border-radius:4px; height:10px; overflow:hidden;">
+            <div style="height:100%; width:${poolPct}%; background:${accent}; transition:width 0.6s ease;"></div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function run() {
+    const N = parseInt(countSel.value) || 1000;
+    const { literal, bind } = compute(N);
+    const maxParse = Math.max(literal.parseMs, bind.parseMs);
+    const maxPool = Math.max(literal.poolKB, bind.poolKB);
+
+    resultsEl.innerHTML =
+      card("리터럴 SQL", "var(--accent-crimson)", literal, N, maxParse, maxPool) +
+      card("바인드 변수", "var(--accent-emerald)", bind, N, maxParse, maxPool);
+
+    const cpuCut = literal.parseMs > 0 ? (1 - bind.parseMs / literal.parseMs) * 100 : 0;
+    const poolCut = literal.poolKB > 0 ? (1 - bind.poolKB / literal.poolKB) * 100 : 0;
+    verdictEl.style.display = "block";
+    verdictEl.innerHTML = `
+      <div style="font-size:0.85rem; font-weight:700; color:var(--accent-cyan); margin-bottom:6px;">📊 비교 결과 (N = ${fmt(N)})</div>
+      바인드 변수 사용 시 하드파스 <strong>${fmt(literal.hard)} → 1</strong>,
+      파싱 CPU <strong style="color:var(--accent-emerald);">약 ${cpuCut.toFixed(1)}%</strong> 절감,
+      Shared Pool 커서 <strong>${fmt(N)}개 → 1개</strong>(<strong style="color:var(--accent-emerald);">${poolCut.toFixed(1)}%</strong> 절감).<br><br>
+      <strong>왜?</strong> 리터럴은 값이 SQL 텍스트에 박혀 매 실행마다 새 <code>SQL_ID</code>가 생성 → 라이브러리 캐시에서 재사용할 커서가 없어 <strong style="color:var(--ij-error);">하드파스</strong>가 반복됩니다. 하드파스는 구문분석·최적화·행 소스 생성을 모두 수행해 CPU와 <code>library cache</code>/<code>shared pool</code> 래치 경합을 유발합니다.<br><br>
+      <strong>⚠️ 보완 포인트:</strong><br>
+      • <strong>바인드 피킹(Bind Peeking)</strong>: 첫 실행 값으로 플랜이 굳어 데이터 편중 컬럼에선 불리할 수 있음 → 12c+ <em>Adaptive Cursor Sharing</em>로 완화.<br>
+      • <strong>데이터 편중 + 히스토그램</strong>이 중요한 컬럼은 오히려 리터럴이 유리할 때도 있음(케이스 분리).<br>
+      • 애플리케이션 수정이 어려우면 <code>CURSOR_SHARING=FORCE</code>로 우회 가능하나 근본책은 바인딩.`;
+  }
+
+  runBtn.addEventListener("click", run);
+  run(); // 초기 1회
 }
 
 /* -------------------------------------------------------------
