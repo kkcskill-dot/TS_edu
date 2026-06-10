@@ -349,14 +349,15 @@
           </svg>
           플랜 진단 (고급)
         </button>
-        <button id="nav-btn-card-est" class="menu-item" data-target="panel-card-est">
+        <button id="nav-btn-adaptive" class="menu-item" data-target="panel-adaptive">
           <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"
             stroke-linecap="round" stroke-linejoin="round" class="menu-icon">
-            <line x1="18" y1="20" x2="18" y2="10"></line>
-            <line x1="12" y1="20" x2="12" y2="4"></line>
-            <line x1="6" y1="20" x2="6" y2="14"></line>
+            <path d="M21 2v6h-6"></path>
+            <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+            <path d="M3 22v-6h6"></path>
+            <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
           </svg>
-          실측 카디널리티 (A-Rows)
+          적응형 최적화 (Adaptive)
         </button>
         <button id="nav-btn-trace" class="menu-item" data-target="panel-trace">
           <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"
@@ -1873,28 +1874,28 @@ WHERE o.order_date = '2026-05-18';</code></pre>
           </div>
         </section>
 
-        <!-- ACTUAL CARDINALITY (A-ROWS vs E-ROWS) PANEL -->
-        <section id="panel-card-est" class="content-panel">
+        <!-- ADAPTIVE QUERY OPTIMIZATION PANEL -->
+        <section id="panel-adaptive" class="content-panel">
           <div class="panel-intro">
-            <p><code>GATHER_PLAN_STATISTICS</code> / <code>DBMS_XPLAN.DISPLAY_CURSOR(ALLSTATS LAST)</code>로 수집한 실행 계획에서 <strong>예상 행수(E-Rows)</strong>와 <strong>실측 행수(A-Rows)</strong>의 오차가 처음 발생하는 노드를 찾는 읽기 훈련입니다. 오차가 시작된 노드를 클릭하세요.</p>
+            <p>12c <strong>적응형 최적화(Adaptive Query Optimization)</strong> 실습입니다. 1차 실행에서 추정이 빗나갔을 때, 옵티마이저가 <strong>카디널리티(통계) 피드백 · Adaptive Plan · SQL Plan Directive</strong>로 어떻게 스스로 플랜을 바꾸는지 <strong>예측 → 검증</strong>합니다.</p>
           </div>
 
           <div style="display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 16px;">
-            <!-- Left: Scenario & Plan -->
+            <!-- Left: Scenario & Plans -->
             <div class="bg-glass" style="padding: 20px; border-radius: 8px; border: 1px solid var(--border-light);">
-              <div class="panel-section-title">카디널리티 오차 시나리오</div>
+              <div class="panel-section-title">적응형 최적화 시나리오</div>
               <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
-                <button class="btn-card-scenario active" data-scenario="join_explode"
+                <button class="btn-adaptive-scenario active" data-scenario="card_feedback"
                   style="padding: 8px 14px; border: 1px solid var(--accent-cyan); background: rgba(6,182,212,0.15); color: var(--accent-cyan); border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease;">
-                  조인 카디널리티 폭발
+                  카디널리티 피드백
                 </button>
-                <button class="btn-card-scenario" data-scenario="filter_under"
+                <button class="btn-adaptive-scenario" data-scenario="adaptive_plan"
                   style="padding: 8px 14px; border: 1px solid var(--border-light); background: transparent; color: var(--color-text-muted); border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease;">
-                  필터 과소추정
+                  Adaptive Plan
                 </button>
-                <button class="btn-card-scenario" data-scenario="nl_overestimate"
+                <button class="btn-adaptive-scenario" data-scenario="plan_directive"
                   style="padding: 8px 14px; border: 1px solid var(--border-light); background: transparent; color: var(--color-text-muted); border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease;">
-                  과대추정 (불필요 NL)
+                  SQL Plan Directive
                 </button>
               </div>
 
@@ -1902,41 +1903,58 @@ WHERE o.order_date = '2026-05-18';</code></pre>
                 <div class="ij-code-titlebar">
                   <span class="ij-code-icon">&#128196;</span> SQL Query
                 </div>
-                <pre class="ij-code-block"><code id="card-sql">-- 시나리오를 선택하세요</code></pre>
+                <pre class="ij-code-block"><code id="adaptive-sql">-- 시나리오를 선택하세요</code></pre>
               </div>
 
-              <div class="ij-code-wrapper">
+              <div class="ij-code-wrapper" style="margin-bottom: 14px;">
                 <div class="ij-code-titlebar">
-                  <span class="ij-code-icon">&#9881;</span> DISPLAY_CURSOR (ALLSTATS LAST)
+                  <span class="ij-code-icon">&#9312;</span> <span id="adaptive-plan1-title">1차 실행 — 초기 플랜</span>
                 </div>
-                <div id="card-plan-container" class="ij-plan-container" style="max-height: 340px;">
+                <div id="adaptive-plan1-container" class="ij-plan-container" style="max-height: 300px;">
                   <!-- Rendered by JS -->
                 </div>
               </div>
-              <div style="font-size: 0.72rem; color: var(--color-text-muted); margin-top: 8px; line-height: 1.6;">
-                💡 핵심 공식: <code>예상 총 행수 = Starts × E-Rows</code> 를 <code>A-Rows</code>와 비교하세요. 오차는 <strong>가장 안쪽(자식) 노드</strong>에서 시작해 부모로 전파됩니다.
+
+              <div class="ij-code-wrapper" id="adaptive-plan2-wrap" style="display: none; border-color: var(--accent-emerald);">
+                <div class="ij-code-titlebar" style="color: var(--accent-emerald);">
+                  <span class="ij-code-icon">&#9313;</span> <span id="adaptive-plan2-title">적응 후 — 재최적화된 플랜</span>
+                </div>
+                <div id="adaptive-plan2-container" class="ij-plan-container" style="max-height: 300px;">
+                  <!-- Rendered by JS -->
+                </div>
               </div>
             </div>
 
-            <!-- Right: Diagnosis -->
+            <!-- Right: Predict → Verify -->
             <div class="bg-glass" style="padding: 20px; border-radius: 8px; border: 1px solid var(--border-light); display: flex; flex-direction: column;">
-              <div class="panel-section-title">오차 진단</div>
+              <div class="panel-section-title">적응 예측 → 검증</div>
 
-              <div id="card-instr" style="background: rgba(0,0,0,0.12); border: 1px solid var(--border-light); border-radius: 8px; padding: 14px; margin-bottom: 12px;">
-                <div style="font-size: 0.78rem; font-weight: 700; color: var(--accent-cyan); margin-bottom: 6px;" id="card-instr-title">오차 발원 노드를 클릭하세요</div>
-                <div style="font-size: 0.76rem; color: var(--color-text-muted); line-height: 1.6;" id="card-instr-desc">
-                  각 노드의 <code>Starts × E-Rows</code> 와 <code>A-Rows</code>를 비교해, 예측이 처음으로 크게 빗나간(오차율이 폭증한) <strong>최하위 노드</strong>를 찾아 클릭하세요.
+              <div id="adaptive-predict" style="margin-bottom: 12px;">
+                <div style="font-size: 0.78rem; font-weight: 700; color: var(--accent-cyan); margin-bottom: 6px;" id="adaptive-predict-title">예측: 2차 실행에서 옵티마이저는?</div>
+                <div style="font-size: 0.76rem; color: var(--color-text-muted); line-height: 1.6; margin-bottom: 10px;" id="adaptive-predict-desc">
+                  1차 실행의 E-Rows vs A-Rows 차이를 보고, 옵티마이저가 어떻게 플랜을 적응시킬지 예측해 보세요.
+                </div>
+                <div id="adaptive-predict-list" style="display: flex; flex-direction: column; gap: 8px;">
+                  <!-- Generated by JS -->
                 </div>
               </div>
 
-              <div class="ij-code-wrapper" id="card-math-wrapper" style="display: none;">
+              <div class="ij-code-wrapper" id="adaptive-reveal-wrap" style="display: none;">
                 <div class="ij-code-titlebar">
-                  <span class="ij-code-icon">&#128202;</span> 오차 정밀 분석
+                  <span class="ij-code-icon">&#128270;</span> 적응 메커니즘 & 딕셔너리 근거
                 </div>
-                <div id="card-math-content" class="ij-result-block"></div>
+                <div id="adaptive-mech" class="ij-result-block"></div>
               </div>
 
-              <button id="btn-card-reset" style="margin-top: auto; padding: 8px 16px; background: transparent; border: 1px solid var(--border-light); color: var(--color-text-muted); border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease;">
+              <div id="adaptive-report" style="display: none; background: rgba(0,0,0,0.12); border: 1px solid var(--border-light); border-radius: 8px; padding: 14px; margin-top: 12px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="font-size: 1.05rem;">&#129520;</span>
+                  <span style="font-size: 0.78rem; font-weight: 700; color: var(--accent-cyan);" id="adaptive-report-title">적응형 최적화 결과</span>
+                  <span id="adaptive-score" style="margin-left: auto; padding: 4px 12px; border-radius: 20px; font-size: 0.72rem; font-weight: 800; background: rgba(100,100,100,0.2); color: var(--color-text-muted);">-</span>
+                </div>
+              </div>
+
+              <button id="btn-adaptive-reset" style="margin-top: auto; padding: 8px 16px; background: transparent; border: 1px solid var(--border-light); color: var(--color-text-muted); border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease;">
                 다시 풀기
               </button>
             </div>

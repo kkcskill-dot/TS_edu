@@ -41,7 +41,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initAwrAnalyzer();
   initPlanDiagLab();
   initAdvPlanDiag();
-  initCardEstLab();
+  initAdaptiveLab();
   initTraceTkprofLab();
   initBindParseLab();
   initJoinLab();
@@ -2750,159 +2750,238 @@ EXEC DBMS_STATS.GATHER_TABLE_STATS(
 }
 
 /* -------------------------------------------------------------
- * 9-A. 실측 카디널리티 진단 (A-Rows vs E-Rows)
+ * 9-A. 적응형 최적화 (Adaptive Query Optimization) — 1차 vs 2차 플랜
  * ------------------------------------------------------------- */
-function initCardEstLab() {
-  const container = document.getElementById("card-plan-container");
-  if (!container) return;
-  const sqlEl = document.getElementById("card-sql");
-  const instrTitle = document.getElementById("card-instr-title");
-  const instrDesc = document.getElementById("card-instr-desc");
-  const mathWrapper = document.getElementById("card-math-wrapper");
-  const mathContent = document.getElementById("card-math-content");
+function initAdaptiveLab() {
+  const plan1El = document.getElementById("adaptive-plan1-container");
+  if (!plan1El) return;
+  const sqlEl = document.getElementById("adaptive-sql");
+  const plan1Title = document.getElementById("adaptive-plan1-title");
+  const plan2Wrap = document.getElementById("adaptive-plan2-wrap");
+  const plan2El = document.getElementById("adaptive-plan2-container");
+  const plan2Title = document.getElementById("adaptive-plan2-title");
+  const predictTitle = document.getElementById("adaptive-predict-title");
+  const predictDesc = document.getElementById("adaptive-predict-desc");
+  const predictList = document.getElementById("adaptive-predict-list");
+  const revealWrap = document.getElementById("adaptive-reveal-wrap");
+  const mechEl = document.getElementById("adaptive-mech");
+  const reportEl = document.getElementById("adaptive-report");
+  const scoreEl = document.getElementById("adaptive-score");
 
   const scenarios = {
-    join_explode: {
-      title: "조인 카디널리티 폭발",
-      sql: `SELECT c.grade, COUNT(*) cnt
-FROM customers c
-JOIN orders o ON c.cust_id = o.cust_id
-WHERE c.region = 'SEOUL'
-GROUP BY c.grade;`,
-      plan: [
-        { id: 0, op: "SELECT STATEMENT",        starts: 1, eRows: "",      aRows: "" },
-        { id: 1, op: "HASH GROUP BY",            starts: 1, eRows: "5",     aRows: "5",         aTime: "00:00:02", buffers: "162,400" },
-        { id: 2, op: " HASH JOIN",               starts: 1, eRows: "150",   aRows: "1,200,000", aTime: "00:00:02", buffers: "162,400", origin: true },
-        { id: 3, op: "  TABLE ACCESS FULL",      starts: 1, eRows: "1,000", aRows: "1,000",     aTime: "00:00:00", buffers: "120",     note: "CUSTOMERS" },
-        { id: 4, op: "  TABLE ACCESS FULL",      starts: 1, eRows: "60,000",aRows: "60,000",    aTime: "00:00:00", buffers: "162,280", note: "ORDERS" },
-      ],
-      originId: 2,
-      analysis: `<strong>오차 발원: HASH JOIN (Id=2)</strong><br><br>
-자식 노드(Id=3 CUSTOMERS, Id=4 ORDERS)는 E-Rows = A-Rows로 <strong style="color:var(--ij-success);">정확</strong>합니다.<br>
-오차는 두 테이블을 조인하는 <strong>이 노드에서 처음 발생</strong>합니다.<br><br>
-E-Rows = 150 / A-Rows = 1,200,000<br>
-<strong style="color:var(--ij-error);">오차율 = 1,200,000 / 150 = 8,000배 (과소추정)</strong><br><br>
-<strong>해석:</strong> 옵티마이저의 <strong>조인 선택도(join selectivity)</strong> 추정 오류입니다. 보통 1:N 관계의 데이터 편중, 누락된 FK/조인 통계, 또는 다대다 조인에서 발생합니다.<br><br>
-<strong>조치 방향:</strong> 조인 컬럼 통계/히스토그램 점검, 컬럼 그룹 확장 통계, 필요 시 <code>GATHER_PLAN_STATISTICS</code>로 실측 확인 후 카디널리티 힌트 검토.<br>
-<strong>전파:</strong> 상위 GROUP BY(Id=1)는 1.2M행을 받아 처리 → Buffers 162,400 집중.`
-    },
-    filter_under: {
-      title: "필터 과소추정",
-      sql: `SELECT * FROM order_items
-WHERE category_cd = 'ELEC'
-  AND warehouse_id = 7;`,
-      plan: [
-        { id: 0, op: "SELECT STATEMENT",                  starts: 1, eRows: "",   aRows: "" },
-        { id: 1, op: "TABLE ACCESS BY INDEX ROWID BATCHED",starts: 1, eRows: "120",aRows: "48,200", aTime: "00:00:01", buffers: "44,300", note: "ORDER_ITEMS" },
-        { id: 2, op: " INDEX RANGE SCAN",                  starts: 1, eRows: "120",aRows: "48,200", aTime: "00:00:00", buffers: "1,180",  note: "IDX_OI_CAT", origin: true },
-      ],
-      originId: 2,
-      analysis: `<strong>오차 발원: INDEX RANGE SCAN (Id=2)</strong><br><br>
-가장 안쪽 노드에서 이미 E-Rows = 120 인데 A-Rows = 48,200 입니다.<br>
-상위 노드(Id=1)는 같은 오차를 그대로 물려받을 뿐, <strong>발원지는 최하위 인덱스 스캔</strong>입니다.<br><br>
-<strong style="color:var(--ij-error);">오차율 = 48,200 / 120 ≈ 402배 (과소추정)</strong><br><br>
-<strong>해석:</strong> 두 술어 <code>category_cd='ELEC'</code> 와 <code>warehouse_id=7</code> 의 선택도를 옵티마이저가 <strong>독립</strong>으로 곱했지만, 실제로는 상관관계가 있어 결합 선택도가 훨씬 큽니다.<br><br>
-<strong>조치 방향:</strong> 컬럼 그룹 확장 통계 <code>DBMS_STATS.CREATE_EXTENDED_STATS('(CATEGORY_CD, WAREHOUSE_ID)')</code> 생성 후 재수집 → E-Rows가 실측에 근접.`
-    },
-    nl_overestimate: {
-      title: "과대추정 (불필요한 Nested Loops)",
+    card_feedback: {
+      title: "카디널리티 피드백",
       sql: `SELECT o.order_id, c.cust_name
 FROM orders o
 JOIN customers c ON c.cust_id = o.cust_id
-WHERE o.status = 'CANCELLED'
-  AND o.order_date >= SYSDATE - 1;`,
-      plan: [
-        { id: 0, op: "SELECT STATEMENT",            starts: 1,  eRows: "",      aRows: "" },
-        { id: 1, op: "NESTED LOOPS",                 starts: 1,  eRows: "50,000",aRows: "12", aTime: "00:00:00", buffers: "1,090" },
-        { id: 2, op: " TABLE ACCESS BY INDEX ROWID", starts: 1,  eRows: "50,000",aRows: "12", aTime: "00:00:00", buffers: "1,054", note: "ORDERS", origin: true },
-        { id: 3, op: "  INDEX RANGE SCAN",           starts: 1,  eRows: "50,000",aRows: "12", aTime: "00:00:00", buffers: "1,040", note: "IDX_ORD_STATUS" },
-        { id: 4, op: " TABLE ACCESS BY INDEX ROWID", starts: 12, eRows: "1",     aRows: "1",  aTime: "00:00:00", buffers: "36",    note: "CUSTOMERS" },
-        { id: 5, op: "  INDEX UNIQUE SCAN",          starts: 12, eRows: "1",     aRows: "1",  aTime: "00:00:00", buffers: "24",    note: "PK_CUSTOMERS" },
+WHERE o.promo_code = 'BLACKFRIDAY';`,
+      plan1Title: "1차 실행 — 초기 플랜 (NESTED LOOPS)",
+      plan1: [
+        { id: 0, op: "SELECT STATEMENT",                  eRows: "",   aRows: "",       starts: 1,      buffers: "" },
+        { id: 1, op: "NESTED LOOPS",                       eRows: "8",  aRows: "52,000", starts: 1,      buffers: "168,000" },
+        { id: 2, op: " TABLE ACCESS FULL",                 eRows: "8",  aRows: "52,000", starts: 1,      buffers: "5,400",   note: "ORDERS" },
+        { id: 3, op: " TABLE ACCESS BY INDEX ROWID",       eRows: "1",  aRows: "1",      starts: 52000,  buffers: "162,600", note: "CUSTOMERS" },
+        { id: 4, op: "  INDEX UNIQUE SCAN",                eRows: "1",  aRows: "1",      starts: 52000,  buffers: "104,000", note: "PK_CUST" },
       ],
-      originId: 2,
-      analysis: `<strong>오차 발원: TABLE ACCESS BY INDEX ROWID — ORDERS (Id=2)</strong><br><br>
-구동 집합을 만드는 이 노드에서 E-Rows = 50,000 / A-Rows = 12 로 처음 빗나갑니다.<br>
-(Id=4/5는 Starts=12 × E-Rows=1 = 12 = A-Rows 로 정확)<br><br>
-<strong style="color:var(--ij-success);">이번엔 과대추정:</strong> 예상 50,000 ≫ 실제 12<br>
-<strong>오차율 = 50,000 / 12 ≈ 4,167배 과대</strong><br><br>
-<strong>해석:</strong> <code>status='CANCELLED'</code> 단독으로는 흔하지만, <code>order_date >= SYSDATE-1</code>(최근 1일)과 결합하면 실제론 극소수입니다. 과대추정은 옵티마이저가 <strong>풀스캔/해시조인을 잘못 선택</strong>하게 만들 수 있습니다(여기선 다행히 NL).<br><br>
-<strong>조치 방향:</strong> 날짜+상태 결합 선택도 보정(확장 통계/히스토그램). 과대추정은 과소추정만큼 위험하다는 점을 기억하세요.`
+      plan2Title: "2차 실행 — 피드백 재최적화 (HASH JOIN)",
+      plan2: [
+        { id: 0, op: "SELECT STATEMENT",         eRows: "",       aRows: "",       starts: 1, buffers: "" },
+        { id: 1, op: "HASH JOIN",                 eRows: "52,000", aRows: "52,000", starts: 1, buffers: "6,900",  changed: true },
+        { id: 2, op: " TABLE ACCESS FULL",        eRows: "52,000", aRows: "52,000", starts: 1, buffers: "5,400",  note: "ORDERS" },
+        { id: 3, op: " TABLE ACCESS FULL",        eRows: "90,000", aRows: "90,000", starts: 1, buffers: "1,500",  note: "CUSTOMERS", changed: true },
+      ],
+      predictDesc: "1차 실행에서 E-Rows=8 인데 A-Rows=52,000 (6,500배 과소추정), 그 결과 NL 내부 테이블을 52,000번 반복 조회했습니다. 2차 실행에서 옵티마이저는?",
+      options: [
+        { label: "실측 52,000행을 피드백받아 NESTED LOOPS → HASH JOIN으로 재최적화한다", correct: true },
+        { label: "동일한 NL 플랜을 그대로 재사용한다", correct: false },
+        { label: "orders.promo_code 인덱스를 자동 생성한다", correct: false },
+        { label: "통계가 없으므로 쿼리 실행을 거부한다", correct: false }
+      ],
+      mech: `<strong style="color:var(--ij-success);">카디널리티(통계) 피드백 — Cardinality / Statistics Feedback</strong><br><br>
+1차 실행 중 옵티마이저 추정(8)과 실측(52,000)의 차이가 크면, 커서에 <strong>재최적화 가능</strong> 표시가 남습니다.<br>
+→ <strong>다음 파스</strong>에서 실측 카디널리티를 사용해 재최적화 → 새로운 child cursor 생성 → NL이 HASH JOIN으로 교체.<br><br>
+<strong>딕셔너리 근거:</strong><br>
+<code>SELECT child_number, is_reoptimizable
+FROM v$sql WHERE sql_id = '...';
+-- 1차: IS_REOPTIMIZABLE = 'Y'
+-- 2차: 새 child(다른 plan_hash_value) 생성</code><br><br>
+<strong>핵심:</strong> 적응은 <strong>같은 실행이 아니라 "다음 실행"</strong>에서 일어납니다.<br>
+11gR2: Cardinality Feedback(휘발성). 12c+: Statistics Feedback이며 <em>SQL Plan Directive</em>로 영속화될 수 있습니다.`
+    },
+
+    adaptive_plan: {
+      title: "Adaptive Plan",
+      sql: `SELECT o.order_id, c.cust_name
+FROM orders o
+JOIN customers c ON c.cust_id = o.cust_id
+WHERE o.status = 'PENDING';`,
+      plan1Title: "1차 실행 — Default Plan + STATISTICS COLLECTOR",
+      plan1: [
+        { id: 0, op: "SELECT STATEMENT",                  eRows: "",   aRows: "",       starts: 1,     buffers: "" },
+        { id: 1, op: "NESTED LOOPS",                       eRows: "25", aRows: "40,000", starts: 1,     buffers: "—",     note: "default subplan" },
+        { id: 2, op: " STATISTICS COLLECTOR",              eRows: "",   aRows: "",       starts: 1,     buffers: "",      note: "행 버퍼링·감시" },
+        { id: 3, op: "  TABLE ACCESS FULL",                eRows: "25", aRows: "40,000", starts: 1,     buffers: "5,400", note: "ORDERS" },
+        { id: 4, op: " TABLE ACCESS BY INDEX ROWID",       eRows: "1",  aRows: "1",      starts: 40000, buffers: "—",     note: "CUSTOMERS" },
+      ],
+      plan2Title: "런타임 전환 — Final Plan (HASH JOIN)",
+      plan2: [
+        { id: 0, op: "SELECT STATEMENT",                  eRows: "",       aRows: "",       starts: 1, buffers: "" },
+        { id: 1, op: "HASH JOIN",                          eRows: "40,000", aRows: "40,000", starts: 1, buffers: "6,950", changed: true },
+        { id: 2, op: " TABLE ACCESS FULL",                 eRows: "40,000", aRows: "40,000", starts: 1, buffers: "5,400", note: "ORDERS" },
+        { id: 3, op: " TABLE ACCESS FULL",                 eRows: "90,000", aRows: "90,000", starts: 1, buffers: "1,500", note: "CUSTOMERS", changed: true },
+        { id: 9, op: "- NESTED LOOPS (inactive)",          eRows: "",       aRows: "",       starts: "", buffers: "",      inactive: true },
+        { id: 9, op: "-  INDEX UNIQUE SCAN PK_CUST",       eRows: "",       aRows: "",       starts: "", buffers: "",      inactive: true },
+      ],
+      predictDesc: "옵티마이저는 NL을 default로 잡되 STATISTICS COLLECTOR로 구동 행을 실시간 집계합니다. 실제 구동 행이 임계치(inflection point)를 넘으면?",
+      options: [
+        { label: "같은 실행 도중 NL → HASH JOIN으로 즉시 전환된다 (Adaptive Plan)", correct: true },
+        { label: "다음(2차) 실행에서야 플랜이 바뀐다", correct: false },
+        { label: "플랜은 절대 바뀌지 않는다", correct: false },
+        { label: "STATISTICS COLLECTOR가 통계를 영구 저장한다", correct: false }
+      ],
+      mech: `<strong style="color:var(--ij-success);">Adaptive Plan (12c) — 같은 실행 내 런타임 전환</strong><br><br>
+옵티마이저가 NL/HASH 두 서브플랜을 미리 준비하고 <code>STATISTICS COLLECTOR</code>가 구동 행을 버퍼링합니다.<br>
+실제 행이 <strong>inflection point</strong>를 넘으면 <strong>같은 실행 도중</strong> NL → HASH로 즉시 전환됩니다.<br><br>
+<strong>딕셔너리 근거:</strong><br>
+<code>SELECT * FROM TABLE(
+  DBMS_XPLAN.DISPLAY_CURSOR(format=>'+ADAPTIVE'));
+-- 비활성 라인은 머리에 '-' 표시
+-- Note: - this is an adaptive plan</code><br><br>
+<strong>카디널리티 피드백과의 차이:</strong> 피드백은 <strong>다음 실행</strong>에서 바뀌지만, Adaptive Plan은 <strong>첫 실행 도중</strong> 즉시 바뀝니다.`
+    },
+
+    plan_directive: {
+      title: "SQL Plan Directive",
+      sql: `SELECT * FROM order_items
+WHERE category_cd = 'ELEC'
+  AND warehouse_id = 7;`,
+      plan1Title: "1차 실행 — 결합 선택도 과소추정",
+      plan1: [
+        { id: 0, op: "SELECT STATEMENT",                   eRows: "",    aRows: "",       starts: 1, buffers: "" },
+        { id: 1, op: "TABLE ACCESS BY INDEX ROWID BATCHED",eRows: "120", aRows: "48,200", starts: 1, buffers: "44,300", note: "ORDER_ITEMS" },
+        { id: 2, op: " INDEX RANGE SCAN",                  eRows: "120", aRows: "48,200", starts: 1, buffers: "1,180",  note: "IDX_OI_CAT" },
+      ],
+      plan2Title: "이후 실행 — Directive + 동적 샘플링 보정",
+      plan2: [
+        { id: 0, op: "SELECT STATEMENT",            eRows: "",       aRows: "",       starts: 1, buffers: "" },
+        { id: 1, op: "TABLE ACCESS FULL",            eRows: "48,000", aRows: "48,200", starts: 1, buffers: "12,400", note: "ORDER_ITEMS", changed: true },
+      ],
+      predictDesc: "category_cd='ELEC' 와 warehouse_id=7 두 컬럼을 독립 가정해 120행으로 과소추정했고, 실제는 48,200행입니다. 12c에서 반복 실행하면?",
+      options: [
+        { label: "SQL Plan Directive가 생성되어 이후 파스에서 동적 샘플링으로 카디널리티를 보정한다 (필요시 확장통계 자동 생성)", correct: true },
+        { label: "옵티마이저가 통계를 즉시 무시하고 항상 풀스캔으로 고정한다", correct: false },
+        { label: "인덱스 스캔이 영구 고정된다", correct: false },
+        { label: "아무 변화도 없다", correct: false }
+      ],
+      mech: `<strong style="color:var(--ij-success);">SQL Plan Directive (12c) — 객체 수준 영속 적응</strong><br><br>
+컬럼 그룹 술어에서 추정 오류가 감지되면 <strong>SQL Plan Directive</strong>가 생성됩니다.<br>
+→ 이후 같은 패턴의 모든 SQL 파스에서 <strong>동적 통계(dynamic sampling)</strong>를 적용해 카디널리티를 보정하고, 필요하면 <strong>확장 통계를 자동 생성</strong>합니다.<br><br>
+<strong>딕셔너리 근거:</strong><br>
+<code>SELECT directive_id, type, state, reason
+FROM dba_sql_plan_directives;
+-- type: DYNAMIC_SAMPLING
+-- Note: dynamic statistics used: dynamic sampling</code><br><br>
+<strong>차이:</strong> 피드백/Adaptive Plan은 <em>해당 SQL</em>에 한정되지만, Directive는 <strong>객체·컬럼그룹 단위로 공유·영속</strong>되어 유사 쿼리 전체에 적용됩니다.`
     }
   };
 
-  let currentKey = "join_explode";
-  let solved = false;
+  let currentKey = "card_feedback";
+  let answered = false;
+
+  function planTable(rows) {
+    let html = `<table class="ij-plan-table"><thead><tr>
+      <th>Id</th><th>Operation</th><th class="r">E-Rows</th><th class="r">A-Rows</th><th class="r">Starts</th><th class="r">Buffers</th>
+    </tr></thead><tbody>`;
+    rows.forEach(row => {
+      const rowStyle = row.changed ? ' style="background: rgba(16,185,129,0.12);"'
+                     : row.inactive ? ' style="opacity:0.45; font-style:italic;"' : '';
+      html += `<tr${rowStyle}>
+        <td class="col-id">${row.inactive ? '' : row.id}</td>
+        <td class="col-op">${row.op}${row.note ? ' <span style="color:var(--ij-text-dim);font-size:0.7rem;">(' + row.note + ')</span>' : ''}</td>
+        <td class="r col-erows">${row.eRows}</td>
+        <td class="r col-arows">${row.aRows}</td>
+        <td class="r col-starts">${row.starts}</td>
+        <td class="r col-buf">${row.buffers}</td>
+      </tr>`;
+    });
+    html += `</tbody></table>`;
+    return html;
+  }
 
   function render(key) {
     currentKey = key;
-    solved = false;
+    answered = false;
     const s = scenarios[key];
     sqlEl.textContent = s.sql;
-    mathWrapper.style.display = "none";
-    mathContent.innerHTML = "";
-    instrTitle.textContent = "오차 발원 노드를 클릭하세요";
-    instrDesc.innerHTML = '각 노드의 <code>Starts × E-Rows</code> 와 <code>A-Rows</code>를 비교해, 예측이 처음으로 크게 빗나간(오차율이 폭증한) <strong>최하위 노드</strong>를 찾아 클릭하세요.';
+    plan1Title.textContent = s.plan1Title;
+    plan2Title.textContent = s.plan2Title;
+    plan1El.innerHTML = planTable(s.plan1);
+    plan2El.innerHTML = planTable(s.plan2);
+    plan2Wrap.style.display = "none";
+    revealWrap.style.display = "none";
+    reportEl.style.display = "none";
+    mechEl.innerHTML = "";
+    predictTitle.textContent = "예측: 적응 후 옵티마이저는?";
+    predictDesc.innerHTML = s.predictDesc;
 
-    document.querySelectorAll(".btn-card-scenario").forEach(btn => {
+    document.querySelectorAll(".btn-adaptive-scenario").forEach(btn => {
       const on = btn.dataset.scenario === key;
       btn.style.border = on ? "1px solid var(--accent-cyan)" : "1px solid var(--border-light)";
       btn.style.background = on ? "rgba(6,182,212,0.15)" : "transparent";
       btn.style.color = on ? "var(--accent-cyan)" : "var(--color-text-muted)";
     });
 
-    let html = `<table class="ij-plan-table"><thead><tr>
-      <th>Id</th><th>Operation</th><th class="r">Starts</th><th class="r">E-Rows</th><th class="r">A-Rows</th><th class="r">A-Time</th><th class="r">Buffers</th>
-    </tr></thead><tbody>`;
-    s.plan.forEach(row => {
-      const clickable = row.eRows !== "" && row.aRows !== "";
-      html += `<tr data-row-id="${row.id}" class="${clickable ? 'clickable card-row' : ''}">
-        <td class="col-id">${row.id}</td>
-        <td class="col-op">${row.op}${row.note ? ' <span style="color:var(--ij-text-dim);font-size:0.7rem;">(' + row.note + ')</span>' : ''}</td>
-        <td class="r col-starts">${row.starts || ''}</td>
-        <td class="r col-erows">${row.eRows}</td>
-        <td class="r col-arows">${row.aRows}</td>
-        <td class="r">${row.aTime || ''}</td>
-        <td class="r col-buf">${row.buffers || ''}</td>
-      </tr>`;
-    });
-    html += `</tbody></table>`;
-    container.innerHTML = html;
+    renderOptions(s.options);
+  }
 
-    container.querySelectorAll(".card-row").forEach(tr => {
-      tr.addEventListener("click", () => handleClick(parseInt(tr.dataset.rowId)));
+  function renderOptions(items) {
+    predictList.innerHTML = "";
+    items.forEach(item => {
+      const btn = document.createElement("button");
+      btn.style.cssText = "width:100%; text-align:left; padding: 12px 14px; border: 1px solid var(--border-light); background: rgba(0,0,0,0.08); color: var(--color-text-main); border-radius: 6px; font-size: 0.78rem; line-height: 1.5; cursor: pointer; transition: all 0.15s ease;";
+      btn.textContent = item.label;
+      btn.addEventListener("mouseenter", () => { if (!answered) { btn.style.borderColor = "var(--accent-cyan)"; btn.style.background = "rgba(6,182,212,0.06)"; } });
+      btn.addEventListener("mouseleave", () => { if (!answered) { btn.style.borderColor = "var(--border-light)"; btn.style.background = "rgba(0,0,0,0.08)"; } });
+      btn.addEventListener("click", () => {
+        if (answered) return;
+        answered = true;
+        predictList.querySelectorAll("button").forEach(b => { b.disabled = true; b.style.cursor = "default"; b.style.opacity = "0.5"; });
+        if (item.correct) { btn.style.borderColor = "var(--accent-emerald)"; btn.style.background = "rgba(16,185,129,0.12)"; btn.style.color = "var(--accent-emerald)"; }
+        else { btn.style.borderColor = "#ef4444"; btn.style.background = "rgba(239,68,68,0.08)"; btn.style.color = "#ef4444"; }
+        btn.style.opacity = "1";
+        if (!item.correct) {
+          predictList.querySelectorAll("button").forEach((b, i) => { if (items[i].correct) { b.style.borderColor = "var(--accent-emerald)"; b.style.background = "rgba(16,185,129,0.08)"; b.style.color = "var(--accent-emerald)"; b.style.opacity = "1"; } });
+        }
+        reveal(item.correct);
+      });
+      predictList.appendChild(btn);
     });
   }
 
-  function handleClick(rowId) {
-    if (solved) return;
+  function reveal(correct) {
     const s = scenarios[currentKey];
-    const correct = rowId === s.originId;
-    container.querySelectorAll(".card-row").forEach(tr => {
-      const rid = parseInt(tr.dataset.rowId);
-      tr.classList.remove("ij-correct", "ij-wrong", "ij-answer-hint");
-      if (rid === rowId) tr.classList.add(correct ? "ij-correct" : "ij-wrong");
-      else if (rid === s.originId && !correct) tr.classList.add("ij-answer-hint");
-    });
-
+    plan2Wrap.style.display = "block";
+    revealWrap.style.display = "block";
+    mechEl.innerHTML = s.mech;
+    reportEl.style.display = "block";
     if (correct) {
-      solved = true;
-      instrTitle.textContent = "정답! 오차 발원 노드를 찾았습니다";
-      instrDesc.innerHTML = "오차는 이 노드에서 시작해 부모로 전파됩니다. 아래 정밀 분석을 확인하세요.";
-      mathWrapper.style.display = "block";
-      mathContent.innerHTML = s.analysis;
+      scoreEl.textContent = "100점 — 정확";
+      scoreEl.style.background = "rgba(16,185,129,0.12)";
+      scoreEl.style.color = "var(--accent-emerald)";
     } else {
-      instrTitle.textContent = "오답 — 더 안쪽 노드를 보세요";
-      instrDesc.innerHTML = `Id=${rowId}은 발원지가 아닙니다. <strong>자식 노드까지 정확하다가 이 노드에서 처음 E-Rows와 A-Rows가 갈라지는</strong> 지점을 찾으세요. 정답이 힌트로 표시됩니다.`;
+      scoreEl.textContent = "오답 — 메커니즘 확인";
+      scoreEl.style.background = "rgba(239,68,68,0.1)";
+      scoreEl.style.color = "#ef4444";
     }
   }
 
-  document.querySelectorAll(".btn-card-scenario").forEach(btn => {
+  document.querySelectorAll(".btn-adaptive-scenario").forEach(btn => {
     btn.addEventListener("click", () => render(btn.dataset.scenario));
   });
-  const resetBtn = document.getElementById("btn-card-reset");
+  const resetBtn = document.getElementById("btn-adaptive-reset");
   if (resetBtn) resetBtn.addEventListener("click", () => render(currentKey));
 
-  render("join_explode");
+  render("card_feedback");
 }
 
 /* -------------------------------------------------------------
