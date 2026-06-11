@@ -1,0 +1,51 @@
+/* =============================================================
+ * spharos.css — SHINSEGAE I&C Spharos 브랜드 디자인 토큰
+ * 원천: spharos_design.md (PPT 템플릿 v2.1 추출)
+ * 핵심 원칙: 라이트 60 · 네이비 30 · 옐로우 10 / 색 띠(stripe) 금지
+ * ============================================================= */
+:root {
+  /* core */
+  --sph-navy:   #002A5B;
+  --sph-navy-d: #063a73;
+  --sph-ink:    #121D2A;
+  --sph-yellow: #F9BB00;
+
+  /* neutral */
+  --sph-bg:     #FFFFFF;
+  --sph-gray:   #EFEFEF;
+  --sph-card:   #F7F8FA;
+  --sph-line:   #E3E6EB;
+  --sph-body:   #424A57;
+  --sph-slate:  #64748B;
+  --sph-muted:  #8A93A3;
+
+  /* highlight */
+  --sph-hl-bg:     #FFF6DA;
+  --sph-hl-border: #F9BB00;
+
+  /* data-viz blues (정보 구분 전용) */
+  --sph-blue-1: #094186;
+  --sph-blue-2: #0953AC;
+  --sph-blue-3: #0061D7;
+  --sph-blue-4: #0073FD;
+
+  /* type / radius / elevation */
+  --sph-font: "Pretendard", "맑은 고딕", "Malgun Gothic", -apple-system, "Apple SD Gothic Neo", system-ui, sans-serif;
+  --sph-radius: 6px;
+  --sph-radius-sm: 4px;
+  --sph-shadow: 0 2px 8px rgba(18, 29, 42, .08);
+  --sph-shadow-md: 0 6px 18px rgba(18, 29, 42, .12);
+}
+
+/* 태그/배지 (객체 강조 — 띠 아님) */
+.sph-tag {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+.sph-tag--navy   { background: var(--sph-navy);   color: #fff; }
+.sph-tag--yellow { background: var(--sph-yellow); color: var(--sph-ink); }
+.sph-tag--gray   { background: var(--sph-gray);   color: var(--sph-slate); }

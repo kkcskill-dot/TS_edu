@@ -361,14 +361,14 @@ function initExplainPlanPanel() {
   function activateTextView() {
     if (textVp) textVp.style.display = "block";
     if (treeVp) treeVp.style.display = "none";
-    if (btnText) { btnText.style.background = "var(--accent-cyan)"; btnText.style.color = "#000"; btnText.style.fontWeight = "700"; }
+    if (btnText) { btnText.style.background = "var(--accent-cyan)"; btnText.style.color = "#fff"; btnText.style.fontWeight = "700"; }
     if (btnTree) { btnTree.style.background = "transparent"; btnTree.style.color = "var(--color-text-muted)"; btnTree.style.fontWeight = "600"; }
   }
 
   function activateTreeView() {
     if (treeVp) treeVp.style.display = "block";
     if (textVp) textVp.style.display = "none";
-    if (btnTree) { btnTree.style.background = "var(--accent-cyan)"; btnTree.style.color = "#000"; btnTree.style.fontWeight = "700"; }
+    if (btnTree) { btnTree.style.background = "var(--accent-cyan)"; btnTree.style.color = "#fff"; btnTree.style.fontWeight = "700"; }
     if (btnText) { btnText.style.background = "transparent"; btnText.style.color = "var(--color-text-muted)"; btnText.style.fontWeight = "600"; }
   }
 

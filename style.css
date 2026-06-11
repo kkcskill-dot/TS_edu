@@ -3,11 +3,20 @@
  * Premium Dark Mode, Glassmorphism, and Database Visualization
  * ------------------------------------------------------------- */
 
+/* 코드 폰트: D2Coding (SQL/Java 등 코드 블록 전용) */
+@font-face {
+  font-family: 'D2Coding';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_three@1.0/D2Coding.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Variable Tokens & Color Palette */
 :root {
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-display: 'Outfit', 'Inter', sans-serif;
-  --font-mono: 'Fira Code', 'Courier New', monospace;
+  --font-sans: 'Pretendard', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: 'Pretendard', 'Outfit', 'Inter', sans-serif;
+  --font-mono: 'D2Coding', 'Fira Code', 'Courier New', monospace;
 
   /* Colors */
   --bg-deep: #080c14;
@@ -45,32 +54,34 @@
  * 1.5 Premium Light Theme Overrides
  * ------------------------------------------------------------- */
 body.light-theme {
-  --bg-deep: #f8fafc;
+  /* Spharos 팔레트 — 네이비(구조) · 옐로우(포인트) · 라이트 */
+  --bg-deep: #ffffff;
   --bg-darker: #ffffff;
-  --bg-card: rgba(255, 255, 255, 0.85);
-  --bg-card-hover: rgba(255, 255, 255, 0.95);
-  --border-light: rgba(15, 23, 42, 0.08);
-  --border-focus: rgba(6, 182, 212, 0.6);
+  --bg-card: #f7f8fa;
+  --bg-card-hover: #ffffff;
+  --border-light: #e3e6eb;
+  --border-focus: rgba(0, 42, 91, 0.45);
 
-  --color-text-main: #0f172a;
-  --color-text-muted: #475569;
-  --color-text-dark: #94a3b8;
+  --color-text-main: #121d2a;
+  --color-text-muted: #424a57;
+  --color-text-dark: #8a93a3;
 
-  --accent-cyan: #0891b2;
-  --accent-blue: #2563eb;
-  --accent-emerald: #059669;
+  --accent-cyan: #002a5b;     /* 브랜드 구조색(네이비) — 기존 시안 자리 대체 */
+  --accent-blue: #0061d7;
+  --accent-emerald: #0e7a53;  /* 성공/정답 (그린 유지) */
   --accent-orange: #ea580c;
   --accent-crimson: #dc2626;
+  --accent-yellow: #f9bb00;   /* 포인트 — 강조/신규/계획 (소량) */
 
-  --bg-textbook: rgba(15, 23, 42, 0.02);
-  --bg-textbook-tab: rgba(15, 23, 42, 0.01);
-  --bg-textbook-box-cyan: rgba(6, 182, 212, 0.04);
-  --bg-textbook-box-emerald: rgba(16, 185, 129, 0.04);
-  --bg-code-badge: rgba(15, 23, 42, 0.05);
+  --bg-textbook: rgba(0, 42, 91, 0.02);
+  --bg-textbook-tab: rgba(0, 42, 91, 0.012);
+  --bg-textbook-box-cyan: rgba(0, 42, 91, 0.05);
+  --bg-textbook-box-emerald: rgba(14, 122, 83, 0.05);
+  --bg-code-badge: rgba(18, 29, 42, 0.05);
 
-  --shadow-neon-cyan: 0 4px 12px rgba(6, 182, 212, 0.12);
-  --shadow-neon-red: 0 4px 12px rgba(220, 38, 38, 0.12);
-  --shadow-glass: 0 8px 32px 0 rgba(15, 23, 42, 0.05);
+  --shadow-neon-cyan: 0 2px 8px rgba(18, 29, 42, 0.08);
+  --shadow-neon-red: 0 2px 8px rgba(220, 38, 38, 0.12);
+  --shadow-glass: 0 2px 8px rgba(18, 29, 42, 0.08);
 }
 
 body.light-theme ::-webkit-scrollbar-thumb {
@@ -78,7 +89,7 @@ body.light-theme ::-webkit-scrollbar-thumb {
 }
 
 body.light-theme .brand-text h1 {
-  background: linear-gradient(to right, #0f172a, #334155);
+  background: linear-gradient(to right, #002a5b, #121d2a);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -2266,7 +2277,7 @@ body.light-theme .btn-orange {
   border-bottom: 1px solid var(--ij-border);
 }
 .history-table td {
-  font-family: 'JetBrains Mono', 'Consolas', var(--font-mono), monospace;
+  font-family: 'D2Coding', 'JetBrains Mono', 'Consolas', var(--font-mono), monospace;
   font-size: 0.76rem;
   color: var(--ij-text);
 }
@@ -2283,7 +2294,7 @@ body.light-theme .btn-orange {
   background-color: var(--ij-bg-gutter);
   font-weight: 600;
   color: var(--ij-text-dim);
-  font-family: 'JetBrains Mono', 'Consolas', var(--font-mono), monospace;
+  font-family: 'D2Coding', 'JetBrains Mono', 'Consolas', var(--font-mono), monospace;
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.4px;
@@ -2339,7 +2350,7 @@ body.light-theme .btn-orange {
   font-weight: 700;
   margin-bottom: 12px;
   color: var(--ij-func);
-  font-family: 'JetBrains Mono', 'Consolas', var(--font-mono), monospace;
+  font-family: 'D2Coding', 'JetBrains Mono', 'Consolas', var(--font-mono), monospace;
   letter-spacing: 0.3px;
   padding-bottom: 6px;
   border-bottom: 1px solid var(--ij-border);
@@ -2432,7 +2443,7 @@ body.light-theme .tbook-tab.active {
   border: 1px solid var(--ij-border);
   border-radius: 5px;
   overflow: hidden;
-  font-family: 'JetBrains Mono', 'Consolas', 'Menlo', var(--font-mono), monospace;
+  font-family: 'D2Coding', 'JetBrains Mono', 'Consolas', 'Menlo', var(--font-mono), monospace;
 }
 
 /* --- Title bar (file-tab style) --- */
@@ -2478,7 +2489,7 @@ body.light-theme .tbook-tab.active {
 .ij-code-wrapper .ij-result-block {
   background: var(--ij-bg-editor);
   padding: 14px 16px;
-  font-family: 'JetBrains Mono', 'Consolas', var(--font-mono), monospace;
+  font-family: 'D2Coding', 'JetBrains Mono', 'Consolas', var(--font-mono), monospace;
   font-size: 0.78rem;
   color: var(--ij-text);
   line-height: 1.9;
@@ -2506,7 +2517,7 @@ body.light-theme .tbook-tab.active {
   border-collapse: collapse;
   font-size: 0.8rem;
   line-height: 1.5;
-  font-family: 'JetBrains Mono', 'Consolas', var(--font-mono), monospace;
+  font-family: 'D2Coding', 'JetBrains Mono', 'Consolas', var(--font-mono), monospace;
 }
 .ij-plan-table thead th {
   position: sticky;
@@ -2595,7 +2606,7 @@ body.light-theme .tbook-tab.active {
 }
 #explain-sql-code {
   color: var(--ij-text) !important;
-  font-family: 'JetBrains Mono', 'Consolas', 'Menlo', var(--font-mono), monospace;
+  font-family: 'D2Coding', 'JetBrains Mono', 'Consolas', 'Menlo', var(--font-mono), monospace;
   font-size: 0.82rem;
   white-space: pre-wrap;
   word-break: break-all;
@@ -2607,7 +2618,7 @@ body.light-theme .tbook-tab.active {
   border: 1px solid var(--ij-border) !important;
   border-radius: 5px !important;
   color: var(--ij-text) !important;
-  font-family: 'JetBrains Mono', 'Consolas', 'Menlo', var(--font-mono), monospace !important;
+  font-family: 'D2Coding', 'JetBrains Mono', 'Consolas', 'Menlo', var(--font-mono), monospace !important;
   font-size: 0.78rem !important;
   box-shadow: none !important;
   padding: 14px 16px !important;
@@ -2618,7 +2629,7 @@ body.light-theme .tbook-tab.active {
   background-color: var(--ij-bg-editor) !important;
   border: 1px solid var(--ij-border) !important;
   border-radius: 5px !important;
-  font-family: 'JetBrains Mono', 'Consolas', 'Menlo', var(--font-mono), monospace !important;
+  font-family: 'D2Coding', 'JetBrains Mono', 'Consolas', 'Menlo', var(--font-mono), monospace !important;
   color: var(--ij-text) !important;
 }
 .terminal-prompt {
@@ -2673,7 +2684,7 @@ body.light-theme .tbook-tab.active {
 }
 #challenge-asis-sql {
   color: var(--ij-text) !important;
-  font-family: 'JetBrains Mono', 'Consolas', 'Menlo', var(--font-mono), monospace;
+  font-family: 'D2Coding', 'JetBrains Mono', 'Consolas', 'Menlo', var(--font-mono), monospace;
   font-size: 0.82rem;
 }
 
@@ -2683,7 +2694,7 @@ body.light-theme .tbook-tab.active {
   border: 1px solid var(--ij-border) !important;
   border-radius: 5px !important;
   padding: 0 !important;
-  font-family: 'JetBrains Mono', 'Consolas', 'Menlo', var(--font-mono), monospace !important;
+  font-family: 'D2Coding', 'JetBrains Mono', 'Consolas', 'Menlo', var(--font-mono), monospace !important;
   color: var(--ij-text) !important;
   overflow: hidden;
   min-height: auto;

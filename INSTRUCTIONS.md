@@ -5,6 +5,15 @@
 ## 🚨 최우선 규칙
 1. **브라우저 도구 사용 금지**: 에이전트(Antigravity)는 직접 브라우저(`browser_subagent`)를 켜서 테스트하는 동작을 절대로 수행하지 않습니다. UI 검증이나 기능 확인은 사용자 피드백이나 수동 테스트 안내를 통해서 진행합니다.
 
+## 🎓 교육 아카데미 구조 (다중 과정)
+- 이 사이트는 **2-트랙 교육 아카데미**입니다: **트랙 A(DB 튜닝)** / **트랙 B(DB 설계)**, 공통 베이스는 **SQL 기초**.
+- **커리큘럼의 단일 원천**은 `curriculum/` 폴더의 md 문서입니다. 작업 전 [curriculum/ROADMAP.md](curriculum/ROADMAP.md)를 참조하세요.
+- 홈 화면은 2-트랙 로드맵(`assets/js/academy.js` + `assets/css/academy.css`)이며, 현재 운영 중인 과정은 **DB 튜닝 마스터(성능진단·튜닝)** 입니다.
+- 파일 분리·디렉터리 규칙은 [STRUCTURE.md](STRUCTURE.md) 참고. **신규 작업은 `assets/`로 분리**하고 `app.js`/`index.html`을 계속 키우지 않습니다.
+- ⚠️ **자격증(SQLD/SQLP 등) 표현 금지** — 단계는 역량 기준 명칭만 사용합니다.
+- 🎨 **디자인 시스템은 [spharos_design.md](spharos_design.md)** (SHINSEGAE I&C Spharos): 라이트+네이비+옐로우(60/30/10), Pretendard, **색 띠(stripe) 금지**, **옐로우 웨지 모티프 미사용(폐기)**. 토큰은 `assets/css/spharos.css`, 코드 폰트는 **D2Coding**.
+- 📌 **성능진단 소모임**: 현재 구현된 실습/세션은 정규 과정이 아니라 **별도 운영 사내 스터디**입니다(홈의 "성능진단 소모임" 카드로 진입). 정규 로드맵 과정들은 기획 단계.
+
 ## 🌐 서버 및 배포 환경 정보
 - **도메인 및 경로**: 
   - 기본 접속 주소: `kkcsvr/tsclass` (또는 `0.0.0.0/tsclass` 형태로 프록시 연동)

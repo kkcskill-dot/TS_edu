@@ -1,0 +1,297 @@
+/* =============================================================
+ * academy.css — 홈 교육 로드맵 (2-트랙)
+ * Spharos 디자인(spharos.css 토큰) 적용 · 색 띠 금지 · 행 정렬 그리드
+ * ============================================================= */
+
+/* 히어로 */
+.sph-hero {
+  position: relative;
+  overflow: hidden;
+  background: var(--sph-card);
+  border: 1px solid var(--sph-line);
+  border-radius: var(--sph-radius);
+  padding: 30px 32px;
+  margin-bottom: 28px;
+  font-family: var(--sph-font);
+}
+.sph-hero .kicker {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sph-navy);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  display: inline-block;
+  margin-bottom: 10px;
+}
+.sph-hero h2 {
+  font-size: 1.85rem;
+  font-weight: 700;
+  color: var(--sph-ink);
+  line-height: 1.2;
+  letter-spacing: -0.4px;
+  margin: 0 0 8px;
+}
+.sph-hero p {
+  font-size: 0.92rem;
+  color: var(--sph-body);
+  line-height: 1.6;
+  margin: 0;
+}
+.sph-hero strong { color: var(--sph-navy); }
+
+/* 로드맵 컨테이너 */
+.ts-roadmap {
+  max-width: 1040px;
+  margin: 0 auto;
+  font-family: var(--sph-font);
+}
+.ts-roadmap-head {
+  text-align: center;
+  margin-bottom: 24px;
+}
+.ts-roadmap-head h3 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--sph-ink);
+  margin: 0 0 6px;
+}
+.ts-roadmap-head p {
+  font-size: 0.85rem;
+  color: var(--sph-body);
+  margin: 0;
+}
+.ts-roadmap-head strong { color: var(--sph-navy); }
+
+/* ── 행 정렬 그리드 (두 트랙의 같은 레벨이 같은 줄) ── */
+.ts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 28px;
+  row-gap: 6px;
+  align-items: stretch;
+}
+.ts-cell-full { grid-column: 1 / -1; }
+
+/* 트랙 목표(정점) — 네이비 면 채움(흰 글씨) */
+.ts-goal {
+  height: 100%;
+  box-sizing: border-box;
+  text-align: center;
+  padding: 16px;
+  border-radius: var(--sph-radius);
+  background: var(--sph-navy);
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.05rem;
+  box-shadow: var(--sph-shadow);
+}
+.ts-goal small {
+  display: block;
+  font-weight: 400;
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.78);
+  margin-top: 4px;
+}
+
+/* 레벨 카드 — 전체 보더만(한쪽 띠 금지) */
+.ts-level {
+  position: relative;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 14px 16px;
+  border-radius: var(--sph-radius);
+  background: var(--sph-card);
+  border: 1px solid var(--sph-line);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+.ts-level .ts-level-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--sph-ink);
+  padding-right: 70px; /* 배지 공간 */
+}
+.ts-level .ts-level-sub {
+  font-size: 0.74rem;
+  color: var(--sph-slate);
+  margin-top: 2px;
+}
+.ts-level .ts-level-book {
+  font-size: 0.72rem;
+  color: var(--sph-muted);
+  margin-top: 8px;
+}
+.ts-level .ts-level-book::before { content: "\1F4D8  "; }
+
+/* 상태 배지 (객체 강조) */
+.ts-badge {
+  position: absolute;
+  top: 13px;
+  right: 14px;
+  font-size: 0.64rem;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: 999px;
+  letter-spacing: 0.2px;
+}
+.ts-badge.live  { background: var(--sph-navy);   color: #fff; }
+.ts-badge.ready { background: var(--sph-yellow); color: var(--sph-ink); }
+.ts-badge.plan  { background: var(--sph-gray);   color: var(--sph-slate); }
+
+/* 운영 중(클릭 가능) — 옐로우 하이라이트 면 틴트 + 전체 보더 */
+.ts-level.live {
+  background: var(--sph-hl-bg);
+  border-color: var(--sph-hl-border);
+  cursor: pointer;
+}
+.ts-level.live:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--sph-shadow-md);
+}
+.ts-level.live .ts-enter {
+  margin-top: 9px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--sph-navy);
+}
+.ts-level.clickable { cursor: pointer; }
+.ts-level.dimmed:hover { background: #fff; }
+
+/* 화살표 — 옐로우 포인트 */
+.ts-arrow {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  color: var(--sph-yellow);
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* 공통 베이스 */
+.ts-merge {
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--sph-slate);
+  margin: 12px 0 6px;
+}
+.ts-merge b { color: var(--sph-navy); }
+.ts-foundation {
+  position: relative;
+  text-align: center;
+  padding: 18px;
+  border-radius: var(--sph-radius);
+  background: var(--sph-gray);
+  border: 1px solid var(--sph-line);
+}
+.ts-foundation .ts-level-name { font-size: 1rem; padding-right: 0; }
+.ts-foundation .ts-level-name::before {
+  content: "\25A0";
+  color: var(--sph-yellow);
+  font-size: 11px;
+  margin-right: 8px;
+  vertical-align: 2px;
+}
+.ts-foundation .ts-found-items {
+  font-size: 0.76rem;
+  color: var(--sph-body);
+  margin-top: 6px;
+}
+.ts-foundation .ts-badge { position: static; margin-left: 10px; vertical-align: middle; }
+
+/* 안내 */
+.ts-notice {
+  margin-top: 18px;
+  padding: 12px 16px;
+  border-radius: var(--sph-radius-sm);
+  background: var(--sph-hl-bg);
+  border: 1px solid var(--sph-hl-border);
+  font-size: 0.8rem;
+  color: var(--sph-ink);
+  display: none;
+}
+.ts-notice.show { display: block; }
+.ts-notice strong { color: var(--sph-navy); }
+
+/* ── 홈 뷰 토글: 홈에서는 좌측 메뉴·헤더 숨김, 과정 입장 시 표시 ── */
+.app-container.is-home { grid-template-columns: 1fr; }
+.app-container.is-home .sidebar,
+.app-container.is-home .content-header,
+.app-container.is-home .course-indicator { display: none; }
+
+/* 상단 과정 인디케이터 (과정 입장 시) */
+.course-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  font-family: var(--sph-font);
+}
+.course-indicator .ci-home {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--sph-card);
+  border: 1px solid var(--sph-line);
+  color: var(--sph-navy);
+  font-weight: 700;
+  font-size: 0.78rem;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.course-indicator .ci-home:hover { background: var(--sph-gray); }
+.course-indicator .ci-sep { color: var(--sph-muted); }
+.course-indicator .ci-course {
+  font-weight: 700;
+  color: #fff;
+  font-size: 0.82rem;
+  background: var(--sph-navy);
+  padding: 5px 14px;
+  border-radius: 999px;
+}
+
+/* 운영 중인 스터디(성능진단 소모임) — 정규 과정과 분리 */
+.ts-study {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 22px;
+  margin-bottom: 26px;
+  border-radius: var(--sph-radius);
+  background: var(--sph-hl-bg);
+  border: 1px solid var(--sph-hl-border);
+  cursor: pointer;
+  transition: box-shadow 0.18s ease, transform 0.18s ease;
+}
+.ts-study:hover { transform: translateY(-2px); box-shadow: var(--sph-shadow-md); }
+.ts-study-main { flex: 1; }
+.ts-study-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--sph-ink);
+}
+.ts-study-name .ts-badge { position: static; }
+.ts-study-sub { font-size: 0.8rem; font-weight: 600; color: var(--sph-navy); margin-top: 4px; }
+.ts-study-desc { font-size: 0.78rem; color: var(--sph-body); line-height: 1.5; margin-top: 5px; }
+.ts-study-cta { font-size: 0.82rem; font-weight: 700; color: var(--sph-navy); white-space: nowrap; }
+
+.ts-plan-tag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--sph-slate);
+  background: var(--sph-gray);
+  padding: 2px 9px;
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+/* 반응형 */
+@media (max-width: 760px) {
+  .ts-grid { column-gap: 14px; }
+  .ts-study { flex-direction: column; align-items: flex-start; gap: 10px; }
+}

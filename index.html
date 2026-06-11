@@ -237,7 +237,10 @@
     rel="stylesheet">
 
   <!-- App Styles -->
-  <link rel="stylesheet" href="style.css?v=2.8">
+  <link rel="stylesheet" href="style.css?v=3.4">
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+  <link rel="stylesheet" href="assets/css/spharos.css?v=3.4">
+  <link rel="stylesheet" href="assets/css/academy.css?v=3.4">
 </head>
 
 <body class="light-theme">
@@ -269,7 +272,7 @@
   </script>
   <!-- ===== /인증 토큰 게이트 ===== -->
 
-  <div class="app-container">
+  <div class="app-container is-home">
 
     <!-- Left Navigation Sidebar -->
     <aside class="sidebar">
@@ -464,6 +467,20 @@
     <!-- Main Content Panel Area -->
     <main class="main-content">
 
+      <!-- COURSE INDICATOR (홈에서는 숨김, 과정 입장 시 표시) -->
+      <div class="course-indicator" id="course-indicator">
+        <button type="button" class="ci-home" id="ci-home-btn">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.2" fill="none"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 12H5"></path>
+            <path d="M12 19l-7-7 7-7"></path>
+          </svg>
+          아카데미
+        </button>
+        <span class="ci-sep">/</span>
+        <span class="ci-course" id="ci-course-name">과정</span>
+      </div>
+
       <!-- HEADER -->
       <header class="content-header">
         <div class="header-title">
@@ -475,91 +492,16 @@
       <!-- PANELS (SPA Views) -->
       <div class="panel-container">
 
-        <!-- 0. WELCOME PANEL -->
+        <!-- 0. WELCOME / ACADEMY ROADMAP -->
         <section id="panel-welcome" class="content-panel active">
-          <!-- Premium Hero Banner -->
-          <div class="welcome-hero-banner"
-            style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.15) 0%, rgba(16, 185, 129, 0.05) 100%); border: 1px solid var(--border-light); border-radius: 12px; padding: 40px 30px; margin-bottom: 30px; position: relative; overflow: hidden; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.15);">
-            <div style="position: relative; z-index: 2; max-width: 1000px;">
-              <span
-                style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent-cyan); background: rgba(6, 182, 212, 0.1); padding: 4px 12px; border-radius: 20px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; display: inline-block; margin-bottom: 15px;">Welcome
-                to DBA Lab Portal</span>
-              <h2
-                style="font-family: var(--font-display); font-size: 2.2rem; font-weight: 800; color: var(--color-text-main); margin-bottom: 12px; line-height: 1.2; letter-spacing: -0.5px;">
-                기술서비스팀 DBA Lab</h2>
-              <p style="color: var(--color-text-muted); font-size: 0.95rem; line-height: 1.6; margin-bottom: 0;">오라클
-                데이터베이스의 마이크로 아키텍처 해석, 실시간 대기 이벤트 진단, 트랜잭션 락 경합 시뮬레이션 및 실전 SQL 튜닝 지식을 연마하는 <strong>DB 교육 연구소</strong>입니다.
-              </p>
-            </div>
-            <!-- Glow Deco circles -->
-            <div
-              style="position: absolute; top: -50px; right: -50px; width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle, rgba(6,182,212,0.15) 0%, transparent 70%); filter: blur(20px); pointer-events: none;">
-            </div>
-            <div
-              style="position: absolute; bottom: -80px; left: 10%; width: 250px; height: 250px; border-radius: 50%; background: radial-gradient(circle, rgba(16,185,129,0.08) 0%, transparent 70%); filter: blur(30px); pointer-events: none;">
-            </div>
+          <div class="sph-hero">
+            <span class="kicker">TS Academy</span>
+            <h2>기술서비스팀 DB 교육 아카데미</h2>
+            <p>실무 역량 강화를 위한 단계별 교육 로드맵입니다. <strong>DB 튜닝</strong>과 <strong>DB 설계</strong> 두 전문 트랙으로 운영됩니다.</p>
           </div>
 
-          <!-- Quick Access Cards Grid -->
-          <h4
-            style="color: var(--color-text-main); font-size: 1rem; font-weight: 700; margin-bottom: 16px; margin-top: 10px;">
-            🎯 핵심 학습 및 실습 시뮬레이터 바로가기</h4>
-          <div class="welcome-grid"
-            style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 35px;">
-
-            <!-- Card 2: Dashboard -->
-            <div class="welcome-card bg-glass" onclick="document.getElementById('nav-btn-dashboard').click()"
-              style="border: 1px solid var(--border-light); border-radius: 10px; padding: 24px; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; gap: 12px; position: relative; overflow: hidden; height: 100%;">
-              <div>
-                <span style="font-size: 2rem;">⚡</span>
-              </div>
-              <h4 style="margin: 0; color: var(--color-text-main); font-size: 1.05rem; font-weight: 700;">실시간 성능 모니터링
-              </h4>
-              <p style="margin: 0; font-size: 0.8rem; color: var(--color-text-muted); line-height: 1.5; flex-grow: 1;">
-                리터럴 상수 쿼리 폭증(Hard Parsing), 인덱스 누락(Full Scan) 등 실제 성능 저하 상황에 따르는 리소스 추이를 실시간 모니터링합니다.
-              </p>
-              <div
-                style="font-size: 0.75rem; color: var(--accent-cyan); display: flex; align-items: center; gap: 4px; font-weight: 600; margin-top: 10px;">
-                대시보드 가동 ➔
-              </div>
-            </div>
-
-            <!-- Card 3: Locks & Index -->
-            <div class="welcome-card bg-glass" onclick="document.getElementById('nav-btn-locks').click()"
-              style="border: 1px solid var(--border-light); border-radius: 10px; padding: 24px; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; gap: 12px; position: relative; overflow: hidden; height: 100%;">
-              <div>
-                <span style="font-size: 2rem;">🧪</span>
-              </div>
-              <h4 style="margin: 0; color: var(--color-text-main); font-size: 1.05rem; font-weight: 700;">시뮬레이션 샌드박스
-              </h4>
-              <p style="margin: 0; font-size: 0.8rem; color: var(--color-text-muted); line-height: 1.5; flex-grow: 1;">
-                B-Tree 인덱스 이진 탐색 로직 및 트랜잭션 배타 락(Exclusive Lock)에 의한 세션 블로킹과 데드락 경합을 단계별로 가상 시뮬레이션합니다.
-              </p>
-              <div
-                style="font-size: 0.75rem; color: var(--accent-cyan); display: flex; align-items: center; gap: 4px; font-weight: 600; margin-top: 10px;">
-                샌드박스 진입 ➔
-              </div>
-            </div>
-
-            <!-- Card 4: Challenge -->
-            <div class="welcome-card bg-glass" onclick="document.getElementById('nav-btn-challenge').click()"
-              style="border: 1px solid var(--border-light); border-radius: 10px; padding: 24px; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; gap: 12px; position: relative; overflow: hidden; height: 100%;">
-              <div>
-                <span style="font-size: 2rem;">🏆</span>
-              </div>
-              <h4 style="margin: 0; color: var(--color-text-main); font-size: 1.05rem; font-weight: 700;">SQL 튜닝 챌린지
-              </h4>
-              <p style="margin: 0; font-size: 0.8rem; color: var(--color-text-muted); line-height: 1.5; flex-grow: 1;">
-                실제 프로덕션 장애 사례를 모티프로 설계된 인덱스 튜닝, 결합인덱스 순서 변경, 묵시적 형변환 해소 단계를 이수하고 마스터 인증을 획득합니다.
-              </p>
-              <div
-                style="font-size: 0.75rem; color: var(--accent-cyan); display: flex; align-items: center; gap: 4px; font-weight: 600; margin-top: 10px;">
-                튜닝 아레나 도전 ➔
-              </div>
-            </div>
-
-          </div>
-
+          <!-- 2-트랙 로드맵 (assets/js/academy.js 가 렌더링) -->
+          <div id="academy-roadmap"></div>
         </section>
 
         <!-- 1. DASHBOARD PANEL -->
@@ -795,9 +737,9 @@
                 style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding-bottom: 8px;">
                 <span class="panel-section-title" style="margin: 0 !important;">실행 계획 분석 뷰어</span>
                 <div class="view-toggle-buttons"
-                  style="display: flex; gap: 4px; background: rgba(0, 0, 0, 0.3); padding: 3px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.06);">
+                  style="display: flex; gap: 4px; background: var(--bg-card); padding: 3px; border-radius: 6px; border: 1px solid var(--border-light);">
                   <button id="btn-toggle-explain-text" class="toggle-view-btn active"
-                    style="background: var(--accent-cyan); color: #000; border: none; padding: 4px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease;">💻
+                    style="background: var(--accent-cyan); color: #fff; border: none; padding: 4px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease;">💻
                     DBMS_XPLAN 표 보기</button>
                   <button id="btn-toggle-explain-tree" class="toggle-view-btn"
                     style="background: transparent; color: var(--color-text-muted); border: none; padding: 4px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease;">📊
@@ -2072,7 +2014,7 @@ WHERE o.order_date = '2026-05-18';</code></pre>
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <label style="font-size: 0.78rem; font-weight: 700; color: var(--accent-cyan); white-space: nowrap;">실행 횟수 (N)</label>
-                  <select id="bind-exec-count" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-light); color: var(--color-text-main); padding: 6px 10px; border-radius: 6px; font-family: var(--font-mono); font-size: 0.78rem;">
+                  <select id="bind-exec-count" style="background: var(--bg-card); border: 1px solid var(--border-light); color: var(--color-text-main); padding: 6px 10px; border-radius: 6px; font-family: var(--font-mono); font-size: 0.78rem;">
                     <option value="100">100 회</option>
                     <option value="1000" selected>1,000 회</option>
                     <option value="10000">10,000 회</option>
@@ -2080,7 +2022,7 @@ WHERE o.order_date = '2026-05-18';</code></pre>
                   </select>
                 </div>
                 <button id="btn-bind-run"
-                  style="padding: 8px 20px; background: var(--accent-cyan); color: #000; border: none; border-radius: 6px; font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease; white-space: nowrap;">
+                  style="padding: 8px 20px; background: var(--accent-cyan); color: #fff; border: none; border-radius: 6px; font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease; white-space: nowrap;">
                   실행 비교
                 </button>
               </div>
@@ -2126,7 +2068,7 @@ SELECT * FROM orders
               <div style="display: flex; align-items: center; gap: 24px; flex-wrap: wrap;">
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <label style="font-size: 0.78rem; font-weight: 700; color: var(--accent-cyan); white-space: nowrap;">선행 테이블 (Driving)</label>
-                  <select id="join-lab-driving-rows" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-light); color: var(--color-text-main); padding: 6px 10px; border-radius: 6px; font-family: var(--font-mono); font-size: 0.78rem;">
+                  <select id="join-lab-driving-rows" style="background: var(--bg-card); border: 1px solid var(--border-light); color: var(--color-text-main); padding: 6px 10px; border-radius: 6px; font-family: var(--font-mono); font-size: 0.78rem;">
                     <option value="10">10 건</option>
                     <option value="100">100 건</option>
                     <option value="1000" selected>1,000 건</option>
@@ -2136,7 +2078,7 @@ SELECT * FROM orders
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <label style="font-size: 0.78rem; font-weight: 700; color: var(--accent-emerald); white-space: nowrap;">후행 테이블 (Driven)</label>
-                  <select id="join-lab-driven-rows" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-light); color: var(--color-text-main); padding: 6px 10px; border-radius: 6px; font-family: var(--font-mono); font-size: 0.78rem;">
+                  <select id="join-lab-driven-rows" style="background: var(--bg-card); border: 1px solid var(--border-light); color: var(--color-text-main); padding: 6px 10px; border-radius: 6px; font-family: var(--font-mono); font-size: 0.78rem;">
                     <option value="1000">1,000 건</option>
                     <option value="10000">10,000 건</option>
                     <option value="100000" selected>100,000 건</option>
@@ -2146,13 +2088,13 @@ SELECT * FROM orders
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <label style="font-size: 0.78rem; font-weight: 700; color: var(--accent-orange); white-space: nowrap;">후행 인덱스</label>
-                  <select id="join-lab-index" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-light); color: var(--color-text-main); padding: 6px 10px; border-radius: 6px; font-family: var(--font-mono); font-size: 0.78rem;">
+                  <select id="join-lab-index" style="background: var(--bg-card); border: 1px solid var(--border-light); color: var(--color-text-main); padding: 6px 10px; border-radius: 6px; font-family: var(--font-mono); font-size: 0.78rem;">
                     <option value="yes" selected>있음 (BLEVEL=2)</option>
                     <option value="no">없음</option>
                   </select>
                 </div>
                 <button id="btn-join-lab-simulate"
-                  style="padding: 8px 20px; background: var(--accent-cyan); color: #000; border: none; border-radius: 6px; font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease; white-space: nowrap;">
+                  style="padding: 8px 20px; background: var(--accent-cyan); color: #fff; border: none; border-radius: 6px; font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease; white-space: nowrap;">
                   비용 산출 실행
                 </button>
               </div>
@@ -3864,9 +3806,10 @@ EXEC DBMS_STATS.LOCK_TABLE_STATS('[SCHEMA_NAME]', '[TABLE_NAME]');
   </div>
 
   <!-- Javascript Modules -->
-  <script src="challenges.js?v=2.8"></script>
-  <script src="visualizers.js?v=2.8"></script>
-  <script src="app.js?v=2.8"></script>
+  <script src="challenges.js?v=3.4"></script>
+  <script src="visualizers.js?v=3.4"></script>
+  <script src="app.js?v=3.4"></script>
+  <script src="assets/js/academy.js?v=3.4"></script>
 
   <!-- External Parsers -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
