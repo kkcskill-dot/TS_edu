@@ -32,22 +32,28 @@
         ]
       }
     ],
-    foundation: { name: "SQL 기초", sub: "공통 베이스", items: "실무 SQL 입문 · 데이터 분석 · 집계/조인/서브쿼리", status: "plan" },
-    // 정규 교육과정과 별개로 운영 중인 사내 스터디 (현재 구현된 실습들)
-    study: {
-      name: "성능진단 소모임",
-      sub: "기술서비스팀 사내 스터디 · 정규 교육과정과 별개로 운영",
-      desc: "현재 운영 중인 성능진단·튜닝 실습(기초~심화)을 모아둔 사내 스터디입니다.",
-      enter: "nav-btn-textbook"
-    }
+    foundation: { name: "SQL 기초", sub: "공통 베이스", items: "실무 SQL 입문 · 데이터 분석 · 집계/조인/서브쿼리", status: "live", enter: "nav-btn-sql-textbook", course: "sql-foundation" },
+    // 정규 교육과정과 별개로 운영하는 스터디들(우측 영역). 추후 테마 추가 가능.
+    studies: [
+      {
+        name: "성능진단 소모임",
+        sub: "기술서비스팀 사내 스터디",
+        desc: "현재 운영 중인 성능진단·튜닝 실습(기초~심화)을 모아둔 사내 스터디입니다.",
+        enter: "nav-btn-textbook",
+        course: "perf-club"
+      }
+    ]
   };
 
   const STATUS_LABEL = { live: "운영 중", ready: "기획 완료", plan: "준비 중" };
 
   // ── 홈 ↔ 과정 뷰 전환 ──
-  function enterCourse(name, enterBtnId) {
+  function enterCourse(name, enterBtnId, courseId) {
     const ac = document.querySelector(".app-container");
-    if (ac) ac.classList.remove("is-home");
+    if (ac) {
+      ac.classList.remove("is-home");
+      if (courseId) ac.setAttribute("data-course", courseId);
+    }
     const ci = document.getElementById("ci-course-name");
     if (ci && name) ci.textContent = name;
     const btn = enterBtnId && document.getElementById(enterBtnId);
@@ -82,7 +88,6 @@
         <span class="ts-badge ${lv.status}">${STATUS_LABEL[lv.status]}</span>
         <div class="ts-level-name">${lv.name}</div>
         ${lv.sub ? `<div class="ts-level-sub">${lv.sub}</div>` : ""}
-        ${lv.book ? `<div class="ts-level-book">${lv.book}</div>` : ""}
         ${interactive ? `<div class="ts-enter">과정 입장 ➔</div>` : ""}
       </div>`;
   }
@@ -100,31 +105,35 @@
     }
 
     const f = ACADEMY.foundation;
-    const study = ACADEMY.study;
     mount.innerHTML = `
-      <div class="ts-roadmap">
-        <div class="ts-study" data-enter="${study.enter}">
-          <div class="ts-study-main">
-            <div class="ts-study-name">${study.name}<span class="ts-badge live">운영 중</span></div>
-            <div class="ts-study-sub">${study.sub}</div>
-            <div class="ts-study-desc">${study.desc}</div>
+      <div class="ts-home">
+        <div class="ts-home-main">
+          <div class="ts-roadmap-head">
+            <h3>교육 로드맵 <span class="ts-plan-tag">기획</span></h3>
+            <p>공통 베이스(SQL 기초) 위에 <strong>DB 튜닝</strong>과 <strong>DB 설계</strong> 두 트랙으로 구성합니다. 아래 과정들은 순차적으로 준비 중입니다.</p>
           </div>
-          <div class="ts-study-cta">스터디 입장 ➔</div>
-        </div>
-        <div class="ts-roadmap-head">
-          <h3>교육 로드맵 <span class="ts-plan-tag">기획</span></h3>
-          <p>공통 베이스(SQL 기초) 위에 <strong>DB 튜닝</strong>과 <strong>DB 설계</strong> 두 트랙으로 구성합니다. 아래 과정들은 순차적으로 준비 중입니다.</p>
-        </div>
-        <div class="ts-grid">
-          ${cells}
-          <div class="ts-cell-full ts-merge">&#8598;&nbsp;&nbsp;<b>공통 선수과정</b>&nbsp;&nbsp;&#8599;</div>
-          <div class="ts-cell-full ts-foundation clickable" data-status="${f.status}" data-name="${f.name}">
-            <span class="ts-badge ${f.status}">${STATUS_LABEL[f.status]}</span>
-            <div class="ts-level-name">${f.name} <span style="font-weight:400;color:var(--sph-slate);font-size:0.82rem;">— ${f.sub}</span></div>
-            <div class="ts-found-items">${f.items}</div>
+          <div class="ts-grid">
+            ${cells}
+            <div class="ts-cell-full ts-merge">&#8598;&nbsp;&nbsp;<b>공통 선수과정</b>&nbsp;&nbsp;&#8599;</div>
+            <div class="ts-cell-full ts-foundation clickable" data-status="${f.status}" data-name="${f.name}"${f.enter ? ` data-enter="${f.enter}"` : ""}${f.course ? ` data-course="${f.course}"` : ""}>
+              <span class="ts-badge ${f.status}">${STATUS_LABEL[f.status]}</span>
+              <div class="ts-level-name">${f.name} <span style="font-weight:400;color:var(--sph-slate);font-size:0.82rem;">— ${f.sub}</span></div>
+              <div class="ts-found-items">${f.items}</div>
+              ${f.status === "live" ? '<div class="ts-enter" style="margin-top:8px;color:var(--sph-navy);font-weight:700;font-size:0.76rem;">과정 입장 ➔</div>' : ""}
+            </div>
           </div>
+          <div class="ts-notice" id="ts-notice"></div>
         </div>
-        <div class="ts-notice" id="ts-notice"></div>
+        <aside class="ts-home-side">
+          <div class="ts-side-title">운영 스터디</div>
+          ${ACADEMY.studies.map(s => `
+          <div class="ts-study" data-name="${s.name}" data-enter="${s.enter}" data-course="${s.course}">
+            <div class="ts-study-name">${s.name}<span class="ts-badge live">운영 중</span></div>
+            <div class="ts-study-sub">${s.sub}</div>
+            <div class="ts-study-desc">${s.desc}</div>
+            <div class="ts-study-cta">스터디 입장 ➔</div>
+          </div>`).join("")}
+        </aside>
       </div>`;
 
     const notice = mount.querySelector("#ts-notice");
@@ -133,19 +142,18 @@
         const status = card.dataset.status;
         const name = card.dataset.name;
         if (status === "live") {
-          enterCourse(name, card.dataset.enter);
+          enterCourse(name, card.dataset.enter, card.dataset.course);
           return;
         }
         const label = status === "ready" ? "기획이 완료되어 구현 대기 중인" : "준비 중인";
-        notice.innerHTML = `<strong>${name}</strong> 과정은 ${label} 과정입니다. 커리큘럼은 <code>curriculum/</code> 폴더의 테마별 문서에서 관리됩니다.`;
+        notice.innerHTML = `<strong>${name}</strong> 과정은 ${label} 과정입니다. 순차적으로 준비 중입니다.`;
         notice.classList.add("show");
       });
     });
 
-    const studyCard = mount.querySelector(".ts-study");
-    if (studyCard) {
-      studyCard.addEventListener("click", () => enterCourse(ACADEMY.study.name, studyCard.dataset.enter));
-    }
+    mount.querySelectorAll(".ts-study").forEach(card => {
+      card.addEventListener("click", () => enterCourse(card.dataset.name, card.dataset.enter, card.dataset.course));
+    });
 
     // 과정 → 홈 복귀: 인디케이터의 "아카데미" 버튼 + 사이드바 브랜드 로고
     const ciHome = document.getElementById("ci-home-btn");

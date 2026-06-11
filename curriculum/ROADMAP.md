@@ -30,7 +30,7 @@ SQL을 빠르게 만드는 역량. 실행계획 해석 → 성능 진단 → 튜
 
 | 레벨 | 과정 | 상태 | 커리큘럼 |
 |---|---|---|---|
-| L1 | SQL 기초 | 기획 | [foundation/sql-foundation.md](foundation/sql-foundation.md) |
+| L1 | SQL 기초 | **운영 중** | [foundation/sql-foundation.md](foundation/sql-foundation.md) |
 | L2 | SQL 튜닝 기본 | 기획 | [tuning/01-sql-tuning-basics.md](tuning/01-sql-tuning-basics.md) |
 | L3 | SQL 전문가 | 기획 | [tuning/02-sql-advanced.md](tuning/02-sql-advanced.md) |
 | L4 | DB 튜닝 마스터 (성능진단·튜닝) | 기획 | [tuning/03-db-tuning-master.md](tuning/03-db-tuning-master.md) |
@@ -41,7 +41,7 @@ SQL을 빠르게 만드는 역량. 실행계획 해석 → 성능 진단 → 튜
 
 | 레벨 | 과정 | 상태 | 커리큘럼 |
 |---|---|---|---|
-| L1 | SQL 기초 (공통) | 기획 | [foundation/sql-foundation.md](foundation/sql-foundation.md) |
+| L1 | SQL 기초 (공통) | **운영 중** | [foundation/sql-foundation.md](foundation/sql-foundation.md) |
 | L2 | 데이터 모델링 | 기획 | [design/01-data-modeling.md](design/01-data-modeling.md) |
 | L3 | **고성능 DB 설계 (DBA 설계·운영)** | **기획 완료** | [design/02-highperf-db-design.md](design/02-highperf-db-design.md) |
 | L4 | Data Architect | 기획 | [design/03-data-architect.md](design/03-data-architect.md) |

@@ -39,6 +39,13 @@ TS Academy(다중 교육과정 플랫폼)의 디렉터리 구조와 파일 분�
 2. 신규 과정(고성능 DB 설계)은 처음부터 `assets/js/courses/design/*.js` + 패널 partial로 **과정 단위 분리** 구현.
 3. `app.js`의 랩 함수군을 주제별 파일(`assets/js/labs-*.js`)로 분리하고 순서대로 로드.
 4. `index.html`의 패널 HTML을 과정별 partial로 분리하고 **과정 진입 시 fetch 지연 로딩**(페이지 로딩 최적화).
-5. 학습자료 인라인 마크다운(`<script type="text/markdown">`)을 `session_*.md` fetch로 외부화.
+5. **(완료)** 소모임 학습자료 인라인 마크다운 → `assets/lessons/perf-club/session-1~4.md` 외부화(fetch). index.html 약 31% 감소(276KB→191KB).
 
 > 2~5단계는 동작 검증을 동반해 한 단계씩 진행한다(대규모 일괄 변경 지양).
+
+## 다음: 과정별 패널 분리 (주의)
+소모미 랩 패널을 `partials/perf-club.html`로 분리해 진입 시 지연 로딩하려면, app.js의 **15개 init 중 12개가 가드(`if(!el)return`)가 없어** DOMContentLoaded에서 패널 없이 호출되면 예외가 난다. 따라서:
+- DOMContentLoaded의 소모미 init 호출을 제거하고, **partial 주입 후** init을 try/catch로 1회 실행하도록 재구성해야 함.
+- 학습자료 렌더 스크립트도 partial 로드 후 실행되게 이동.
+- academy.js `enterCourse`가 nav 클릭 전에 partial 로드를 await.
+→ 위험도가 있어 별도 단계로, 동작 검증과 함께 진행.

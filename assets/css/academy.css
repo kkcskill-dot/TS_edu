@@ -213,6 +213,15 @@
 .ts-notice.show { display: block; }
 .ts-notice strong { color: var(--sph-navy); }
 
+/* ── 과정별 사이드바 메뉴 전환 (data-course 컨텍스트) ── */
+.course-menu { display: none; }
+.app-container[data-course="perf-club"] .course-menu[data-course="perf-club"],
+.app-container[data-course="sql-foundation"] .course-menu[data-course="sql-foundation"] { display: block; }
+
+/* 학습자료 마크다운 코드 폰트 = D2Coding */
+.markdown-body code,
+.markdown-body pre { font-family: var(--font-mono); }
+
 /* ── 홈 뷰 토글: 홈에서는 좌측 메뉴·헤더 숨김, 과정 입장 시 표시 ── */
 .app-container.is-home { grid-template-columns: 1fr; }
 .app-container.is-home .sidebar,
@@ -294,4 +303,72 @@
 @media (max-width: 760px) {
   .ts-grid { column-gap: 14px; }
   .ts-study { flex-direction: column; align-items: flex-start; gap: 10px; }
+}
+
+/* ── 메인화면: 여유로운(프리미엄) 간격 + 폭 정합 ── */
+.academy-wrap { max-width: 1060px; margin: 0 auto; }
+.academy-wrap .sph-hero { max-width: none; margin: 0 0 22px; }
+.academy-wrap .ts-roadmap { max-width: none; margin: 0; }
+
+/* 홈: 콘텐츠를 세로 가운데 정렬 (상단 쏠림·하단 빈 공간 해소) */
+.app-container.is-home .panel-container { display: flex; flex-direction: column; }
+.app-container.is-home #panel-welcome { margin: auto 0; width: 100%; }
+
+.sph-hero { padding: 28px 36px; box-shadow: var(--sph-shadow); }
+.sph-hero h2 { font-size: 1.7rem; margin-bottom: 6px; }
+.sph-hero p { font-size: 0.9rem; }
+.sph-hero .kicker { margin-bottom: 8px; }
+.ts-roadmap-head { margin-bottom: 18px; }
+.ts-roadmap-head h3 { font-size: 1.25rem; margin-bottom: 6px; }
+.ts-roadmap-head p { font-size: 0.84rem; }
+.ts-study { padding: 18px 24px; margin-bottom: 22px; }
+.ts-study-name { font-size: 1.05rem; }
+.ts-grid { row-gap: 9px; column-gap: 30px; }
+.ts-goal { padding: 16px; font-size: 1.05rem; }
+.ts-level { padding: 14px 18px; }
+.ts-level-name { font-size: 0.95rem; }
+.ts-foundation { padding: 18px 22px; }
+.ts-merge { margin: 12px 0 8px; }
+
+/* ── 클릭 가능한 로드맵 카드 호버 피드백(누락분 보강) ── */
+.ts-level.clickable:hover {
+  border-color: var(--sph-navy);
+  background: #fff;
+  transform: translateY(-2px);
+  box-shadow: var(--sph-shadow-md);
+}
+.ts-foundation.clickable:hover {
+  border-color: var(--sph-navy);
+  box-shadow: var(--sph-shadow-md);
+  cursor: pointer;
+}
+
+/* ── 홈: 로드맵(좌) + 운영 스터디(우) 분리 레이아웃 ── */
+.ts-home {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 26px;
+  align-items: start;
+  font-family: var(--sph-font);
+}
+.ts-home-side { display: flex; flex-direction: column; gap: 12px; }
+.ts-side-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--sph-ink);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--sph-line);
+}
+/* 우측 스터디 카드: 세로 배치 */
+.ts-home-side .ts-study {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 16px 18px;
+  margin-bottom: 0;
+}
+.ts-home-side .ts-study-cta { margin-top: 6px; }
+
+@media (max-width: 860px) {
+  .ts-home { grid-template-columns: 1fr; }
 }
