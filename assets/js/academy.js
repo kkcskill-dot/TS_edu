@@ -86,7 +86,7 @@
     const interactive = lv.status === "live";
     const cls = ["ts-level", lv.status, interactive ? "" : "dimmed clickable"].join(" ").replace(/\s+/g, " ").trim();
     return `
-      <div class="${cls}" data-status="${lv.status}" data-name="${lv.name}"${lv.enter ? ` data-enter="${lv.enter}"` : ""}>
+      <div class="${cls}" data-status="${lv.status}" data-name="${lv.name}"${lv.enter ? ` data-enter="${lv.enter}"` : ""}${lv.course ? ` data-course="${lv.course}"` : ""}>
         <span class="ts-badge ${lv.status}">${STATUS_LABEL[lv.status]}</span>
         <div class="ts-level-name">${lv.name}</div>
         ${lv.sub ? `<div class="ts-level-sub">${lv.sub}</div>` : ""}
