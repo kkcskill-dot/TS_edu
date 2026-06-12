@@ -26,7 +26,7 @@
         goal: "DB 운영 전문가",
         goalSub: "안정적인 DB 운영 역량",
         levels: [
-          { name: "데이터 모델링", book: "핵심 데이터 모델링", status: "plan" },
+          { name: "데이터 모델링", sub: "개념→논리→물리 + 정규화", status: "live", enter: "nav-btn-dm-textbook", course: "data-modeling" },
           { name: "고성능 DB 설계", sub: "DBA 설계 · 운영", status: "ready" },
           { name: "DB 운영 전문가", sub: "DBA", status: "plan" }
         ]
@@ -73,22 +73,50 @@
     document.querySelectorAll(".menu-item").forEach(b => b.classList.remove("active"));
     window.scrollTo(0, 0);
   }
-  window.TSAcademy = { enterCourse, goHome };
-
-  function goalCell(track) {
-    return `<div class="ts-goal">${track.goal}<small>${track.goalSub}</small></div>`;
+  // ── 준비중 토스트 — 상단에서 스르륵 나타났다 자동으로 사라지는 안내 팝업 ──
+  let _toastTimer = null;
+  function toast(name, label) {
+    let el = document.getElementById("ts-toast");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "ts-toast";
+      el.className = "ts-toast";
+      el.setAttribute("role", "status");
+      document.body.appendChild(el);
+    }
+    el.innerHTML =
+      '<svg class="ts-toast-ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="11" x2="12" y2="16"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>' +
+      `<span><b>${name}</b> · ${label} 과정입니다. 순차 공개 예정!</span>`;
+    void el.offsetWidth; // 리플로우 → 슬라이드인 트랜지션 재생
+    el.classList.add("show");
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => el.classList.remove("show"), 2600);
   }
+
+  window.TSAcademy = { enterCourse, goHome };
 
   function arrowCell() {
     return `<div class="ts-arrow">&#9650;</div>`;
   }
 
-  function levelCell(lv) {
+  // 단계(티어) 색 — 기초(1)→L2(2)→L3(3)→정점(4): 네이비 농도 상승 + 정점 골드.
+  // 인라인 CSS 변수(--tc-*)로 주입 → academy.css가 상태(채움/외곽선)에 맞춰 사용.
+  const TIERS = {
+    1: { n: 1, bg: "#EEF3F9", border: "#A9BFD8", ink: "#46617E" },
+    2: { n: 2, bg: "#DCEAF8", border: "#4E86C4", ink: "#1C5A95" },
+    3: { n: 3, bg: "#CADCF1", border: "#134B86", ink: "#0A3A66" },
+    4: { n: 4, bg: "#FFF3CC", border: "#EAB000", ink: "#845F00" }
+  };
+  const tierVars = (t) => `--tc-bg:${t.bg};--tc-border:${t.border};--tc-ink:${t.ink};`;
+  const lvBadge = (t) => `<span class="ts-lv" style="color:${t.ink};border-color:${t.border};">Lv.${t.n}</span>`;
+
+  function levelCell(lv, tier) {
     if (!lv) return `<div></div>`;
     const interactive = lv.status === "live";
     const cls = ["ts-level", lv.status, interactive ? "" : "dimmed clickable"].join(" ").replace(/\s+/g, " ").trim();
     return `
-      <div class="${cls}" data-status="${lv.status}" data-name="${lv.name}"${lv.enter ? ` data-enter="${lv.enter}"` : ""}${lv.course ? ` data-course="${lv.course}"` : ""}>
+      <div class="${cls}" style="${tierVars(tier)}" data-status="${lv.status}" data-name="${lv.name}"${lv.enter ? ` data-enter="${lv.enter}"` : ""}${lv.course ? ` data-course="${lv.course}"` : ""}>
+        ${lvBadge(tier)}
         ${badgeHtml(lv.status)}
         <div class="ts-level-name">${lv.name}</div>
         ${lv.sub ? `<div class="ts-level-sub">${lv.sub}</div>` : ""}
@@ -102,10 +130,12 @@
     const tracks = ACADEMY.tracks;
     const depth = Math.max.apply(null, tracks.map(t => t.levels.length));
 
-    let cells = tracks.map(goalCell).join("");
+    // 정점(목표) 박스 없이, 최상위 '전문가' 레벨 카드가 맨 위 캡스톤이 된다.
+    let cells = "";
     for (let i = depth - 1; i >= 0; i--) {
-      cells += tracks.map(arrowCell).join("");
-      cells += tracks.map(t => levelCell(t.levels[i])).join("");
+      if (i < depth - 1) cells += tracks.map(arrowCell).join(""); // 레벨 사이에만 화살표
+      const tier = TIERS[i + 2] || TIERS[1]; // levels[0]=Lv.2 … levels[2]=Lv.4
+      cells += tracks.map(t => levelCell(t.levels[i], tier)).join("");
     }
 
     const f = ACADEMY.foundation;
@@ -119,14 +149,14 @@
           <div class="ts-grid">
             ${cells}
             <div class="ts-cell-full ts-merge">&#8598;&nbsp;&nbsp;<b>공통 선수과정</b>&nbsp;&nbsp;&#8599;</div>
-            <div class="ts-cell-full ts-foundation clickable" data-status="${f.status}" data-name="${f.name}"${f.enter ? ` data-enter="${f.enter}"` : ""}${f.course ? ` data-course="${f.course}"` : ""}>
+            <div class="ts-cell-full ts-foundation clickable" style="${tierVars(TIERS[1])}" data-status="${f.status}" data-name="${f.name}"${f.enter ? ` data-enter="${f.enter}"` : ""}${f.course ? ` data-course="${f.course}"` : ""}>
+              ${lvBadge(TIERS[1])}
               ${badgeHtml(f.status)}
               <div class="ts-level-name">${f.name} <span style="font-weight:400;color:var(--sph-slate);font-size:0.82rem;">— ${f.sub}</span></div>
               <div class="ts-found-items">${f.items}</div>
-              ${f.status === "live" ? '<div class="ts-enter" style="margin-top:8px;color:var(--sph-navy);font-weight:700;font-size:0.76rem;">과정 입장 ➔</div>' : ""}
+              ${f.status === "live" ? '<div class="ts-enter" style="margin-top:8px;color:var(--tc-ink);font-weight:700;font-size:0.76rem;">과정 입장 ➔</div>' : ""}
             </div>
           </div>
-          <div class="ts-notice" id="ts-notice"></div>
         </div>
         <aside class="ts-home-side">
           <div class="ts-side-title">운영 스터디</div>
@@ -140,7 +170,6 @@
         </aside>
       </div>`;
 
-    const notice = mount.querySelector("#ts-notice");
     mount.querySelectorAll("[data-status]").forEach(card => {
       card.addEventListener("click", () => {
         const status = card.dataset.status;
@@ -149,9 +178,8 @@
           enterCourse(name, card.dataset.enter, card.dataset.course);
           return;
         }
-        const label = status === "ready" ? "기획이 완료되어 구현 대기 중인" : "준비 중인";
-        notice.innerHTML = `<strong>${name}</strong> 과정은 ${label} 과정입니다. 순차적으로 준비 중입니다.`;
-        notice.classList.add("show");
+        const label = status === "ready" ? "기획 완료 · 구현 대기 중" : "준비 중";
+        toast(name, label);
       });
     });
 

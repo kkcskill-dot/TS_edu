@@ -17,7 +17,7 @@
 | 5. 분석함수·고급 SQL | 윈도우/모델절/정규식, Top-N 최적화 | 작성 챌린지 |
 
 ## 다음 과정
-- [DB 튜닝 마스터](03-db-tuning-master.md)
+- [DB 튜닝 전문가](03-db-tuning-master.md)
 
 ## 참고 교재
 - SQL 튜닝 심화 노트

@@ -139,8 +139,8 @@
 
 /* 운영 중(클릭 가능) — 옐로우 하이라이트 면 틴트 + 전체 보더 */
 .ts-level.live {
-  background: var(--sph-hl-bg);
-  border-color: var(--sph-hl-border);
+  background: var(--tc-bg, var(--sph-hl-bg));
+  border-color: var(--tc-border, var(--sph-hl-border));
   cursor: pointer;
 }
 .ts-level.live:hover {
@@ -151,10 +151,56 @@
   margin-top: 9px;
   font-size: 0.74rem;
   font-weight: 700;
-  color: var(--sph-navy);
+  color: var(--tc-ink, var(--sph-navy));
 }
 .ts-level.clickable { cursor: pointer; }
-.ts-level.dimmed:hover { background: #fff; }
+/* 준비 중 = 채움 없는 점선 외곽선(단계 색) */
+.ts-level.dimmed {
+  background: #fff;
+  border-style: dashed;
+  border-color: var(--tc-border, var(--sph-line));
+}
+/* Lv 배지 — 단계 색(인라인 color/border-color 주입) */
+.ts-lv {
+  display: inline-block;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  padding: 1px 7px;
+  border: 1px solid var(--sph-line);
+  border-radius: 999px;
+  margin-bottom: 7px;
+}
+
+/* 준비중 토스트 — 상단 중앙에서 스르륵(슬라이드+페이드) 나타났다 사라짐 */
+.ts-toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-16px);
+  z-index: 4000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 90vw;
+  padding: 12px 18px;
+  background: var(--sph-navy);
+  color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 12px 34px rgba(0, 16, 40, 0.28);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: -0.1px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease, transform 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.ts-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.ts-toast-ico { color: var(--sph-yellow); flex-shrink: 0; }
+.ts-toast b { color: var(--sph-yellow); font-weight: 800; }
 
 /* 화살표 — 옐로우 포인트 */
 .ts-arrow {
@@ -198,6 +244,12 @@
   margin-top: 6px;
 }
 .ts-foundation .ts-badge { position: static; margin-left: 10px; vertical-align: middle; }
+/* 공통 베이스가 '운영 중'이면 다른 live 카드와 동일한 옐로우 활성 강조 */
+.ts-foundation[data-status="live"] {
+  background: var(--tc-bg, var(--sph-hl-bg));
+  border-color: var(--tc-border, var(--sph-hl-border));
+  cursor: pointer;
+}
 
 /* 안내 */
 .ts-notice {
@@ -217,7 +269,8 @@
 .course-menu { display: none; }
 .app-container[data-course="perf-club"] .course-menu[data-course="perf-club"],
 .app-container[data-course="sql-foundation"] .course-menu[data-course="sql-foundation"],
-.app-container[data-course="sql-tuning-basics"] .course-menu[data-course="sql-tuning-basics"] { display: block; }
+.app-container[data-course="sql-tuning-basics"] .course-menu[data-course="sql-tuning-basics"],
+.app-container[data-course="data-modeling"] .course-menu[data-course="data-modeling"] { display: block; }
 
 /* 학습자료 마크다운 코드 폰트 = D2Coding */
 .markdown-body code,
@@ -333,7 +386,8 @@
 
 /* ── 클릭 가능한 로드맵 카드 호버 피드백(누락분 보강) ── */
 .ts-level.clickable:hover {
-  border-color: var(--sph-navy);
+  border-style: solid;
+  border-color: var(--tc-ink, var(--sph-navy));
   background: #fff;
   transform: translateY(-2px);
   box-shadow: var(--sph-shadow-md);

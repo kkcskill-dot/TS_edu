@@ -17,4 +17,4 @@
 SQL 튜닝(기초) · 성능진단 퀴즈 · 실행계획 퀴즈
 
 ---
-> 정규 과정 **「DB 튜닝 마스터」**(트랙 A·L4)는 이 스터디와 별개로, 향후 체계화하여 신규 제작 예정입니다. ([tuning/03-db-tuning-master.md](tuning/03-db-tuning-master.md))
+> 정규 과정 **「DB 튜닝 전문가」**(트랙 A·L4)는 이 스터디와 별개로, 향후 체계화하여 신규 제작 예정입니다. ([tuning/03-db-tuning-master.md](tuning/03-db-tuning-master.md))

@@ -53,3 +53,13 @@ TS Academy(다중 교육과정 플랫폼)의 디렉터리 구조와 파일 분�
 - ⚠️ partial fetch URL의 `?v=` 버전은 캐시 버전 올릴 때 **app.js의 injectPartial 문자열도 함께** 갱신.
 
 > SQL 기초 패널은 작아서 index.html에 유지(추후 동일 패턴으로 분리 가능). SQL의 "조인"이 소모미 `panel-join-syntax-lab`을 재사용하므로 perf-club partial은 시작 시 항상 주입한다.
+
+## 과정 인벤토리 (data-course)
+| 과정 | data-course | JS | 학습자료 | 신규 랩 | 재사용 패널 |
+|---|---|---|---|---|---|
+| SQL 기초 | `sql-foundation` | `courses/sql-foundation.js`(+`-labs.js`) | `lessons/sql-foundation/*.md` | 예측·WHERE·GROUP BY·정렬·집합·퀴즈 | `panel-join-syntax-lab` |
+| SQL 튜닝 기본 | `sql-tuning-basics` | `courses/sql-tuning-basics.js` | `lessons/sql-tuning-basics/*.md` | 힌트·클러스터링팩터·소트·퀴즈 | explain·index·join-lab·plan-diag·bind·locks·trace·adaptive·plan-quiz |
+| 데이터 모델링 | `data-modeling` | `courses/data-modeling.js` | `lessons/design/data-modeling/ch1~5.md` | ERD 뷰어·정규화 변환기·퀴즈 | `panel-index`·`panel-plan-diag` |
+| 성능진단 소모임 | `perf-club` | `app.js initPerfClubLabs` | `lessons/perf-club/*.md` | — | partial 17 패널 |
+
+> **신규 과정 추가 체크리스트**: ① `lessons/**/*.md` ② `courses/<course>.js`(init은 `DOMContentLoaded`, getElementById는 가드) ③ `index.html`에 `course-menu[data-course]` + 패널 + `<script>` ④ `academy.css` 과정별 표시 규칙에 data-course 추가 ⑤ `academy.js` 로드맵 노드(`status:'live'`+`enter`+`course`) ⑥ `ROADMAP.md`·커리큘럼 문서 동기화 ⑦ 캐시 `?v=` 일괄 갱신(+app.js injectPartial).
