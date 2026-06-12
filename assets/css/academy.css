@@ -216,7 +216,8 @@
 /* ── 과정별 사이드바 메뉴 전환 (data-course 컨텍스트) ── */
 .course-menu { display: none; }
 .app-container[data-course="perf-club"] .course-menu[data-course="perf-club"],
-.app-container[data-course="sql-foundation"] .course-menu[data-course="sql-foundation"] { display: block; }
+.app-container[data-course="sql-foundation"] .course-menu[data-course="sql-foundation"],
+.app-container[data-course="sql-tuning-basics"] .course-menu[data-course="sql-tuning-basics"] { display: block; }
 
 /* 학습자료 마크다운 코드 폰트 = D2Coding */
 .markdown-body code,

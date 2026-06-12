@@ -32,26 +32,107 @@ const dbaTips = [
 document.addEventListener("DOMContentLoaded", () => {
   initRouter();
 
-  initDashboardMetrics();
-  initExplainPlanPanel();
-  initIndexSimulator();
-  initLockSandbox();
-  initChallengeArena();
-  initAshAnalyzer();
-  initAwrAnalyzer();
-  initPlanDiagLab();
-  initAdvPlanDiag();
-  initAdaptiveLab();
-  initTraceTkprofLab();
-  initBindParseLab();
-  initJoinLab();
-  initPlanQuizPanel();
-  initJoinSyntaxLab();
-
   // Choose a random tip to start
   rotateDbaTip();
   setInterval(rotateDbaTip, 10000);
+
+  // 소모임 패널은 partials/perf-club.html 로 분리됨 → 주입 후 초기화 (index.html 경량화)
+  window.__panelsReady = (async () => {
+    await injectPartial("partials/perf-club.html?v=4.4");
+    initPerfClubLabs();
+  })();
 });
+
+// partial(HTML 조각)을 panel-container 끝에 주입
+function injectPartial(file) {
+  return fetch(file, { cache: "no-store" })
+    .then(r => r.text())
+    .then(html => {
+      const container = document.querySelector(".panel-container");
+      if (container) container.insertAdjacentHTML("beforeend", html);
+    })
+    .catch(e => console.error("partial load failed:", file, e));
+}
+
+// 소모임 패널 주입 후 각 랩 초기화 (가드 없는 init이 있어 try/catch로 보호)
+function initPerfClubLabs() {
+  const inits = [
+    initDashboardMetrics, initExplainPlanPanel, initIndexSimulator, initLockSandbox,
+    initChallengeArena, initAshAnalyzer, initAwrAnalyzer, initPlanDiagLab, initAdvPlanDiag,
+    initAdaptiveLab, initTraceTkprofLab, initBindParseLab, initJoinLab, initPlanQuizPanel,
+    initJoinSyntaxLab, initPerfTextbook
+  ];
+  inits.forEach(fn => { try { fn(); } catch (e) { console.error("init failed:", e); } });
+}
+
+// 학습자료(소모임) 마크다운 렌더 — index.html 인라인에서 이동, partial 주입 후 실행
+function initPerfTextbook() {
+  // 학습자료 마크다운은 외부 파일(assets/lessons/perf-club/*.md)에서 fetch 한다.
+  const SESSION_SRC = {
+    'tb-session1': ['markdown-viewer-session1', 'assets/lessons/perf-club/session-1.md'],
+    'tb-session2': ['markdown-viewer-session2', 'assets/lessons/perf-club/session-2.md'],
+    'tb-session3': ['markdown-viewer-session3', 'assets/lessons/perf-club/session-3.md'],
+    'tb-session4': ['markdown-viewer-session4', 'assets/lessons/perf-club/session-4.md']
+  };
+  const renderTextbookTab = async (tabId) => {
+    const src = SESSION_SRC[tabId];
+    if (!src) return;
+    const [viewerId, file] = src;
+    const viewer = document.getElementById(viewerId);
+    if (!viewer || viewer.dataset.rendered === "true") return;
+    let mdContent;
+    try {
+      const r = await fetch(file, { cache: 'no-store' });
+      mdContent = r.ok ? await r.text() : '# 불러오기 실패\n`' + file + '`';
+    } catch (e) {
+      mdContent = '# 불러오기 실패\nhttp 서버에서 열어야 학습자료가 로드됩니다.';
+    }
+    viewer.innerHTML = marked.parse(mdContent);
+    viewer.dataset.rendered = "true";
+    const mermaidBlocks = viewer.querySelectorAll('pre code.language-mermaid');
+    mermaidBlocks.forEach((block) => {
+      const pre = block.parentElement;
+      const div = document.createElement('div');
+      div.className = 'mermaid';
+      div.textContent = block.textContent;
+      pre.parentNode.replaceChild(div, pre);
+    });
+    mermaid.initialize({ startOnLoad: false, theme: 'dark' });
+    mermaid.run({ nodes: viewer.querySelectorAll('.mermaid') });
+  };
+
+  const tbookTabs = document.querySelectorAll('#panel-textbook .tbook-tab');
+  tbookTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.getAttribute('data-target');
+      tbookTabs.forEach(t => {
+        t.classList.remove('active');
+        t.style.color = 'var(--color-text-muted)';
+        t.style.borderBottomColor = 'transparent';
+      });
+      tab.classList.add('active');
+      tab.style.color = 'var(--accent-cyan)';
+      tab.style.borderBottomColor = 'var(--accent-cyan)';
+      document.querySelectorAll('.textbook-tab-contents').forEach(panel => { panel.style.display = 'none'; });
+      const targetPanel = document.getElementById(target);
+      if (targetPanel) {
+        targetPanel.style.display = 'block';
+        renderTextbookTab(target);
+      }
+    });
+  });
+
+  const renderActiveTextbook = () => {
+    const activeTab = document.querySelector('.tbook-tab.active');
+    if (activeTab) renderTextbookTab(activeTab.getAttribute('data-target'));
+  };
+
+  renderTextbookTab('tb-session1');
+  const tbPanel = document.getElementById('panel-textbook');
+  if (tbPanel && tbPanel.classList.contains('active')) renderActiveTextbook();
+  const navTb = document.getElementById('nav-btn-textbook');
+  if (navTb) navTb.addEventListener('click', () => setTimeout(renderActiveTextbook, 50));
+}
 
 function initRouter() {
   const menuButtons = document.querySelectorAll(".menu-item");

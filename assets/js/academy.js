@@ -16,7 +16,7 @@
         goal: "DB 튜닝 전문가",
         goalSub: "SQL을 빠르게 만드는 역량",
         levels: [ // 난이도 오름차순(아래→위)
-          { name: "SQL 튜닝 기본", book: "친절한 SQL 튜닝", status: "plan" },
+          { name: "SQL 튜닝 기본", sub: "친절한 SQL 튜닝 골격", status: "live", enter: "nav-btn-tun-textbook", course: "sql-tuning-basics" },
           { name: "SQL 전문가", book: "SQL 튜닝 심화 노트", status: "plan" },
           { name: "DB 튜닝 마스터", sub: "성능진단 · 튜닝 워크숍", book: "오라클 성능 고도화", status: "plan" }
         ]
@@ -48,7 +48,9 @@
   const STATUS_LABEL = { live: "운영 중", ready: "기획 완료", plan: "준비 중" };
 
   // ── 홈 ↔ 과정 뷰 전환 ──
-  function enterCourse(name, enterBtnId, courseId) {
+  async function enterCourse(name, enterBtnId, courseId) {
+    // 소모임 패널 partial 주입이 끝난 뒤 입장 (패널이 DOM에 있어야 라우터가 표시)
+    if (window.__panelsReady) { try { await window.__panelsReady; } catch (e) {} }
     const ac = document.querySelector(".app-container");
     if (ac) {
       ac.classList.remove("is-home");

@@ -7,6 +7,24 @@
 
 ---
 
+## ★ 원칙: 소모임 자료 재사용 우선
+신규 과정을 만들 때는 **새로 만들기 전에 성능진단 소모임의 기존 랩을 먼저 재사용**한다. (사용자 방침)
+- **방법**: 신규 과정 사이드바 메뉴의 `data-target`을 **기존 패널 id**로 연결. (예: `nav-btn-sql-join` → `panel-join-syntax-lab`) → 한 패널을 여러 과정이 공유. 적합한 기존 랩이 없을 때만 신규 제작.
+
+### 재사용 맵 (소모임 패널 → 활용 가능한 정규 과정)
+| 소모임 랩(패널 id) | 활용 과정 |
+|---|---|
+| 조인 문법 실습실 `panel-join-syntax-lab` · 조인 비교 `panel-join-lab` | SQL 기초(완료) · SQL 튜닝 기본 |
+| 실행 계획 시각화 `panel-explain` | SQL 튜닝 기본 |
+| 인덱스 시뮬레이터 `panel-index` | SQL 튜닝 기본 · 고성능 DB 설계(인덱스 설계) |
+| 플랜 진단 기초/고급 `panel-plan-diag`/`panel-plan-adv` | SQL 전문가 · DB 튜닝 마스터 |
+| 적응형 최적화 `panel-adaptive` · 바인드 변수 `panel-bind-parse` | SQL 전문가 |
+| SQL Trace·TKPROF `panel-trace` · ASH/AWR `panel-ash`/`panel-awr` · 성능 대시보드 `panel-dashboard` | DB 튜닝 마스터 |
+| 락 & 동시성 샌드박스 `panel-locks` | SQL 기초(트랜잭션) · 고성능 DB 설계 |
+| SQL 챌린지 `panel-challenge` · 퀴즈 `panel-quiz`/`panel-plan-quiz` | SQL 기초 등 |
+
+---
+
 ## 0. 세션 시작 (컨텍스트 로드)
 ```
 이 저장소의 INSTRUCTIONS.md, STRUCTURE.md, curriculum/ROADMAP.md, spharos_design.md 를 먼저 읽고 현재 구조를 파악한 뒤 작업 시작해.

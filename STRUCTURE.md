@@ -43,9 +43,13 @@ TS Academy(다중 교육과정 플랫폼)의 디렉터리 구조와 파일 분�
 
 > 2~5단계는 동작 검증을 동반해 한 단계씩 진행한다(대규모 일괄 변경 지양).
 
-## 다음: 과정별 패널 분리 (주의)
-소모미 랩 패널을 `partials/perf-club.html`로 분리해 진입 시 지연 로딩하려면, app.js의 **15개 init 중 12개가 가드(`if(!el)return`)가 없어** DOMContentLoaded에서 패널 없이 호출되면 예외가 난다. 따라서:
-- DOMContentLoaded의 소모미 init 호출을 제거하고, **partial 주입 후** init을 try/catch로 1회 실행하도록 재구성해야 함.
-- 학습자료 렌더 스크립트도 partial 로드 후 실행되게 이동.
-- academy.js `enterCourse`가 nav 클릭 전에 partial 로드를 await.
-→ 위험도가 있어 별도 단계로, 동작 검증과 함께 진행.
+## 과정별 패널 분리 — (완료)
+소모미 랩 패널 17개를 **`partials/perf-club.html`로 분리**. index.html 3,000+ → **709줄**.
+- `app.js` DOMContentLoaded: `initRouter`/`rotateDbaTip`만 즉시 실행. 나머지는 **partial 주입 후** 실행:
+  - `injectPartial("partials/perf-club.html?v=...")` → `.panel-container`에 append → `initPerfClubLabs()`(15개 랩 init + `initPerfTextbook`, 각 try/catch).
+  - `window.__panelsReady` 프라미스로 노출.
+- 학습자료 렌더 인라인 스크립트 → `app.js`의 `initPerfTextbook()`로 이동.
+- `academy.js enterCourse`는 nav 클릭 전 `await window.__panelsReady`.
+- ⚠️ partial fetch URL의 `?v=` 버전은 캐시 버전 올릴 때 **app.js의 injectPartial 문자열도 함께** 갱신.
+
+> SQL 기초 패널은 작아서 index.html에 유지(추후 동일 패턴으로 분리 가능). SQL의 "조인"이 소모미 `panel-join-syntax-lab`을 재사용하므로 perf-club partial은 시작 시 항상 주입한다.
