@@ -7,11 +7,11 @@
 > 📌 **성능진단 소모임**(현재 운영 중인 사내 스터디)은 정규 교육과정과 **별개로** 운영됩니다 → [study-performance-club.md](study-performance-club.md). 정규 로드맵 과정들은 아래와 같이 순차 기획 중입니다.
 
 ```
-        [ DB 튜닝 전문가 ]              [ DB 설계 전문가 ]      ← 트랙 목표 역량(정점)
+        [ DB 튜닝 전문가 ]              [ DB 운영 전문가 ]      ← 트랙 목표 역량(정점)
                ▲                              ▲
      ┌─────────┴─────────┐          ┌─────────┴─────────┐
-     │  DB 튜닝 마스터    │          │   Data Architect   │
-     │ (성능진단·튜닝)    │          │                    │
+     │  DB 튜닝 마스터    │          │  DB 운영 마스터    │
+     │ (성능진단·튜닝)    │          │ (백업·복구·HA)     │
      └─────────▲─────────┘          └─────────▲─────────┘
      ┌─────────┴─────────┐          ┌─────────┴─────────┐
      │   SQL 전문가       │          │  고성능 DB 설계    │
@@ -36,16 +36,16 @@ SQL을 빠르게 만드는 역량. 실행계획 해석 → 성능 진단 → 튜
 | L4 | DB 튜닝 마스터 (성능진단·튜닝) | 기획 | [tuning/03-db-tuning-master.md](tuning/03-db-tuning-master.md) |
 | ★ | DB 튜닝 전문가 (목표 역량) | — | — |
 
-## 트랙 B — DB 설계
-데이터를 잘 담는 역량. 모델링 → 물리 설계·운영 → 아키텍처로 심화.
+## 트랙 B — DB 운영 (DBA)
+데이터를 잘 담고 안정적으로 운영하는 역량. 모델링 → 물리 설계·운영 → 백업·복구·HA·모니터링으로 심화.
 
 | 레벨 | 과정 | 상태 | 커리큘럼 |
 |---|---|---|---|
 | L1 | SQL 기초 (공통) | **운영 중** | [foundation/sql-foundation.md](foundation/sql-foundation.md) |
 | L2 | 데이터 모델링 | 기획 | [design/01-data-modeling.md](design/01-data-modeling.md) |
 | L3 | **고성능 DB 설계 (DBA 설계·운영)** | **기획 완료** | [design/02-highperf-db-design.md](design/02-highperf-db-design.md) |
-| L4 | Data Architect | 기획 | [design/03-data-architect.md](design/03-data-architect.md) |
-| ★ | DB 설계 전문가 (목표 역량) | — | — |
+| L4 | DB 운영 마스터 (백업·복구·HA·모니터링) | 기획 | [design/03-db-ops-master.md](design/03-db-ops-master.md) |
+| ★ | DB 운영 전문가 (목표 역량) | — | — |
 
 ## 상태 범례
 - **운영 중**: 학습자료·실습·퀴즈가 구현되어 서비스 중

@@ -23,7 +23,7 @@
 - 정규화 변환기 / 파티션 라이프사이클 매니저 / 테이블스페이스 공간 대시보드
 
 ## 다음 과정
-- [Data Architect](03-data-architect.md)
+- [DB 운영 마스터](03-db-ops-master.md)
 
 ## 참고 교재
 - 「핵심 데이터 모델링」, Oracle Concepts(논리/물리 저장구조·파티셔닝·옵티마이저 통계)

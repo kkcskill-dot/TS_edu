@@ -18,17 +18,17 @@
         levels: [ // 난이도 오름차순(아래→위)
           { name: "SQL 튜닝 기본", sub: "친절한 SQL 튜닝 골격", status: "live", enter: "nav-btn-tun-textbook", course: "sql-tuning-basics" },
           { name: "SQL 전문가", book: "SQL 튜닝 심화 노트", status: "plan" },
-          { name: "DB 튜닝 마스터", sub: "성능진단 · 튜닝 워크숍", book: "오라클 성능 고도화", status: "plan" }
+          { name: "DB 튜닝 전문가", sub: "성능진단 · 튜닝", book: "오라클 성능 고도화", status: "plan" }
         ]
       },
       {
         id: "design",
-        goal: "DB 설계 전문가",
-        goalSub: "데이터를 잘 담는 역량",
+        goal: "DB 운영 전문가",
+        goalSub: "안정적인 DB 운영 역량",
         levels: [
           { name: "데이터 모델링", book: "핵심 데이터 모델링", status: "plan" },
           { name: "고성능 DB 설계", sub: "DBA 설계 · 운영", status: "ready" },
-          { name: "Data Architect", status: "plan" }
+          { name: "DB 운영 전문가", sub: "DBA", status: "plan" }
         ]
       }
     ],
@@ -114,7 +114,7 @@
         <div class="ts-home-main">
           <div class="ts-roadmap-head">
             <h3>교육 로드맵 </h3>
-            <p>공통 베이스(SQL 기초) 위에 <strong>DB 튜닝</strong>과 <strong>DB 설계</strong> 두 트랙으로 구성합니다. 아래 과정들은 순차적으로 준비 중입니다.</p>
+            <p>공통 베이스(SQL 기초) 위에 <strong>DB 튜닝</strong>과 <strong>DB 운영</strong> 두 트랙으로 구성합니다. 아래 과정들은 순차적으로 준비 중입니다.</p>
           </div>
           <div class="ts-grid">
             ${cells}
