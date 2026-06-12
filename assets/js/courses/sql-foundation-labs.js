@@ -203,7 +203,8 @@
           <button id="quiz-next" style="display:none;margin-top:14px;padding:8px 18px;border:none;border-radius:6px;background:var(--accent-cyan);color:#fff;font-weight:700;font-size:0.8rem;cursor:pointer;">${idx + 1 < QUIZ.length ? "다음 →" : "결과 보기"}</button>
         </div>`;
       const optsEl = root.querySelector("#quiz-opts");
-      item.o.forEach(([text, correct]) => {
+      const O = item.o.slice().sort(() => Math.random() - 0.5); // 보기 셔플
+      O.forEach(([text, correct]) => {
         const b = document.createElement("button");
         b.textContent = text;
         b.style.cssText = "width:100%;text-align:left;padding:11px 14px;border:1px solid var(--border-light);background:var(--bg-card);color:var(--color-text-main);border-radius:6px;font-size:0.82rem;cursor:pointer;transition:all .15s ease;";
@@ -214,7 +215,7 @@
           if (correct) score += Math.round(100 / QUIZ.length);
           optsEl.querySelectorAll("button").forEach((x, i) => {
             x.disabled = true; x.style.cursor = "default"; x.style.opacity = "0.55";
-            if (item.o[i][1]) { x.style.borderColor = "var(--accent-emerald)"; x.style.background = "rgba(14,122,83,0.10)"; x.style.color = "var(--accent-emerald)"; x.style.opacity = "1"; }
+            if (O[i][1]) { x.style.borderColor = "var(--accent-emerald)"; x.style.background = "rgba(14,122,83,0.10)"; x.style.color = "var(--accent-emerald)"; x.style.opacity = "1"; }
           });
           if (!correct) { b.style.borderColor = "var(--accent-crimson)"; b.style.background = "rgba(220,38,38,0.07)"; b.style.color = "var(--accent-crimson)"; b.style.opacity = "1"; }
           const ex = root.querySelector("#quiz-ex");

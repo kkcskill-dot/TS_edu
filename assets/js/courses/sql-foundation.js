@@ -141,7 +141,8 @@
         </div>`;
 
       const optsEl = root.querySelector("#sql-pred-opts");
-      q.options.forEach(opt => {
+      const OPTS = q.options.slice().sort(() => Math.random() - 0.5); // 보기 셔플
+      OPTS.forEach(opt => {
         const btn = document.createElement("button");
         btn.style.cssText = "width:100%;text-align:left;padding:11px 14px;border:1px solid var(--border-light);background:var(--bg-card);color:var(--color-text-main);border-radius:6px;font-size:0.82rem;font-family:var(--font-mono);cursor:pointer;transition:all .15s ease;";
         btn.textContent = opt.t;
@@ -153,7 +154,7 @@
           if (opt.correct) score += 20;
           optsEl.querySelectorAll("button").forEach((b, i) => {
             b.disabled = true; b.style.cursor = "default"; b.style.opacity = "0.55";
-            if (q.options[i].correct) { b.style.borderColor = "var(--accent-emerald)"; b.style.background = "rgba(14,122,83,0.10)"; b.style.color = "var(--accent-emerald)"; b.style.opacity = "1"; }
+            if (OPTS[i].correct) { b.style.borderColor = "var(--accent-emerald)"; b.style.background = "rgba(14,122,83,0.10)"; b.style.color = "var(--accent-emerald)"; b.style.opacity = "1"; }
           });
           if (!opt.correct) { btn.style.borderColor = "var(--accent-crimson)"; btn.style.background = "rgba(220,38,38,0.07)"; btn.style.color = "var(--accent-crimson)"; btn.style.opacity = "1"; }
           const ex = root.querySelector("#sql-pred-explain");

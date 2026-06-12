@@ -165,7 +165,8 @@
       root.querySelectorAll(".btn-hint-scn").forEach(b => b.addEventListener("click", () => { key = b.dataset.k; render(); }));
 
       const optsEl = root.querySelector("#hint-opts");
-      s.options.forEach(opt => {
+      const OPTS = s.options.slice().sort(() => Math.random() - 0.5); // 보기 셔플
+      OPTS.forEach(opt => {
         const btn = document.createElement("button");
         btn.style.cssText = "width:100%;text-align:left;padding:11px 14px;border:1px solid var(--border-light);background:var(--bg-card);color:var(--color-text-main);border-radius:6px;font-size:0.8rem;font-family:var(--font-mono);cursor:pointer;transition:all .15s ease;";
         btn.textContent = opt.label;
@@ -175,7 +176,7 @@
           if (answered) return; answered = true;
           optsEl.querySelectorAll("button").forEach((b, i) => {
             b.disabled = true; b.style.cursor = "default"; b.style.opacity = "0.55";
-            if (s.options[i].correct) { b.style.borderColor = "var(--accent-emerald)"; b.style.background = "rgba(14,122,83,0.10)"; b.style.color = "var(--accent-emerald)"; b.style.opacity = "1"; }
+            if (OPTS[i].correct) { b.style.borderColor = "var(--accent-emerald)"; b.style.background = "rgba(14,122,83,0.10)"; b.style.color = "var(--accent-emerald)"; b.style.opacity = "1"; }
           });
           if (!opt.correct) { btn.style.borderColor = "var(--accent-crimson)"; btn.style.background = "rgba(220,38,38,0.07)"; btn.style.color = "var(--accent-crimson)"; btn.style.opacity = "1"; }
           if (opt.correct) root.querySelector("#hint-after").style.display = "block";
@@ -241,7 +242,8 @@
         <button id="mc-next" style="display:none;margin-top:14px;padding:8px 18px;border:none;border-radius:6px;background:var(--accent-cyan);color:#fff;font-weight:700;font-size:0.8rem;cursor:pointer;">${idx + 1 < QS.length ? "다음 →" : "결과 보기"}</button>
       </div>`;
       const opts = root.querySelector("#mc-opts");
-      q.o.forEach(([t, ok]) => {
+      const O = q.o.slice().sort(() => Math.random() - 0.5); // 보기 셔플(정답 위치 분산)
+      O.forEach(([t, ok]) => {
         const b = document.createElement("button");
         b.style.cssText = "width:100%;text-align:left;padding:11px 14px;border:1px solid var(--border-light);background:var(--bg-card);color:var(--color-text-main);border-radius:6px;font-size:0.82rem;cursor:pointer;transition:all .15s ease;";
         b.textContent = t;
@@ -250,7 +252,7 @@
         b.addEventListener("click", () => {
           if (answered) return; answered = true;
           if (ok) score += Math.round(100 / QS.length);
-          opts.querySelectorAll("button").forEach((x, i) => { x.disabled = true; x.style.opacity = "0.55"; if (q.o[i][1]) { x.style.borderColor = "var(--accent-emerald)"; x.style.background = "rgba(14,122,83,0.10)"; x.style.color = "var(--accent-emerald)"; x.style.opacity = "1"; } });
+          opts.querySelectorAll("button").forEach((x, i) => { x.disabled = true; x.style.opacity = "0.55"; if (O[i][1]) { x.style.borderColor = "var(--accent-emerald)"; x.style.background = "rgba(14,122,83,0.10)"; x.style.color = "var(--accent-emerald)"; x.style.opacity = "1"; } });
           if (!ok) { b.style.borderColor = "var(--accent-crimson)"; b.style.background = "rgba(220,38,38,0.07)"; b.style.color = "var(--accent-crimson)"; b.style.opacity = "1"; }
           const ex = root.querySelector("#mc-ex"); ex.innerHTML = (ok ? "✅ 정답! " : "❌ ") + q.e; ex.style.display = "block";
           root.querySelector("#mc-next").style.display = "inline-block";
