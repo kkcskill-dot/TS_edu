@@ -38,7 +38,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 소모임 패널은 partials/perf-club.html 로 분리됨 → 주입 후 초기화 (index.html 경량화)
   window.__panelsReady = (async () => {
-    await injectPartial("partials/perf-club.html?v=4.8");
+    await injectPartial("partials/perf-club.html?v=4.9");
     initPerfClubLabs();
   })();
 });
