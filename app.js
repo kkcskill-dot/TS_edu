@@ -5096,12 +5096,17 @@ function submitCbtExam(force = false) {
   if (!force) {
     const unansweredCount = cbtAnswers.filter(a => a === null).length;
     if (unansweredCount > 0) {
-      const confirmSubmit = confirm(`아직 풀지 않은 문제가 ${unansweredCount}문항 있습니다. 이대로 최종 답안을 제출하시겠습니까?`);
-      if (!confirmSubmit) return;
-    } else {
-      const confirmSubmit = confirm("답안을 모두 작성하셨습니다. 제출하고 시험을 끝마치시겠습니까?");
-      if (!confirmSubmit) return;
+      alert(`아직 풀지 않은 문제가 ${unansweredCount}문항 있습니다.\n모든 문항에 답을 마킹한 후 제출해 주세요.`);
+      // 미마킹 첫 번째 문항으로 자동 이동
+      const firstUnanswered = cbtAnswers.findIndex(a => a === null);
+      if (firstUnanswered >= 0) {
+        cbtCurrentQ = firstUnanswered;
+        renderCbtQuestion();
+      }
+      return;
     }
+    const confirmSubmit = confirm("답안을 모두 작성하셨습니다. 제출하고 시험을 끝마치시겠습니까?");
+    if (!confirmSubmit) return;
   }
 
   cbtActive = false;
