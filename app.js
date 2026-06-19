@@ -4224,7 +4224,7 @@ Predicate Information (identified by operation id):
  * ------------------------------------------------------------- */
 
 // Embedded RDBMS Mock Interface using IndexedDB
-const cbtDb = {
+const cbtIdb = {
   dbName: "H2_Embedded_CBT",
   dbVersion: 1,
   db: null,
@@ -4328,6 +4328,48 @@ const cbtDb = {
       request.onsuccess = () => resolve(true);
       request.onerror = (e) => reject(e);
     });
+  }
+};
+
+// ── 서버 공유 저장소 파사드 (다른 사용자 기록까지 통합 조회) ──
+// 인터페이스(Promise)는 cbtIdb와 동일 → submitCbtExam·renderCbtAdminDashboard 등 호출부 변경 없음.
+// 정본 = 서버(/tsclass/api/results, sqlite). 서버 불통 시 IndexedDB(cbtIdb)로 폴백.
+const cbtDb = {
+  API: "api/results", // /tsclass/ 기준 상대경로 → Nginx가 백엔드로 프록시
+  async init() {
+    try { await cbtIdb.init(); } catch (e) { /* 오프라인 폴백 캐시용 */ }
+  },
+  async saveResult(record) {
+    let serverOk = false;
+    try {
+      const r = await fetch(this.API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(record)
+      });
+      serverOk = r.ok;
+    } catch (e) { /* 서버 불통 → 로컬에만 */ }
+    try { await cbtIdb.saveResult(record); } catch (e) { /* 로컬 미러 */ }
+    if (!serverOk) console.warn("CBT 결과 서버 저장 실패 — 로컬(IndexedDB)에만 저장됨");
+    return true;
+  },
+  async getAllResults() {
+    try {
+      const r = await fetch(this.API, { cache: "no-store" });
+      if (r.ok) return await r.json(); // 전체 사용자 기록(서버)
+    } catch (e) { /* 서버 불통 */ }
+    console.warn("CBT 서버 조회 실패 — 로컬(IndexedDB) 폴백(본인 기록만)");
+    try { return await cbtIdb.getAllResults(); } catch (e) { return []; }
+  },
+  async deleteResult(id) {
+    try { await fetch(this.API + "?id=" + encodeURIComponent(id), { method: "DELETE" }); } catch (e) {}
+    try { await cbtIdb.deleteResult(id); } catch (e) {}
+    return true;
+  },
+  async clearAll() {
+    try { await fetch(this.API, { method: "DELETE" }); } catch (e) {}
+    try { await cbtIdb.clearAll(); } catch (e) {}
+    return true;
   }
 };
 

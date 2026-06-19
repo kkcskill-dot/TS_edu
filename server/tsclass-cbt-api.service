@@ -1,0 +1,19 @@
+[Unit]
+Description=TS class CBT result API (python stdlib + sqlite)
+After=network.target
+
+[Service]
+Type=simple
+User=nginx
+Group=nginx
+# /var/lib/tsclass 를 자동 생성/소유(여기에 sqlite DB 보관 — 웹 루트 밖이라 외부에서 못 받음)
+StateDirectory=tsclass
+Environment=CBT_DB_PATH=/var/lib/tsclass/cbt.db
+Environment=HOST=127.0.0.1
+Environment=PORT=8090
+ExecStart=/usr/bin/python3 /opt/tsclass/cbt_api.py
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
