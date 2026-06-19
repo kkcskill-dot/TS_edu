@@ -38,8 +38,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 소모임 패널은 partials/perf-club.html 로 분리됨 → 주입 후 초기화 (index.html 경량화)
   window.__panelsReady = (async () => {
-    await injectPartial("partials/perf-club.html?v=7.1");
-    await injectPartial("partials/cbt.html?v=7.1");
+    await injectPartial("partials/perf-club.html?v=7.2");
+    await injectPartial("partials/cbt.html?v=7.2");
     initPerfClubLabs();
     initCbtSystem();
   })();
@@ -199,7 +199,14 @@ function initRouter() {
       } else if (targetPanel === "panel-cbt") {
         renderCbtIntro();
       } else if (targetPanel === "panel-cbt-admin") {
-        renderCbtAdminDashboard();
+        const pw = prompt("관리자 비밀번호를 입력해 주세요:");
+        if (pw === "qhdkscjfwj!!") {
+          renderCbtAdminDashboard();
+        } else {
+          alert("비밀번호가 일치하지 않습니다. 관리자 권한이 필요합니다.");
+          const homeBtn = document.getElementById("brand-home-btn");
+          if (homeBtn) homeBtn.click();
+        }
       }
     });
   });
