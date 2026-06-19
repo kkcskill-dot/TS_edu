@@ -4788,7 +4788,17 @@ let cbtTimerInterval = null;
 let cbtCurrentQ = 0;
 let cbtCandidateName = "홍길동";
 let cbtAnswers = [];
+let cbtOptionOrders = [];
 let cbtStartTime = null;
+
+function shuffleIndices(length) {
+  const indices = Array.from({ length }, (_, idx) => idx);
+  for (let i = indices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [indices[i], indices[j]] = [indices[j], indices[i]];
+  }
+  return indices;
+}
 
 function initCbtSystem() {
   const btnStart = document.getElementById("btn-start-cbt");
@@ -4899,6 +4909,7 @@ function startCbtExam() {
   cbtCandidateName = name;
   cbtActive = true;
   cbtAnswers = Array(sub.questions.length).fill(null);
+  cbtOptionOrders = sub.questions.map(q => shuffleIndices(q.options.length));
   cbtCurrentQ = 0;
   cbtTimeRemaining = sub.limitSeconds;
   cbtStartTime = Date.now();
@@ -5021,12 +5032,14 @@ function loadCbtQuestion(qIdx) {
   if (badge) badge.textContent = `문항 ${qIdx + 1} / ${sub.questions.length}`;
   
   const q = sub.questions[qIdx];
+  const optionOrder = cbtOptionOrders[qIdx] || Array.from({ length: q.options.length }, (_, idx) => idx);
   if (qText) qText.innerHTML = q.text;
 
   if (optContainer) {
     optContainer.innerHTML = "";
-    q.options.forEach((optText, optIdx) => {
-      const isSelected = cbtAnswers[qIdx] === optIdx;
+    optionOrder.forEach((originalOptIdx, displayOptIdx) => {
+      const optText = q.options[originalOptIdx];
+      const isSelected = cbtAnswers[qIdx] === displayOptIdx;
 
       const optDiv = document.createElement("div");
       optDiv.className = "tuning-option" + (isSelected ? " selected" : "");
@@ -5041,12 +5054,12 @@ function loadCbtQuestion(qIdx) {
       optDiv.style.transition = "all 0.2s";
 
       optDiv.innerHTML = `
-        <input type="radio" name="cbt-opt" class="opt-radio" id="cbt-opt-${optIdx}" ${isSelected ? "checked" : ""} style="margin-top: 3px; cursor:pointer;">
-        <label for="cbt-opt-${optIdx}" style="font-size: 0.82rem; line-height: 1.5; color: var(--color-text-main); cursor:pointer; flex:1;">${optText}</label>
+        <input type="radio" name="cbt-opt" class="opt-radio" id="cbt-opt-${displayOptIdx}" ${isSelected ? "checked" : ""} style="margin-top: 3px; cursor:pointer;">
+        <label for="cbt-opt-${displayOptIdx}" style="font-size: 0.82rem; line-height: 1.5; color: var(--color-text-main); cursor:pointer; flex:1;">${optText}</label>
       `;
 
       optDiv.onclick = () => {
-        cbtAnswers[qIdx] = optIdx;
+        cbtAnswers[qIdx] = displayOptIdx;
         const radios = optContainer.querySelectorAll(".opt-radio");
         const options = optContainer.querySelectorAll(".tuning-option");
         
@@ -5118,7 +5131,9 @@ function submitCbtExam(force = false) {
   // Calculate scores (100-point scale scaling)
   let correctCount = 0;
   sub.questions.forEach((q, idx) => {
-    if (cbtAnswers[idx] === q.correctIdx) {
+    const optionOrder = cbtOptionOrders[idx] || [];
+    const mappedAnswerIdx = cbtAnswers[idx] !== null ? optionOrder[cbtAnswers[idx]] : null;
+    if (mappedAnswerIdx === q.correctIdx) {
       correctCount++;
     }
   });
@@ -5182,7 +5197,9 @@ function submitCbtExam(force = false) {
   if (feedbackList) {
     feedbackList.innerHTML = "";
     sub.questions.forEach((q, idx) => {
-      const userAnswerIdx = cbtAnswers[idx];
+      const optionOrder = cbtOptionOrders[idx] || [];
+      const userDisplayIdx = cbtAnswers[idx];
+      const userAnswerIdx = userDisplayIdx !== null ? optionOrder[userDisplayIdx] : null;
       const isCorrect = userAnswerIdx === q.correctIdx;
       
       const card = document.createElement("div");
@@ -5229,7 +5246,9 @@ function submitCbtExam(force = false) {
       answerSummary.style.margin = "12px 0 8px 0";
       answerSummary.style.lineHeight = "1.5";
       
-      const selectText = userAnswerIdx !== null ? `선택 답안: (${userAnswerIdx + 1}) ${q.options[userAnswerIdx]}` : "선택 답안: 없음 (미제출)";
+      const selectText = userDisplayIdx !== null
+        ? `선택 답안: (${userDisplayIdx + 1}) ${q.options[userAnswerIdx]}`
+        : "선택 답안: 없음 (미제출)";
       const correctText = `정답: (${q.correctIdx + 1}) ${q.options[q.correctIdx]}`;
 
       answerSummary.innerHTML = `
