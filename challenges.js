@@ -279,5 +279,51 @@ const sqlChallenges = {
         feedback: "오답입니다. 병렬 쿼리는 대용량 배치 작업에는 유용하지만, 빈번히 발생하는 온라인 트랜잭션 환경에서 사용하면 서버 전체의 CPU 자원을 순간적으로 고갈시켜 다른 동시 접속 세션들까지 전부 먹통으로 만드는 위험한 임시방편입니다."
       }
     ]
+  },
+  7: {
+    level: 7,
+    name: "클러스터링 팩터 불량과 옵티마이저 오판 (Poor Clustering Factor)",
+    desc: "주문 테이블(TB_ORDER)의 주문일자(ORDER_DATE) 컬럼에 구축된 인덱스(IX_ORDER_DATE)를 이용하여 한 달 치 데이터를 조회하는 화면입니다. 옵티마이저는 데이터가 인덱스 순서대로 테이블에 잘 모여있을 것이라 가정(통계정보 오류)하고 인덱스 스캔을 선택했으나, 실제 물리적 정렬 상태(Clustering Factor)가 최악이어서, 테이블 블록을 디스크에서 무작위로 계속 읽어들이는 심각한 Random I/O 병목이 발생하여 시스템이 멈추다시피 했습니다. 올바른 해결 방안은 무엇일까요?",
+    asisSql: "SELECT /*+ INDEX(O IX_ORDER_DATE) */ * FROM TB_ORDER O WHERE ORDER_DATE >= TO_DATE('2026-05-19', 'YYYY-MM-DD');",
+    tobeSql: "SELECT * FROM TB_ORDER O WHERE ORDER_DATE >= TO_DATE('2026-05-19', 'YYYY-MM-DD'); -- (인덱스 힌트 제거 및 Table Full Scan 유도)",
+    dialectData: {
+      oracle: {
+        asisPlan: "INDEX RANGE SCAN (IX_ORDER_DATE) -> TABLE ACCESS BY INDEX ROWID (TB_ORDER) [Buffers: 120,000]",
+        tobePlan: "TABLE ACCESS FULL (TB_ORDER) [Buffers: 450]"
+      }
+    },
+    asisMetrics: {
+      io: "120,000 Blocks",
+      time: "45,000 ms",
+      plan: "INDEX RANGE SCAN + BY ROWID"
+    },
+    tobeMetrics: {
+      io: "450 Blocks",
+      time: "200 ms",
+      plan: "TABLE ACCESS FULL"
+    },
+    options: [
+      {
+        id: "opt-7A",
+        title: "강제 인덱스 힌트를 제거하여 옵티마이저가 Table Full Scan을 하도록 유도하거나, ORDER_DATE 기준으로 데이터를 재정렬 후 적재",
+        desc: "스캔할 범위가 넓고 클러스터링 팩터가 나쁜 상황에서는, 무작위 Single Block Read를 유발하는 인덱스 스캔보다 Multi-Block Read를 사용하는 Table Full Scan이 훨씬 효율적입니다. 혹은 물리적 테이블 데이터를 날짜순으로 재정렬(Reorganization)하여 클러스터링 팩터를 개선해야 합니다.",
+        isCorrect: true,
+        feedback: "정답입니다! 클러스터링 팩터(Clustering Factor)란 인덱스 정렬 순서와 테이블 실제 행들의 물리적 디스크 정렬도가 얼마나 일치하는지 나타내는 지표입니다. 이것이 나쁘면 인덱스를 통해 테이블 블록을 읽을 때마다 매번 새로운 디스크 블록을 읽는 Random I/O(Single Block Read) 폭사가 발생합니다. 이럴 때는 오히려 테이블 전체를 듬직하게 Multi-Block Read로 한 번에 쓸어 담는 Full Table Scan이 훨씬 적은 I/O로 빠르게 처리될 수 있습니다."
+      },
+      {
+        id: "opt-7B",
+        title: "IX_ORDER_DATE 인덱스를 재생성(REBUILD)하여 인덱스 내부 파편화 제거",
+        desc: "ALTER INDEX ix_order_date REBUILD 명령을 실행하여 인덱스 정렬 상태를 강제로 원상복구합니다.",
+        isCorrect: false,
+        feedback: "오답입니다. 인덱스 리빌드(Rebuild)는 인덱스 세그먼트 내부의 정렬과 빈 공간 정리에만 영향을 줍니다. 테이블 실제 데이터 행들의 물리적인 저장 순서(Clustering Factor의 핵심)는 전혀 바뀌지 않으므로, 리빌드 이후에도 Random I/O 병목은 동일하게 발생합니다."
+      },
+      {
+        id: "opt-7C",
+        title: "주문일자(ORDER_DATE) 컬럼을 인덱스 선두로 하는 복합 인덱스(ORDER_DATE, CUSTOMER_ID)로 변경",
+        desc: "복합 인덱스를 새롭게 구성하여 데이터의 변별력을 더욱 높이고 탐색 속도를 가속화합니다.",
+        isCorrect: false,
+        feedback: "오답입니다. 복합 인덱스를 생성해도 여전히 테이블의 물리적인 데이터 정렬(Clustering Factor)은 엉망인 상태이기 때문에, 결국 넓은 범위의 날짜를 읽으면서 테이블로 들어갈 때(Table Access By ROWID) 발생하는 무수한 Random I/O 블록 읽기는 전혀 해소되지 않습니다."
+      }
+    ]
   }
 };

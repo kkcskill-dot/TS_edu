@@ -1988,6 +1988,10 @@ INNER JOIN dept d ON e.dept_id = d.dept_id;</code></pre>
                   <span class="lvl-num">Level 6</span>
                   <span class="lvl-title">인덱스 가공 오류</span>
                 </button>
+                <button class="challenge-level-btn" data-level="7">
+                  <span class="lvl-num">Level 7</span>
+                  <span class="lvl-title">클러스터링 팩터</span>
+                </button>
               </div>
 
               <div class="challenge-details-card">
@@ -2265,6 +2269,76 @@ INNER JOIN dept d ON e.dept_id = d.dept_id;</code></pre>
             <div class="textbook-tab-contents" id="tb-session4"
               style="padding: 30px; flex-grow: 1; overflow-y: auto; background: var(--bg-textbook); display: none;">
               <div id="markdown-viewer-session4" class="markdown-body"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 18. INDEX SCAN EFFICIENCY PANEL (NEW) -->
+        <section id="panel-index-efficiency" class="content-panel">
+          <div class="panel-intro">
+            <p>실행 계획에서 <code>INDEX RANGE SCAN</code>이 타더라도, 인덱스 조건이 탐색 범위를 한정하는 <strong>Access Predicate</strong>인지, 스캔 후 버리는 <strong>Filter Predicate</strong>인지에 따라 블록 I/O 효율이 극적으로 변합니다.</p>
+          </div>
+
+          <div class="index-grid" style="display:grid; grid-template-columns:1fr 1.2fr; gap:20px;">
+            <div class="explain-left bg-glass" style="padding:16px;">
+              <div class="panel-section-title">테이블 및 인덱스 구성</div>
+              <div class="code-title" style="margin-bottom:8px;">TB_LOG (로그 저장 테이블)</div>
+              <pre><code class="language-sql" style="font-size:0.75rem;">-- 컬럼 정의
+• STATUS (VARCHAR2) -- 'ERROR', 'ACTIVE' 등
+• LOG_DATE (DATE)    -- 로그 생성 시각
+
+-- 결합 인덱스
+CREATE INDEX IX_LOG_STATUS_DATE ON TB_LOG(STATUS, LOG_DATE);</code></pre>
+
+              <div class="panel-section-title" style="margin-top:15px;">비교할 시나리오 선택</div>
+              <div class="explain-presets" style="display:flex; flex-direction:column; gap:8px;">
+                <button class="btn-explain-preset active" id="btn-idx-eff-access" style="text-align:left; font-size:0.8rem; padding:8px 12px; border-radius:6px; cursor:pointer;">
+                  <strong>🎯 Access Predicate (최적화)</strong><br>
+                  STATUS = 'ERROR' AND LOG_DATE >= SYSDATE-1
+                </button>
+                <button class="btn-explain-preset" id="btn-idx-eff-filter" style="text-align:left; font-size:0.8rem; padding:8px 12px; border-radius:6px; cursor:pointer; background:transparent; border:1px solid var(--border-light); color:var(--color-text-muted);">
+                  <strong>⚠️ Filter Predicate (비효율)</strong><br>
+                  STATUS LIKE '%ERR%' AND LOG_DATE >= SYSDATE-1
+                </button>
+              </div>
+
+              <div class="sql-preview-box" style="margin-top:15px;">
+                <div class="code-title">실행 대상 SQL 쿼리</div>
+                <pre><code id="idx-eff-sql-code" class="language-sql" style="font-size:0.8rem;">SELECT * FROM TB_LOG WHERE STATUS = 'ERROR' AND LOG_DATE >= SYSDATE-1;</code></pre>
+              </div>
+            </div>
+
+            <div class="explain-right bg-glass" style="padding:16px; display:flex; flex-direction:column; justify-content:space-between; min-height:430px;">
+              <div>
+                <div class="panel-section-title">스캔 실행 계획 & 런타임 결과</div>
+                <div class="terminal-container" style="margin-bottom:12px;">
+                  <div class="code-title">DBMS_XPLAN Output</div>
+                  <div id="idx-eff-xplan-viewport" class="sql-terminal" style="height:160px; white-space:pre; line-height:1.45; font-size:0.72rem; overflow-x:auto; background:rgba(0,0,0,0.25); border:1px solid var(--border-light); border-radius:6px; padding:10px;"></div>
+                </div>
+
+                <div class="panel-section-title">인덱스 리프 노드 스캔 알고리즘</div>
+                <div id="idx-eff-animation-canvas" style="height:100px; background:rgba(0,0,0,0.2); border-radius:6px; border:1px solid var(--border-light); display:flex; align-items:center; justify-content:center; gap:8px; overflow:hidden; position:relative; font-family:var(--font-mono); font-size:0.75rem;">
+                  <!-- 애니메이션 요소가 동적으로 추가됨 -->
+                </div>
+              </div>
+
+              <div>
+                <div class="cost-stats-grid" style="margin-top:12px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                  <div class="stat-box" style="text-align:center; background:var(--bg-card); padding:8px; border-radius:6px;">
+                    <span class="stat-label" style="font-size:0.7rem; color:var(--color-text-muted); display:block;">예상 (E-Rows)</span>
+                    <span class="stat-value text-accent" id="idx-eff-erows" style="font-size:1.1rem; font-weight:700; color:var(--accent-cyan);">100</span>
+                  </div>
+                  <div class="stat-box" style="text-align:center; background:var(--bg-card); padding:8px; border-radius:6px;">
+                    <span class="stat-label" style="font-size:0.7rem; color:var(--color-text-muted); display:block;">실제 (A-Rows)</span>
+                    <span class="stat-value text-accent" id="idx-eff-arows" style="font-size:1.1rem; font-weight:700; color:var(--accent-cyan);">100</span>
+                  </div>
+                  <div class="stat-box" style="text-align:center; background:var(--bg-card); padding:8px; border-radius:6px;">
+                    <span class="stat-label" style="font-size:0.7rem; color:var(--color-text-muted); display:block;">읽기 (Buffers)</span>
+                    <span class="stat-value text-accent" id="idx-eff-buffers" style="font-size:1.1rem; font-weight:700; color:var(--accent-cyan);">4 Blocks</span>
+                  </div>
+                </div>
+                <div class="dba-concept-box" id="idx-eff-feedback-box" style="margin-top:12px; padding:10px; background:rgba(16, 185, 129, 0.05); border:1px solid rgba(16, 185, 129, 0.25); border-radius:6px; font-size:0.78rem; line-height:1.45;"></div>
+              </div>
             </div>
           </div>
         </section>

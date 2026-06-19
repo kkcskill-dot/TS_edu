@@ -38,7 +38,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 소모임 패널은 partials/perf-club.html 로 분리됨 → 주입 후 초기화 (index.html 경량화)
   window.__panelsReady = (async () => {
-    await injectPartial("partials/perf-club.html?v=5.7");
+    await injectPartial("partials/perf-club.html?v=6.2");
     initPerfClubLabs();
   })();
 });
@@ -60,7 +60,7 @@ function initPerfClubLabs() {
     initDashboardMetrics, initExplainPlanPanel, initIndexSimulator, initLockSandbox,
     initChallengeArena, initAshAnalyzer, initAwrAnalyzer, initPlanDiagLab, initAdvPlanDiag,
     initAdaptiveLab, initTraceTkprofLab, initBindParseLab, initJoinLab, initPlanQuizPanel,
-    initJoinSyntaxLab, initPerfTextbook
+    initJoinSyntaxLab, initPerfTextbook, initIndexScanEfficiencyLab
   ];
   inits.forEach(fn => { try { fn(); } catch (e) { console.error("init failed:", e); } });
 }
@@ -192,6 +192,8 @@ function initRouter() {
         initPlanQuizPanel();
       } else if (targetPanel === "panel-join-syntax-lab") {
         initJoinSyntaxLab();
+      } else if (targetPanel === "panel-index-efficiency") {
+        renderIndexScanEfficiencyLab();
       }
     });
   });
@@ -774,7 +776,7 @@ function initChallengeArena() {
   });
 
   document.getElementById("btn-next-level").addEventListener("click", () => {
-    if (currentLevel < 6) {
+    if (currentLevel < 7) {
       // Mark current level completed
       const activeBtn = document.querySelector(`.challenge-level-btn[data-level="${currentLevel}"]`);
       activeBtn.classList.add("completed");
@@ -928,14 +930,14 @@ function showDbaCertificationAward() {
   if (!layout) return;
 
   // Highlight final level button as completed
-  document.querySelector(`.challenge-level-btn[data-level="4"]`).classList.add("completed");
+  document.querySelector(`.challenge-level-btn[data-level="7"]`).classList.add("completed");
 
   layout.innerHTML = `
     <div class="dba-award-panel bg-glass" style="grid-column: span 2; padding: 60px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 24px; animation: scaleIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;">
       <div class="award-seal" style="font-size: 5rem; animation: pulseGlow 2s infinite;">🏆</div>
       <h2 style="font-family:var(--font-display); font-size: 2.2rem; background: linear-gradient(135deg, #fbbf24, #f59e0b); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">TS class DBA SQL Master</h2>
       <p style="font-size: 1rem; color:var(--color-text-muted); max-width: 600px; line-height: 1.6;">
-        축하합니다! 인덱스 부재 패턴 해결, Leading Wildcard 회피, 묵시적 형변환 교정, 그리고 비효율적 대량 서브쿼리 리팩토링까지 데이터베이스의 모든 성능 이슈 진단 및 SQL 튜닝 수련 과정을 완벽히 이수하였기에 이 인증서를 부여합니다.
+        축하합니다! 인덱스 부재 패턴 해결, Leading Wildcard 회피, 묵시적 형변환 교정, 비효율적 대량 서브쿼리 리팩토링, 그리고 클러스터링 팩터 불량에 따른 튜닝까지 데이터베이스의 모든 성능 이슈 진단 및 SQL 튜닝 수련 과정을 완벽히 이수하였기에 이 인증서를 부여합니다.
       </p>
       
       <div class="certification-badge" style="border: 2px dashed #f59e0b; padding: 20px 40px; border-radius: 12px; background-color: rgba(245, 158, 11, 0.05); margin: 20px 0;">
@@ -3899,5 +3901,305 @@ function initJoinSyntaxLab() {
   });
 
   updateView();
+}
+
+
+/* -------------------------------------------------------------
+ * 18. Index Scan Efficiency Lab (Access vs Filter Predicate)
+ * ------------------------------------------------------------- */
+let idxEffInit = false;
+let idxEffTimer = null;
+
+function initIndexScanEfficiencyLab() {
+  if (idxEffInit) return;
+  idxEffInit = true;
+
+  const btnAccess = document.getElementById("btn-idx-eff-access");
+  const btnFilter = document.getElementById("btn-idx-eff-filter");
+
+  if (btnAccess && btnFilter) {
+    btnAccess.addEventListener("click", () => {
+      btnAccess.classList.add("active");
+      btnAccess.style.background = "rgba(6,182,212,0.15)";
+      btnAccess.style.borderColor = "var(--accent-cyan)";
+      btnAccess.style.color = "var(--accent-cyan)";
+
+      btnFilter.classList.remove("active");
+      btnFilter.style.background = "transparent";
+      btnFilter.style.borderColor = "var(--border-light)";
+      btnFilter.style.color = "var(--color-text-muted)";
+
+      renderIndexScanEfficiencyLab();
+    });
+
+    btnFilter.addEventListener("click", () => {
+      btnFilter.classList.add("active");
+      btnFilter.style.background = "rgba(6,182,212,0.15)";
+      btnFilter.style.borderColor = "var(--accent-cyan)";
+      btnFilter.style.color = "var(--accent-cyan)";
+
+      btnAccess.classList.remove("active");
+      btnAccess.style.background = "transparent";
+      btnAccess.style.borderColor = "var(--border-light)";
+      btnAccess.style.color = "var(--color-text-muted)";
+
+      renderIndexScanEfficiencyLab();
+    });
+  }
+}
+
+function renderIndexScanEfficiencyLab() {
+  const btnAccess = document.getElementById("btn-idx-eff-access");
+  const isAccess = btnAccess && btnAccess.classList.contains("active");
+
+  const sqlCode = document.getElementById("idx-eff-sql-code");
+  const xplanViewport = document.getElementById("idx-eff-xplan-viewport");
+  const eRows = document.getElementById("idx-eff-erows");
+  const aRows = document.getElementById("idx-eff-arows");
+  const buffers = document.getElementById("idx-eff-buffers");
+  const feedbackBox = document.getElementById("idx-eff-feedback-box");
+  const canvas = document.getElementById("idx-eff-animation-canvas");
+
+  if (idxEffTimer) {
+    clearTimeout(idxEffTimer);
+    idxEffTimer = null;
+  }
+
+  // 1. Update text and metrics
+  if (isAccess) {
+    if (sqlCode) sqlCode.textContent = "SELECT * FROM TB_LOG WHERE STATUS = 'ERROR' AND LOG_DATE >= SYSDATE-1;";
+    if (xplanViewport) {
+      xplanViewport.textContent = 
+`-----------------------------------------------------------------------------------------
+| Id  | Operation                    | Name              | Starts | A-Rows | Buffers |
+-----------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT             |                   |      1 |    100 |       4 |
+|   1 |  TABLE ACCESS BY INDEX ROWID | TB_LOG            |      1 |    100 |       4 |
+|*  2 |   INDEX RANGE SCAN           | IX_LOG_STATUS_DATE|      1 |    100 |       2 |
+-----------------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+   2 - access("STATUS"='ERROR' AND "LOG_DATE">=SYSDATE-1)`;
+    }
+    if (eRows) eRows.textContent = "100";
+    if (aRows) aRows.textContent = "100";
+    if (buffers) {
+      buffers.textContent = "4 Blocks";
+      buffers.style.color = "#10b981";
+    }
+    if (feedbackBox) {
+      feedbackBox.innerHTML = "🎯 <strong>Access Predicate 최적 작동:</strong> 옵티마이저가 인덱스 선행 컬럼(STATUS)의 등가(=) 조건과 후행 컬럼의 범위 조건을 결합하여, 스캔의 시작점과 끝점을 명확하게 제한했습니다. 불필요한 인덱스 블록을 읽지 않고 수직 탐색 후 필요한 2개 블록만 리프 노드 레벨에서 스캔하여 성능이 매우 뛰어납니다.";
+      feedbackBox.style.background = "rgba(16, 185, 129, 0.05)";
+      feedbackBox.style.borderColor = "rgba(16, 185, 129, 0.25)";
+      feedbackBox.style.color = "#10b981";
+    }
+  } else {
+    if (sqlCode) sqlCode.textContent = "SELECT * FROM TB_LOG WHERE STATUS LIKE '%ERR%' AND LOG_DATE >= SYSDATE-1;";
+    if (xplanViewport) {
+      xplanViewport.textContent = 
+`-----------------------------------------------------------------------------------------
+| Id  | Operation                    | Name              | Starts | A-Rows | Buffers |
+-----------------------------------------------------------------------------------------
+|   0 | SELECT STATEMENT             |                   |      1 |    100 |     120 |
+|   1 |  TABLE ACCESS BY INDEX ROWID | TB_LOG            |      1 |    100 |     120 |
+|*  2 |   INDEX RANGE SCAN           | IX_LOG_STATUS_DATE|      1 |    100 |      98 |
+-----------------------------------------------------------------------------------------
+
+Predicate Information (identified by operation id):
+---------------------------------------------------
+   2 - filter("STATUS" LIKE '%ERR%' AND "LOG_DATE">=SYSDATE-1)`;
+    }
+    if (eRows) eRows.textContent = "100";
+    if (aRows) aRows.textContent = "100";
+    if (buffers) {
+      buffers.textContent = "120 Blocks";
+      buffers.style.color = "#ef4444";
+    }
+    if (feedbackBox) {
+      feedbackBox.innerHTML = "⚠️ <strong>Filter Predicate 발생 (비효율):</strong> 인덱스 첫 번째 컬럼에 <code>LIKE '%ERR%'</code>처럼 중간 일치 조건을 사용하면, 인덱스 루트/브랜치에서 특정 시작 범위를 좁히는 수직 탐색이 불가능합니다. 결국 인덱스 리프 노드 전체 또는 아주 넓은 영역을 스캔(Index Range/Full Scan)하며 개별 노드를 하나씩 꺼내 필터링해야 하므로, 버퍼 블록 I/O가 120개로 급증했습니다.";
+      feedbackBox.style.background = "rgba(239, 68, 68, 0.05)";
+      feedbackBox.style.borderColor = "rgba(239, 68, 68, 0.25)";
+      feedbackBox.style.color = "#f87171";
+    }
+  }
+
+  // 2. Setup Animation Elements
+  if (!canvas) return;
+  canvas.innerHTML = "";
+
+  const sampleNodes = [
+    { status: 'ACTIVE',  date: '06-17', isMatch: false, label: 'ACTIVE' },
+    { status: 'ACTIVE',  date: '06-18', isMatch: false, label: 'ACTIVE' },
+    { status: 'ACTIVE',  date: '06-19', isMatch: false, label: 'ACTIVE' },
+    { status: 'ERROR',   date: '06-17', isMatch: false, label: 'ERROR' },
+    { status: 'ERROR',   date: '06-18', isMatch: true,  label: 'ERROR' },
+    { status: 'ERROR',   date: '06-19', isMatch: true,  label: 'ERROR' },
+    { status: 'WARNING',  date: '06-18', isMatch: false, label: 'WARN' },
+    { status: 'WARNING',  date: '06-19', isMatch: false, label: 'WARN' }
+  ];
+
+  sampleNodes.forEach((node, idx) => {
+    const nodeDiv = document.createElement("div");
+    nodeDiv.id = `idx-eff-node-${idx}`;
+    nodeDiv.className = "idx-eff-node";
+    nodeDiv.style.width = "58px";
+    nodeDiv.style.height = "52px";
+    nodeDiv.style.border = "1px solid rgba(255,255,255,0.15)";
+    nodeDiv.style.borderRadius = "6px";
+    nodeDiv.style.display = "flex";
+    nodeDiv.style.flexDirection = "column";
+    nodeDiv.style.alignItems = "center";
+    nodeDiv.style.justifyContent = "center";
+    nodeDiv.style.background = "rgba(255,255,255,0.03)";
+    nodeDiv.style.transition = "all 0.25s ease";
+    nodeDiv.style.position = "relative";
+
+    // Text elements
+    nodeDiv.innerHTML = `
+      <span style="font-size:0.6rem; font-weight:bold; color:rgba(255,255,255,0.4);">${node.label}</span>
+      <span style="font-size:0.6rem; color:rgba(255,255,255,0.7);">${node.date}</span>
+      <span class="node-result" style="font-size:0.65rem; font-weight:bold; margin-top:2px; color:rgba(255,255,255,0.2);">-</span>
+    `;
+
+    canvas.appendChild(nodeDiv);
+  });
+
+  // Vertical arrow/pointer element
+  const pointer = document.createElement("div");
+  pointer.id = "idx-eff-pointer";
+  pointer.style.position = "absolute";
+  pointer.style.top = "0px";
+  pointer.style.left = "0px";
+  pointer.style.width = "58px";
+  pointer.style.height = "52px";
+  pointer.style.border = "2px solid var(--accent-yellow)";
+  pointer.style.borderRadius = "6px";
+  pointer.style.boxShadow = "0 0 10px var(--accent-yellow)";
+  pointer.style.pointerEvents = "none";
+  pointer.style.transition = "transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.3s";
+  pointer.style.opacity = "0";
+  canvas.appendChild(pointer);
+
+  const statusText = document.createElement("div");
+  statusText.id = "idx-eff-status-overlay";
+  statusText.style.position = "absolute";
+  statusText.style.bottom = "2px";
+  statusText.style.left = "50%";
+  statusText.style.transform = "translateX(-50%)";
+  statusText.style.background = "rgba(0,0,0,0.7)";
+  statusText.style.padding = "2px 8px";
+  statusText.style.borderRadius = "4px";
+  statusText.style.fontSize = "0.65rem";
+  statusText.style.color = "var(--accent-yellow)";
+  statusText.style.border = "1px solid rgba(255,235,59,0.3)";
+  statusText.textContent = "준비 완료";
+  canvas.appendChild(statusText);
+
+  // Helper function to move pointer to a node
+  function movePointerToNode(nodeIdx) {
+    const targetNode = document.getElementById(`idx-eff-node-${nodeIdx}`);
+    if (targetNode && pointer) {
+      const parentRect = canvas.getBoundingClientRect();
+      const nodeRect = targetNode.getBoundingClientRect();
+      const leftOffset = nodeRect.left - parentRect.left;
+      const topOffset = nodeRect.top - parentRect.top;
+      pointer.style.transform = `translate(${leftOffset}px, ${topOffset}px)`;
+      pointer.style.opacity = "1";
+    }
+  }
+
+  // 3. Play Scenario Animation
+  let step = 0;
+  if (isAccess) {
+    // ACCESS SCENARIO TIMELINE
+    statusText.textContent = "🔍 인덱스 수직 탐색 중 (Vertical Access)...";
+    
+    idxEffTimer = setTimeout(() => {
+      // Jump directly to node index 4 (First matching ERROR status, date >= 06-18)
+      movePointerToNode(4);
+      statusText.textContent = "🎯 첫 매칭 노드 직행! (STATUS = 'ERROR' AND LOG_DATE >= 06-18)";
+      
+      const nodeEl = document.getElementById("idx-eff-node-4");
+      if (nodeEl) {
+        nodeEl.style.borderColor = "#10b981";
+        nodeEl.style.background = "rgba(16,185,129,0.15)";
+        nodeEl.querySelector(".node-result").innerHTML = "✔️ PASS";
+        nodeEl.querySelector(".node-result").style.color = "#10b981";
+      }
+
+      idxEffTimer = setTimeout(() => {
+        // Move to node index 5
+        movePointerToNode(5);
+        statusText.textContent = "➡️ 수평 스캔 진행 (Horizontal Scan)";
+        const nodeEl5 = document.getElementById("idx-eff-node-5");
+        if (nodeEl5) {
+          nodeEl5.style.borderColor = "#10b981";
+          nodeEl5.style.background = "rgba(16,185,129,0.15)";
+          nodeEl5.querySelector(".node-result").innerHTML = "✔️ PASS";
+          nodeEl5.querySelector(".node-result").style.color = "#10b981";
+        }
+
+        idxEffTimer = setTimeout(() => {
+          // Try node index 6
+          movePointerToNode(6);
+          statusText.textContent = "⏹️ STATUS = 'WARNING' 발견 (조건 불일치) -> 스캔 즉시 종료";
+          const nodeEl6 = document.getElementById("idx-eff-node-6");
+          if (nodeEl6) {
+            nodeEl6.style.borderColor = "#ef4444";
+            nodeEl6.style.background = "rgba(239,68,68,0.1)";
+            nodeEl6.querySelector(".node-result").innerHTML = "❌ STOP";
+            nodeEl6.querySelector(".node-result").style.color = "#f87171";
+          }
+
+          idxEffTimer = setTimeout(() => {
+            pointer.style.opacity = "0";
+            statusText.textContent = "✅ 스캔 완료 (스캔 범위 최소화, 블록 I/O: 4)";
+          }, 1500);
+
+        }, 1200);
+
+      }, 1200);
+
+    }, 1500);
+
+  } else {
+    // FILTER SCENARIO TIMELINE
+    statusText.textContent = "⚠️ 수직 탐색 불가. 리프 노드 처음부터 순차 검색 시작...";
+    
+    function scanNextNode() {
+      if (step >= sampleNodes.length) {
+        pointer.style.opacity = "0";
+        statusText.textContent = "⚠️ 스캔 완료 (전체 노드 탐색 및 필터링, 블록 I/O: 120)";
+        return;
+      }
+
+      movePointerToNode(step);
+      const node = sampleNodes[step];
+      const nodeEl = document.getElementById(`idx-eff-node-${step}`);
+      
+      statusText.textContent = `🔍 노드 ${step + 1} 검증 중: ${node.status} (${node.date})`;
+
+      idxEffTimer = setTimeout(() => {
+        if (nodeEl) {
+          if (node.isMatch) {
+            nodeEl.style.borderColor = "#10b981";
+            nodeEl.style.background = "rgba(16,185,129,0.15)";
+            nodeEl.querySelector(".node-result").innerHTML = "✔️ PASS";
+            nodeEl.querySelector(".node-result").style.color = "#10b981";
+          } else {
+            nodeEl.style.borderColor = "#ef4444";
+            nodeEl.style.background = "rgba(239,68,68,0.08)";
+            nodeEl.querySelector(".node-result").innerHTML = "❌ DROP";
+            nodeEl.querySelector(".node-result").style.color = "#f87171";
+          }
+        }
+        step++;
+        idxEffTimer = setTimeout(scanNextNode, 400);
+      }, 600);
+    }
+
+    idxEffTimer = setTimeout(scanNextNode, 1200);
+  }
 }
 
