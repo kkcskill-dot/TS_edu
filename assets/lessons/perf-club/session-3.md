@@ -325,13 +325,18 @@ SELECT E.EMP_NAME, E.DEPT_NO, S.PAY_DATE, S.SALARY
 ------------------------------------------------------------------------------------------------------
 |   0 | SELECT STATEMENT              |               |      1 |        |    500 |      800K |    25 |
 |*  1 |  FILTER                       |               |      1 |        |    500 |      800K |       |
-|   2 |   TABLE ACCESS FULL           | TB_EMP        |      1 |    500 |    500 |        40 |     8 |
-|*  3 |   TABLE ACCESS FULL           | TB_SALARY     |    500 |      1 |    450 |      800K |    17 |
+|*  2 |   HASH JOIN                   |               |      1 |    500 |    500 |        90 |     8 |
+|   3 |    TABLE ACCESS FULL          | TB_EMP        |      1 |    500 |    500 |        40 |     3 |
+|   4 |    TABLE ACCESS FULL          | TB_SALARY     |      1 |   1000 |   1000 |        50 |     4 |
+|*  5 |   TABLE ACCESS FULL           | TB_SALARY     |    500 |      1 |    450 |      800K |    17 |
 ------------------------------------------------------------------------------------------------------
-   Predicate 3: S.EMP_ID = E.EMP_ID AND S.PAY_DATE = (SELECT MAX(PAY_DATE) FROM TB_SALARY ...)
+   Predicate Information (identified by operation id):
+   ---------------------------------------------------
+   1 - filter(S.PAY_DATE = (SELECT MAX(PAY_DATE) FROM TB_SALARY SUB WHERE SUB.EMP_ID = E.EMP_ID))
+   2 - access(S.EMP_ID = E.EMP_ID)
 ```
 
-* **수리적 오차 추적**: `Id 3`번 `TB_SALARY` 풀 스캔의 `Starts`가 **500**입니다. 이는 메인 쿼리의 `TB_EMP` 결과 500건에 대해 상관 서브쿼리가 매 행마다 반복 실행되었음을 의미합니다.
+* **수리적 오차 추적**: `Id 5`번 `TB_SALARY` 풀 스캔의 `Starts`가 **500**입니다. 이는 메인 조인 결과 500건에 대해 상관 서브쿼리가 매 행마다 반복 실행되었음을 의미합니다.
 * **병목 산출**: `TB_SALARY` 테이블이 한 번 풀 스캔할 때 1,600블록을 읽는다면, 500번 반복 시 **500 × 1,600 = 800,000** 블록(800K Buffers)의 논리적 I/O가 누적됩니다.
 * **해결책**: 상관 서브쿼리를 인라인 뷰 + 조인으로 변환(Subquery Unnesting)하거나, 분석 함수(`ROW_NUMBER() OVER(PARTITION BY ...)`)를 활용하여 1회 스캔으로 전환합니다.
 
