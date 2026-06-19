@@ -38,8 +38,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 소모임 패널은 partials/perf-club.html 로 분리됨 → 주입 후 초기화 (index.html 경량화)
   window.__panelsReady = (async () => {
-    await injectPartial("partials/perf-club.html?v=6.2");
+    await injectPartial("partials/perf-club.html?v=7.0");
+    await injectPartial("partials/cbt.html?v=7.0");
     initPerfClubLabs();
+    initCbtSystem();
   })();
 });
 
@@ -194,6 +196,10 @@ function initRouter() {
         initJoinSyntaxLab();
       } else if (targetPanel === "panel-index-efficiency") {
         renderIndexScanEfficiencyLab();
+      } else if (targetPanel === "panel-cbt") {
+        renderCbtIntro();
+      } else if (targetPanel === "panel-cbt-admin") {
+        renderCbtAdminDashboard();
       }
     });
   });
@@ -4202,4 +4208,735 @@ Predicate Information (identified by operation id):
     idxEffTimer = setTimeout(scanNextNode, 1200);
   }
 }
+
+
+/* -------------------------------------------------------------
+ * 19. CBT Exam System & Admin Dashboard Logic
+ * ------------------------------------------------------------- */
+
+// CBT 5 Questions Database (Week 3 themed)
+const cbtQuestions = [
+  {
+    qNum: 1,
+    text: "Q1. 결합 인덱스 IX_EMP_DEPT_SAL(DEPT_NO, SALARY)가 존재하는 상황에서, 아래 쿼리가 수행될 때 인덱스의 스캔 방식에 대한 설명으로 가장 올바른 것은?<br><br><code>SELECT * FROM TB_EMP WHERE DEPT_NO = 10 AND SALARY >= 3000;</code>",
+    options: [
+      "선두 컬럼 DEPT_NO가 '=' 등가 조건이고 후행 컬럼 SALARY가 범위 조건이므로, 두 조건 모두 인덱스 탐색 범위를 한정하는 Access Predicate로 작동한다.",
+      "선두 컬럼 DEPT_NO는 Access Predicate로 작동하지만, SALARY 컬럼은 등가 조건이 아니므로 Filter Predicate로 작동하여 스캔 완료 후 버려진다.",
+      "등가 조건이 아닌 범위 조건이 포함되어 있으므로 옵티마이저는 인덱스 스캔을 포기하고 Table Full Scan을 수행한다.",
+      "인덱스 컬럼 전체를 인덱스 처음부터 끝까지 다 스캔하는 Index Full Scan 방식으로 작동한다."
+    ],
+    correctIdx: 0,
+    explanation: "결합 인덱스에서 선두 컬럼이 등가(=) 조건이고, 그 다음 컬럼이 범위(>=) 조건인 경우, 두 조건 모두 인덱스 리프 노드의 시작점과 끝점을 제한하는 최적의 <strong>Access Predicate</strong>로 작동하여 디스크 I/O를 가장 최소화할 수 있습니다."
+  },
+  {
+    qNum: 2,
+    text: "Q2. 결합 인덱스 IX_EMP_DEPT_SAL(DEPT_NO, SALARY)가 있을 때, 선두 컬럼 조건이 아래와 같이 작성되었습니다. 이에 대한 성능 영향 분석으로 옳은 것은?<br><br><code>SELECT * FROM TB_EMP WHERE DEPT_NO LIKE '%10%' AND SALARY >= 3000;</code>",
+    options: [
+      "중간 일치 LIKE 패턴이어도 선두 컬럼이므로 여전히 최적의 Access Predicate 수직 탐색이 이루어진다.",
+      "선두 컬럼에 중간 일치 와일드카드(%)가 오면 인덱스 수직 탐색을 위한 시작점을 찾을 수 없으므로, 인덱스를 스캔(Index Range/Full Scan) 하더라도 Filter Predicate로 작동하여 리프 노드를 대량으로 읽고 필터링하므로 비효율적이다.",
+      "SALARY 조건이 우수하므로 옵티마이저가 SALARY를 선두로 인덱스를 자동 재구성하여 스캔 속도를 획득한다.",
+      "인덱스를 전혀 타지 못하고 무조건 HASH JOIN으로 변환되어 임시 세그먼트 디스크 공간을 낭비한다."
+    ],
+    correctIdx: 1,
+    explanation: "인덱스 선두 컬럼 조건에 <code>LIKE '%10%'</code>처럼 전방 와일드카드가 사용되면 인덱스 수직 탐색이 불가능합니다. 이로 인해 인덱스 스캔 시 탐색 시작점을 좁히지 못하고, 전체 또는 아주 넓은 영역을 스캔하며 하나씩 조건에 부합하는지 <strong>Filter Predicate</strong> 검증을 수행하므로 I/O 비효율이 크게 치솟습니다."
+  },
+  {
+    qNum: 3,
+    text: "Q3. 인덱스 정렬 순서와 테이블 실제 행들의 물리적 디스크 저장 순서가 얼마나 일치하는지 나타내는 지표로, 이 값이 나쁠 경우 넓은 범위 인덱스 스캔 시 심각한 무작위 Single Block Read(Random I/O) 폭사를 유발하는 핵심 통계정보 지표는 무엇인가?",
+    options: [
+      "DENSITY (밀도)",
+      "NUM_DISTINCT (고유값 수)",
+      "CLUSTERING_FACTOR (클러스터링 팩터)",
+      "HISTOGRAM_BUCKETS (히스토그램 버킷 수)"
+    ],
+    correctIdx: 2,
+    explanation: "<strong>Clustering Factor(클러스터링 팩터)</strong>는 인덱스 키 순서와 테이블 디스크 데이터의 물리적 정렬도가 얼마나 매칭되는지 보여줍니다. 이 수치가 테이블 전체 블록 수에 육박할 정도로 나쁘면, 인덱스 리프 노드를 통해 테이블 로우에 액세스할 때마다 매번 새로운 디스크 블록을 읽는 Random I/O 병목이 발생하여 Full Table Scan보다도 훨씬 느려질 수 있습니다."
+  },
+  {
+    qNum: 4,
+    text: "Q4. SQL 튜닝 시 아래와 같이 인덱스 컬럼의 좌변을 가공했을 때 발생하는 현상으로 가장 거리가 먼 것은?<br><br><code>SELECT * FROM TB_LOG WHERE TO_CHAR(LOG_DATE, 'YYYYMMDD') = '20260619';</code>",
+    options: [
+      "인덱스 컬럼 값 자체가 가공되었으므로 B-Tree 인덱스 고유의 정렬 구조를 활용할 수 없어 인덱스가 무력화된다.",
+      "옵티마이저는 이 조건으로 인덱스 범위 검색을 할 수 없어 Table Full Scan으로 플랜을 선회한다.",
+      "이를 튜닝하려면 좌변 가공을 제거하고 우변 상수를 가공(<code>LOG_DATE >= TO_DATE('20260619', 'YYYYMMDD')</code> 등)해 범위 조건으로 검색해야 한다.",
+      "인덱스 리프 노드를 탐색하는 도중, 함수 가공값에 의해 동적으로 해시 테이블 조인이 적용되어 오히려 정렬 속도가 향상된다."
+    ],
+    correctIdx: 3,
+    explanation: "인덱스 컬럼을 함수로 가공(TO_CHAR, SUBSTR 등)하거나 산술 연산을 가하면 B-Tree 인덱스 키의 정렬 상태가 손상되어 옵티마이저가 인덱스를 범위 검색 용도로 쓸 수 없게 됩니다. 따라서 Index Scan이 무력화되어 대량의 풀 테이블 스캔이 발생하며, 해시 조인 등으로 성능이 향상된다는 것은 명백한 허구입니다."
+  },
+  {
+    qNum: 5,
+    text: "Q5. 상관 서브쿼리(Correlated Subquery)가 조건절에 포함되어 메인 쿼리의 매 레코드마다 서브쿼리가 반복 실행(FILTER 동작)됨으로써 성능이 급락하는 현상을 해결하기 위해, 옵티마이저가 서브쿼리 블록을 해체하여 메인 조인 쿼리문 형태로 변환하는 내부 최적화 기술은 무엇인가?",
+    options: [
+      "Subquery Unnesting (서브쿼리 언네스팅)",
+      "View Merging (뷰 머징)",
+      "Query Rewrite (쿼리 재작성)",
+      "Index Split (인덱스 분할)"
+    ],
+    correctIdx: 0,
+    explanation: "상관 서브쿼리의 반복 처리에 따른 FILTER 병목을 해소하기 위해 옵티마이저는 서브쿼리를 일반 조인 구조로 변경하여 풀 수 있는데, 이를 <strong>Subquery Unnesting(서브쿼리 언네스팅)</strong>이라고 합니다. 언네스팅이 실행되어야 해시 조인이나 네스티드 루프 조인 등으로 최적화 플랜을 수립할 수 있습니다."
+  }
+];
+
+// CBT Live State Variables
+let cbtActive = false;
+let cbtTimeRemaining = 300; // 5 minutes in seconds
+let cbtTimerInterval = null;
+let cbtCurrentQ = 0;
+let cbtCandidateName = "홍길동";
+let cbtAnswers = [null, null, null, null, null];
+let cbtStartTime = null;
+
+function initCbtSystem() {
+  const btnStart = document.getElementById("btn-start-cbt");
+  const btnPrev = document.getElementById("btn-cbt-prev");
+  const btnNext = document.getElementById("btn-cbt-next");
+  const btnSubmit = document.getElementById("btn-cbt-submit");
+  const btnRestart = document.getElementById("btn-cbt-restart");
+
+  const btnMockData = document.getElementById("btn-admin-mock-data");
+  const btnResetData = document.getElementById("btn-admin-reset-data");
+
+  if (btnStart) btnStart.onclick = startCbtExam;
+  if (btnPrev) btnPrev.onclick = () => moveCbtQuestion(-1);
+  if (btnNext) btnNext.onclick = () => moveCbtQuestion(1);
+  if (btnSubmit) btnSubmit.onclick = submitCbtExam;
+  if (btnRestart) btnRestart.onclick = renderCbtIntro;
+
+  if (btnMockData) btnMockData.onclick = injectCbtMockData;
+  if (btnResetData) btnResetData.onclick = resetCbtAdminData;
+
+  // Initialize view
+  renderCbtIntro();
+}
+
+function renderCbtIntro() {
+  cbtActive = false;
+  if (cbtTimerInterval) {
+    clearInterval(cbtTimerInterval);
+    cbtTimerInterval = null;
+  }
+
+  const introView = document.getElementById("cbt-intro-view");
+  const examView = document.getElementById("cbt-exam-view");
+  const resultView = document.getElementById("cbt-result-view");
+
+  if (introView) introView.style.display = "block";
+  if (examView) examView.style.display = "none";
+  if (resultView) resultView.style.display = "none";
+
+  // Focus on input
+  const nameInput = document.getElementById("cbt-candidate-name");
+  if (nameInput) nameInput.focus();
+}
+
+function startCbtExam() {
+  const nameInput = document.getElementById("cbt-candidate-name");
+  const name = nameInput ? nameInput.value.trim() : "";
+  if (!name) {
+    alert("응시자의 이름을 입력해 주십시오.");
+    if (nameInput) nameInput.focus();
+    return;
+  }
+
+  cbtCandidateName = name;
+  cbtActive = true;
+  cbtAnswers = [null, null, null, null, null];
+  cbtCurrentQ = 0;
+  cbtTimeRemaining = 300;
+  cbtStartTime = Date.now();
+
+  const introView = document.getElementById("cbt-intro-view");
+  const examView = document.getElementById("cbt-exam-view");
+  const resultView = document.getElementById("cbt-result-view");
+
+  if (introView) introView.style.display = "none";
+  if (examView) examView.style.display = "block";
+  if (resultView) resultView.style.display = "none";
+
+  // Build OMR Card UI
+  buildCbtOmrGrid();
+
+  // Load first question
+  loadCbtQuestion(0);
+
+  // Start countdown timer
+  updateCbtTimerDisplay();
+  if (cbtTimerInterval) clearInterval(cbtTimerInterval);
+  cbtTimerInterval = setInterval(() => {
+    cbtTimeRemaining--;
+    updateCbtTimerDisplay();
+    if (cbtTimeRemaining <= 0) {
+      alert("시험 시간이 종료되었습니다. 작성 중이던 답안이 자동 제출됩니다.");
+      submitCbtExam(true);
+    }
+  }, 1000);
+}
+
+function updateCbtTimerDisplay() {
+  const timerEl = document.getElementById("cbt-timer");
+  if (!timerEl) return;
+  const mins = Math.floor(cbtTimeRemaining / 60);
+  const secs = cbtTimeRemaining % 60;
+  timerEl.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  
+  if (cbtTimeRemaining < 60) {
+    timerEl.style.color = "var(--accent-crimson)";
+  } else {
+    timerEl.style.color = "var(--accent-orange)";
+  }
+}
+
+function buildCbtOmrGrid() {
+  const grid = document.getElementById("cbt-omr-grid");
+  if (!grid) return;
+  grid.innerHTML = "";
+
+  for (let i = 0; i < 5; i++) {
+    const btn = document.createElement("button");
+    btn.id = `cbt-omr-btn-${i}`;
+    btn.style.width = "100%";
+    btn.style.padding = "8px 0";
+    btn.style.fontSize = "0.8rem";
+    btn.style.fontWeight = "700";
+    btn.style.border = "1px solid var(--border-light)";
+    btn.style.borderRadius = "4px";
+    btn.style.background = "rgba(255,255,255,0.05)";
+    btn.style.color = "var(--color-text-muted)";
+    btn.style.cursor = "pointer";
+    btn.style.transition = "all 0.2s";
+    btn.textContent = i + 1;
+
+    btn.onclick = () => {
+      if (cbtActive) loadCbtQuestion(i);
+    };
+
+    grid.appendChild(btn);
+  }
+}
+
+function updateCbtOmrStatus() {
+  for (let i = 0; i < 5; i++) {
+    const btn = document.getElementById(`cbt-omr-btn-${i}`);
+    if (!btn) continue;
+
+    const isMarked = cbtAnswers[i] !== null;
+    const isCurrent = cbtCurrentQ === i;
+
+    // Reset inline styles
+    btn.style.borderColor = "var(--border-light)";
+    btn.style.background = "rgba(255,255,255,0.05)";
+    btn.style.color = "var(--color-text-muted)";
+    btn.style.boxShadow = "none";
+
+    if (isMarked) {
+      btn.style.background = "rgba(6,182,212,0.2)";
+      btn.style.borderColor = "var(--accent-cyan)";
+      btn.style.color = "var(--accent-cyan)";
+    }
+
+    if (isCurrent) {
+      btn.style.borderColor = "var(--accent-yellow)";
+      btn.style.boxShadow = "0 0 8px rgba(251, 192, 45, 0.4)";
+      if (!isMarked) {
+        btn.style.color = "var(--accent-yellow)";
+      }
+    }
+  }
+}
+
+function loadCbtQuestion(qIdx) {
+  if (qIdx < 0 || qIdx >= 5) return;
+  cbtCurrentQ = qIdx;
+
+  const badge = document.getElementById("cbt-current-q-badge");
+  const qText = document.getElementById("cbt-question-text");
+  const optContainer = document.getElementById("cbt-options-container");
+
+  if (badge) badge.textContent = `문항 ${qIdx + 1} / 5`;
+  
+  const q = cbtQuestions[qIdx];
+  if (qText) qText.innerHTML = q.text;
+
+  if (optContainer) {
+    optContainer.innerHTML = "";
+    q.options.forEach((optText, optIdx) => {
+      const isSelected = cbtAnswers[qIdx] === optIdx;
+
+      const optDiv = document.createElement("div");
+      optDiv.className = "tuning-option" + (isSelected ? " selected" : "");
+      optDiv.style.display = "flex";
+      optDiv.style.alignItems = "flex-start";
+      optDiv.style.gap = "10px";
+      optDiv.style.padding = "10px 14px";
+      optDiv.style.border = isSelected ? "1px solid var(--accent-cyan)" : "1px solid var(--border-light)";
+      optDiv.style.borderRadius = "6px";
+      optDiv.style.background = isSelected ? "rgba(6,182,212,0.08)" : "rgba(255,255,255,0.02)";
+      optDiv.style.cursor = "pointer";
+      optDiv.style.transition = "all 0.2s";
+
+      optDiv.innerHTML = `
+        <input type="radio" name="cbt-opt" class="opt-radio" id="cbt-opt-${optIdx}" ${isSelected ? "checked" : ""} style="margin-top: 3px; cursor:pointer;">
+        <label for="cbt-opt-${optIdx}" style="font-size: 0.82rem; line-height: 1.5; color: var(--color-text-main); cursor:pointer; flex:1;">${optText}</label>
+      `;
+
+      optDiv.onclick = () => {
+        cbtAnswers[qIdx] = optIdx;
+        const radios = optContainer.querySelectorAll(".opt-radio");
+        const options = optContainer.querySelectorAll(".tuning-option");
+        
+        options.forEach(o => {
+          o.classList.remove("selected");
+          o.style.border = "1px solid var(--border-light)";
+          o.style.background = "rgba(255,255,255,0.02)";
+        });
+
+        optDiv.classList.add("selected");
+        optDiv.style.border = "1px solid var(--accent-cyan)";
+        optDiv.style.background = "rgba(6,182,212,0.08)";
+        
+        const radio = optDiv.querySelector(".opt-radio");
+        if (radio) radio.checked = true;
+
+        updateCbtOmrStatus();
+      };
+
+      optContainer.appendChild(optDiv);
+    });
+  }
+
+  // Handle Prev/Next button disabled state
+  const prevBtn = document.getElementById("btn-cbt-prev");
+  const nextBtn = document.getElementById("btn-cbt-next");
+  
+  if (prevBtn) prevBtn.disabled = (qIdx === 0);
+  if (nextBtn) nextBtn.disabled = (qIdx === 4);
+
+  updateCbtOmrStatus();
+}
+
+function moveCbtQuestion(direction) {
+  const targetIdx = cbtCurrentQ + direction;
+  if (targetIdx >= 0 && targetIdx < 5) {
+    loadCbtQuestion(targetIdx);
+  }
+}
+
+function submitCbtExam(force = false) {
+  if (!force) {
+    // Check if there are unanswered questions
+    const unansweredCount = cbtAnswers.filter(a => a === null).length;
+    if (unansweredCount > 0) {
+      const confirmSubmit = confirm(`아직 풀지 않은 문제가 ${unansweredCount}문항 있습니다. 이대로 최종 답안을 제출하시겠습니까?`);
+      if (!confirmSubmit) return;
+    } else {
+      const confirmSubmit = confirm("답안을 모두 작성하셨습니다. 제출하고 시험을 끝마치시겠습니까?");
+      if (!confirmSubmit) return;
+    }
+  }
+
+  cbtActive = false;
+  if (cbtTimerInterval) {
+    clearInterval(cbtTimerInterval);
+    cbtTimerInterval = null;
+  }
+
+  // Calculate scores
+  let score = 0;
+  cbtQuestions.forEach((q, idx) => {
+    if (cbtAnswers[idx] === q.correctIdx) {
+      score += 20;
+    }
+  });
+
+  const duration = Math.round((Date.now() - cbtStartTime) / 1000);
+  const isPassed = score >= 70;
+
+  // Save to LocalStorage
+  const results = JSON.parse(localStorage.getItem("cbt_exam_results") || "[]");
+  const newRecord = {
+    id: "cbt_" + Date.now(),
+    candidateName: cbtCandidateName,
+    examName: "3주차 실행계획 & 옵티마이저 종합 평가",
+    score: score,
+    passOrFail: isPassed ? "PASS" : "FAIL",
+    durationSeconds: duration,
+    submittedAt: new Date().toISOString(),
+    markedAnswers: [...cbtAnswers]
+  };
+  results.unshift(newRecord);
+  localStorage.setItem("cbt_exam_results", JSON.stringify(results));
+
+  // Render Result View
+  const introView = document.getElementById("cbt-intro-view");
+  const examView = document.getElementById("cbt-exam-view");
+  const resultView = document.getElementById("cbt-result-view");
+
+  if (introView) introView.style.display = "none";
+  if (examView) examView.style.display = "none";
+  if (resultView) resultView.style.display = "block";
+
+  // Bind top statistics
+  const scoreEl = document.getElementById("cbt-result-score");
+  const badgeEl = document.getElementById("cbt-result-status-badge");
+  const candidateEl = document.getElementById("cbt-result-candidate");
+  const summaryEl = document.getElementById("cbt-result-summary");
+
+  if (scoreEl) scoreEl.textContent = `${score}점`;
+  if (badgeEl) {
+    badgeEl.textContent = isPassed ? "PASS (합격)" : "FAIL (불합격)";
+    badgeEl.style.background = isPassed ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.15)";
+    badgeEl.style.borderColor = isPassed ? "var(--accent-emerald)" : "var(--accent-crimson)";
+    badgeEl.style.color = isPassed ? "var(--accent-emerald)" : "var(--accent-crimson)";
+  }
+  if (candidateEl) candidateEl.textContent = `${cbtCandidateName} 응시생`;
+  if (summaryEl) {
+    const mins = Math.floor(duration / 60);
+    const secs = duration % 60;
+    const durationText = mins > 0 ? `${mins}분 ${secs}초` : `${secs}초`;
+    const formattedDate = new Date(newRecord.submittedAt).toLocaleString();
+    summaryEl.textContent = `총 소요시간: ${durationText} | 제출일시: ${formattedDate}`;
+  }
+
+  // Render Detailed Feedback Cards
+  const feedbackList = document.getElementById("cbt-feedback-list");
+  if (feedbackList) {
+    feedbackList.innerHTML = "";
+    cbtQuestions.forEach((q, idx) => {
+      const userAnswerIdx = cbtAnswers[idx];
+      const isCorrect = userAnswerIdx === q.correctIdx;
+      
+      const card = document.createElement("div");
+      card.style.background = "rgba(255,255,255,0.01)";
+      card.style.border = "1px solid var(--border-light)";
+      card.style.borderRadius = "8px";
+      card.style.padding = "16px";
+      card.style.position = "relative";
+
+      const header = document.createElement("div");
+      header.style.display = "flex";
+      header.style.justifyContent = "between";
+      header.style.alignItems = "center";
+      header.style.marginBottom = "8px";
+
+      const checkBadge = document.createElement("span");
+      checkBadge.style.fontSize = "0.75rem";
+      checkBadge.style.fontWeight = "700";
+      checkBadge.style.padding = "2px 8px";
+      checkBadge.style.borderRadius = "4px";
+      if (isCorrect) {
+        checkBadge.style.background = "rgba(16,185,129,0.1)";
+        checkBadge.style.border = "1px solid var(--accent-emerald)";
+        checkBadge.style.color = "var(--accent-emerald)";
+        checkBadge.textContent = "정답";
+      } else {
+        checkBadge.style.background = "rgba(239,68,68,0.1)";
+        checkBadge.style.border = "1px solid var(--accent-crimson)";
+        checkBadge.style.color = "var(--accent-crimson)";
+        checkBadge.textContent = "오답";
+      }
+
+      header.appendChild(checkBadge);
+
+      const qTitle = document.createElement("div");
+      qTitle.style.fontSize = "0.85rem";
+      qTitle.style.fontWeight = "700";
+      qTitle.style.marginTop = "8px";
+      qTitle.style.color = "var(--color-text-main)";
+      qTitle.innerHTML = q.text;
+
+      const answerSummary = document.createElement("div");
+      answerSummary.style.fontSize = "0.75rem";
+      answerSummary.style.margin = "12px 0 8px 0";
+      answerSummary.style.lineHeight = "1.5";
+      
+      const selectText = userAnswerIdx !== null ? `선택 답안: (${userAnswerIdx + 1}) ${q.options[userAnswerIdx]}` : "선택 답안: 없음 (미제출)";
+      const correctText = `정답: (${q.correctIdx + 1}) ${q.options[q.correctIdx]}`;
+
+      answerSummary.innerHTML = `
+        <div style="color: ${isCorrect ? 'var(--accent-emerald)' : 'var(--accent-crimson)'}; font-weight:600;">${selectText}</div>
+        <div style="color: var(--color-text-muted); margin-top:2px;">${correctText}</div>
+      `;
+
+      const explBox = document.createElement("div");
+      explBox.style.fontSize = "0.75rem";
+      explBox.style.background = "rgba(255,255,255,0.03)";
+      explBox.style.borderLeft = "2px solid var(--accent-yellow)";
+      explBox.style.padding = "8px 12px";
+      explBox.style.marginTop = "10px";
+      explBox.style.borderRadius = "0 4px 4px 0";
+      explBox.style.lineHeight = "1.45";
+      explBox.innerHTML = `<strong>해설:</strong> ${q.explanation}`;
+
+      card.appendChild(header);
+      card.appendChild(qTitle);
+      card.appendChild(answerSummary);
+      card.appendChild(explBox);
+
+      feedbackList.appendChild(card);
+    });
+  }
+}
+
+// -------------------------------------------------------------
+// CBT Admin Dashboard Operations
+// -------------------------------------------------------------
+
+function renderCbtAdminDashboard() {
+  const results = JSON.parse(localStorage.getItem("cbt_exam_results") || "[]");
+
+  const totalEl = document.getElementById("admin-kpi-total");
+  const scoreEl = document.getElementById("admin-kpi-avg-score");
+  const rateEl = document.getElementById("admin-kpi-pass-rate");
+  const timeEl = document.getElementById("admin-kpi-avg-time");
+
+  const tbody = document.getElementById("admin-results-tbody");
+  const chartContainer = document.getElementById("admin-error-chart-container");
+
+  if (results.length === 0) {
+    if (totalEl) totalEl.textContent = "0건";
+    if (scoreEl) scoreEl.textContent = "0.0점";
+    if (rateEl) rateEl.textContent = "0%";
+    if (timeEl) timeEl.textContent = "0초";
+
+    if (tbody) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="7" style="padding: 30px; text-align: center; color: var(--color-text-dark);">
+            응시 내역이 존재하지 않습니다. 데모 데이터를 생성하거나 CBT 시험을 치러 주십시오.
+          </td>
+        </tr>
+      `;
+    }
+
+    if (chartContainer) {
+      chartContainer.innerHTML = `
+        <div style="font-size: 0.8rem; text-align: center; color: var(--color-text-dark); padding: 40px 0;">
+          데이터가 부족하여 차트를 활성화할 수 없습니다.
+        </div>
+      `;
+    }
+    return;
+  }
+
+  // 1. Calculate KPI Statistics
+  const count = results.length;
+  let scoreSum = 0;
+  let passCount = 0;
+  let timeSum = 0;
+
+  results.forEach(r => {
+    scoreSum += r.score;
+    if (r.passOrFail === "PASS") passCount++;
+    timeSum += r.durationSeconds;
+  });
+
+  const avgScore = (scoreSum / count).toFixed(1);
+  const passRate = Math.round((passCount / count) * 100);
+  const avgTime = Math.round(timeSum / count);
+
+  if (totalEl) totalEl.textContent = `${count}건`;
+  if (scoreEl) scoreEl.textContent = `${avgScore}점`;
+  if (rateEl) rateEl.textContent = `${passRate}%`;
+  if (timeEl) {
+    const mins = Math.floor(avgTime / 60);
+    const secs = avgTime % 60;
+    timeEl.textContent = mins > 0 ? `${mins}분 ${secs}초` : `${secs}초`;
+  }
+
+  // 2. Populate Results Table
+  if (tbody) {
+    tbody.innerHTML = "";
+    results.forEach(row => {
+      const tr = document.createElement("tr");
+      tr.style.borderBottom = "1px solid var(--border-light)";
+      tr.style.transition = "background-color 0.25s";
+      
+      const durationMins = Math.floor(row.durationSeconds / 60);
+      const durationSecs = row.durationSeconds % 60;
+      const durationText = durationMins > 0 ? `${durationMins}분 ${durationSecs}초` : `${durationSecs}초`;
+      
+      const formattedDate = new Date(row.submittedAt).toLocaleDateString() + " " + new Date(row.submittedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+      const isPassed = row.passOrFail === "PASS";
+      const badgeStyle = isPassed 
+        ? "background: rgba(16,185,129,0.1); border: 1px solid var(--accent-emerald); color: var(--accent-emerald);"
+        : "background: rgba(239,68,68,0.1); border: 1px solid var(--accent-crimson); color: var(--accent-crimson);";
+
+      tr.innerHTML = `
+        <td style="padding: 10px 8px; font-weight:600; color: var(--color-text-main);">${row.candidateName}</td>
+        <td style="padding: 10px 8px; color: var(--color-text-muted);">${row.examName}</td>
+        <td style="padding: 10px 8px; font-weight:700; color: var(--accent-cyan);">${row.score}점</td>
+        <td style="padding: 10px 8px;">
+          <span style="font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; ${badgeStyle}">${row.passOrFail}</span>
+        </td>
+        <td style="padding: 10px 8px; font-family: var(--font-mono); color: var(--color-text-muted);">${durationText}</td>
+        <td style="padding: 10px 8px; color: var(--color-text-dark);">${formattedDate}</td>
+        <td style="padding: 10px 8px; text-align: center;">
+          <button class="delete-btn" style="background:transparent; border:none; color:var(--accent-crimson); cursor:pointer; font-size:0.85rem; padding: 2px 6px;" onclick="deleteCbtRecord('${row.id}')">✕</button>
+        </td>
+      `;
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  // 3. Compute High Error Rate Analysis
+  // Out of all entries, how many got Q1, Q2, Q3, Q4, Q5 wrong?
+  const errors = [0, 0, 0, 0, 0];
+  results.forEach(r => {
+    cbtQuestions.forEach((q, idx) => {
+      const userAnswer = r.markedAnswers[idx];
+      if (userAnswer !== q.correctIdx) {
+        errors[idx]++;
+      }
+    });
+  });
+
+  if (chartContainer) {
+    chartContainer.innerHTML = "";
+    
+    cbtQuestions.forEach((q, idx) => {
+      const wrongCount = errors[idx];
+      const errorPct = Math.round((wrongCount / count) * 100);
+
+      const barBlock = document.createElement("div");
+      barBlock.style.display = "flex";
+      barBlock.style.flexDirection = "column";
+      barBlock.style.gap = "6px";
+
+      const labelRow = document.createElement("div");
+      labelRow.style.display = "flex";
+      labelRow.style.justifyContent = "space-between";
+      labelRow.style.fontSize = "0.78rem";
+
+      const qTitleText = `문항 ${q.qNum}. ` + (
+        idx === 0 ? "Access Predicate 식별" :
+        idx === 1 ? "Filter Predicate 성능 영향" :
+        idx === 2 ? "Clustering Factor 원리" :
+        idx === 3 ? "인덱스 컬럼 가공 오류" :
+        "Subquery Unnesting 개념"
+      );
+
+      labelRow.innerHTML = `
+        <span style="font-weight: 600; color: var(--color-text-main);">${qTitleText}</span>
+        <span style="font-weight: 700; color: ${errorPct >= 50 ? 'var(--accent-crimson)' : 'var(--accent-orange)'};">${errorPct}% 오답 (${wrongCount}/${count}명)</span>
+      `;
+
+      // Draw custom CSS gauge bar
+      const barTrack = document.createElement("div");
+      barTrack.style.width = "100%";
+      barTrack.style.height = "10px";
+      barTrack.style.background = "rgba(255,255,255,0.05)";
+      barTrack.style.borderRadius = "5px";
+      barTrack.style.overflow = "hidden";
+      barTrack.style.border = "1px solid var(--border-light)";
+
+      const barFill = document.createElement("div");
+      barFill.style.width = `${errorPct}%`;
+      barFill.style.height = "100%";
+      barFill.style.borderRadius = "5px";
+      barFill.style.transition = "width 0.6s ease";
+      
+      if (errorPct >= 60) {
+        barFill.style.background = "linear-gradient(90deg, var(--accent-orange), var(--accent-crimson))";
+      } else if (errorPct >= 30) {
+        barFill.style.background = "linear-gradient(90deg, var(--accent-cyan), var(--accent-orange))";
+      } else {
+        barFill.style.background = "linear-gradient(90deg, var(--accent-emerald), var(--accent-cyan))";
+      }
+
+      barTrack.appendChild(barFill);
+
+      barBlock.appendChild(labelRow);
+      barBlock.appendChild(barTrack);
+
+      chartContainer.appendChild(barBlock);
+    });
+  }
+}
+
+// Global scope exposed deletion function
+window.deleteCbtRecord = function(id) {
+  const confirmDelete = confirm("해당 응시 기록을 삭제하시겠습니까?");
+  if (!confirmDelete) return;
+
+  const results = JSON.parse(localStorage.getItem("cbt_exam_results") || "[]");
+  const filtered = results.filter(r => r.id !== id);
+  localStorage.setItem("cbt_exam_results", JSON.stringify(filtered));
+
+  renderCbtAdminDashboard();
+};
+
+function resetCbtAdminData() {
+  const confirmReset = confirm("정말로 모든 응시 이력 데이터를 지우시겠습니까? 복구할 수 없습니다.");
+  if (!confirmReset) return;
+
+  localStorage.removeItem("cbt_exam_results");
+  renderCbtAdminDashboard();
+}
+
+function injectCbtMockData() {
+  const mockRecords = [
+    {
+      id: "cbt_mock_1",
+      candidateName: "김지민",
+      examName: "3주차 실행계획 & 옵티마이저 종합 평가",
+      score: 80,
+      passOrFail: "PASS",
+      durationSeconds: 145,
+      submittedAt: new Date(Date.now() - 3600000 * 2).toISOString(), // 2 hours ago
+      markedAnswers: [0, 1, 2, 3, 1] // Wrong Q5
+    },
+    {
+      id: "cbt_mock_2",
+      candidateName: "박준영",
+      examName: "3주차 실행계획 & 옵티마이저 종합 평가",
+      score: 40,
+      passOrFail: "FAIL",
+      durationSeconds: 260,
+      submittedAt: new Date(Date.now() - 3600000 * 4).toISOString(), // 4 hours ago
+      markedAnswers: [1, 1, 0, 0, 3] // Wrong Q1, Q3, Q4, Q5
+    },
+    {
+      id: "cbt_mock_3",
+      candidateName: "최윤서",
+      examName: "3주차 실행계획 & 옵티마이저 종합 평가",
+      score: 100,
+      passOrFail: "PASS",
+      durationSeconds: 85,
+      submittedAt: new Date(Date.now() - 3600000 * 12).toISOString(), // 12 hours ago
+      markedAnswers: [0, 1, 2, 3, 0] // All correct
+    },
+    {
+      id: "cbt_mock_4",
+      candidateName: "정우진",
+      examName: "3주차 실행계획 & 옵티마이저 종합 평가",
+      score: 60,
+      passOrFail: "FAIL",
+      durationSeconds: 190,
+      submittedAt: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
+      markedAnswers: [0, 2, 2, 0, 1] // Wrong Q2, Q4, Q5
+    },
+    {
+      id: "cbt_mock_5",
+      candidateName: "강다혜",
+      examName: "3주차 실행계획 & 옵티마이저 종합 평가",
+      score: 80,
+      passOrFail: "PASS",
+      durationSeconds: 110,
+      submittedAt: new Date(Date.now() - 86400000 * 2).toISOString(), // 2 days ago
+      markedAnswers: [0, 1, 1, 3, 0] // Wrong Q3
+    }
+  ];
+
+  const results = JSON.parse(localStorage.getItem("cbt_exam_results") || "[]");
+  // Prepend to current records
+  const merged = [...mockRecords, ...results];
+  localStorage.setItem("cbt_exam_results", JSON.stringify(merged));
+
+  renderCbtAdminDashboard();
+  alert("테스트용 응시 이력 5건이 대시보드에 성공적으로 로드되었습니다.");
+}
+
 

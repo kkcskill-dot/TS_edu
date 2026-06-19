@@ -1,0 +1,189 @@
+<!-- 19. CBT EXAM CENTER PANEL -->
+<section id="panel-cbt" class="content-panel">
+  <div class="panel-intro">
+    <p>3주차 "실행 계획 분석과 옵티마이저의 메커니즘" 과목에 대한 <strong>컴퓨터 기반 종합 평가(CBT)</strong>를 치르는 공간입니다. 제한 시간 내에 문제를 풀고 제출하여 실력을 검증하십시오.</p>
+  </div>
+
+  <div class="cbt-container bg-glass" style="padding: 24px; min-height: 480px; position: relative;">
+    
+    <!-- Scenario A: Intro & Candidate Info -->
+    <div id="cbt-intro-view" style="display: block; text-align: center; max-width: 600px; margin: 40px auto;">
+      <div style="font-size: 3rem; margin-bottom: 15px;">📝</div>
+      <h2 style="font-family: var(--font-display); font-size: 1.8rem; margin-bottom: 10px; color: var(--color-text-main);">3주차 실행계획 & 옵티마이저 종합 평가</h2>
+      <p style="color: var(--color-text-muted); font-size: 0.9rem; line-height: 1.6; margin-bottom: 25px;">
+        본 평가는 실행 계획 분석, Access/Filter Predicate 식별, 클러스터링 팩터의 영향 및 튜닝 대응책, 상관 서브쿼리 풀이 등 3주차 핵심 영역을 평가합니다.<br>
+        <strong>제한 시간: 5분 (300초) | 총 문항: 5문항 | 합격 기준: 70점 이상</strong>
+      </p>
+
+      <div class="cbt-input-group" style="background: rgba(0,0,0,0.15); border: 1px solid var(--border-light); border-radius: 8px; padding: 20px; margin-bottom: 25px;">
+        <label for="cbt-candidate-name" style="display: block; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: var(--color-text-muted); margin-bottom: 8px; font-weight: 700;">응시자 성명 입력</label>
+        <input type="text" id="cbt-candidate-name" placeholder="성명을 입력해 주세요" value="홍길동" style="width: 100%; max-width: 280px; padding: 10px 14px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-light); border-radius: 6px; color: var(--color-text-main); font-size: 0.95rem; text-align: center; outline: none; transition: border-color 0.25s;" onfocus="this.style.borderColor='var(--accent-yellow)'" onblur="this.style.borderColor='var(--border-light)'">
+      </div>
+
+      <button id="btn-start-cbt" class="btn-primary" style="padding: 12px 36px; font-size: 1rem; background: var(--accent-yellow); color: #080c14; font-weight: 700; border: none; border-radius: 6px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='scale(1.03)'; this.style.boxShadow='0 0 15px rgba(251, 192, 45, 0.4)';" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none';">
+        평가 개시 (Start Exam)
+      </button>
+    </div>
+
+    <!-- Scenario B: Live Exam Mode -->
+    <div id="cbt-exam-view" style="display: none;">
+      <!-- Exam Sub Header -->
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-light); padding-bottom: 12px; margin-bottom: 20px;">
+        <div>
+          <span id="cbt-current-q-badge" style="background: rgba(6,182,212,0.15); border: 1px solid var(--accent-cyan); color: var(--accent-cyan); padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700;">문항 1 / 5</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 0.75rem; color: var(--color-text-muted);">남은 시간:</span>
+          <span id="cbt-timer" style="font-family: var(--font-mono); font-size: 1.15rem; font-weight: 700; color: var(--accent-orange); min-width: 60px;">05:00</span>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 240px; gap: 20px;">
+        <!-- Left: Question & Answers -->
+        <div class="cbt-question-panel" style="background: rgba(0,0,0,0.1); border: 1px solid var(--border-light); border-radius: 8px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; min-height: 320px;">
+          <div>
+            <div id="cbt-question-text" style="font-size: 0.95rem; line-height: 1.6; color: var(--color-text-main); font-weight: 600; margin-bottom: 20px;">
+              Loading question...
+            </div>
+            
+            <div id="cbt-options-container" style="display: flex; flex-direction: column; gap: 10px;">
+              <!-- Options injected dynamically -->
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; margin-top: 25px; border-top: 1px solid var(--border-light); padding-top: 15px;">
+            <button id="btn-cbt-prev" class="btn-secondary" style="padding: 8px 16px; font-size: 0.85rem; cursor: pointer;">◀ 이전 문제</button>
+            <button id="btn-cbt-next" class="btn-secondary" style="padding: 8px 16px; font-size: 0.85rem; cursor: pointer;">다음 문제 ▶</button>
+          </div>
+        </div>
+
+        <!-- Right: OMR Card Panel -->
+        <div class="cbt-omr-panel" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-light); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <h4 style="font-size: 0.8rem; letter-spacing: 1px; color: var(--color-text-muted); text-transform: uppercase; margin-bottom: 12px; font-weight: 700; text-align: center;">답안 마킹 상황판</h4>
+            <div id="cbt-omr-grid" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 20px;">
+              <!-- 1 to 5 OMR buttons -->
+            </div>
+            <p style="font-size: 0.7rem; color: var(--color-text-muted); line-height: 1.4; text-align: center;">
+              번호를 클릭하면 해당 문항으로 즉시 이동합니다. 마킹된 답안은 자동 저장됩니다.
+            </p>
+          </div>
+
+          <button id="btn-cbt-submit" style="width: 100%; padding: 12px; font-size: 0.9rem; font-weight: 700; background: var(--accent-crimson); color: #fff; border: none; border-radius: 6px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='var(--accent-crimson)'">
+            최종 답안 제출
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scenario C: Score & Detailed Feedback -->
+    <div id="cbt-result-view" style="display: none; max-width: 750px; margin: 0 auto;">
+      <div style="display: flex; gap: 24px; align-items: center; background: rgba(255,255,255,0.02); border: 1px solid var(--border-light); border-radius: 12px; padding: 24px; margin-bottom: 25px;">
+        <div style="text-align: center; padding: 10px 20px; border-right: 1px solid var(--border-light);">
+          <span style="font-size: 0.75rem; color: var(--color-text-muted); display: block;">최종 점수</span>
+          <span id="cbt-result-score" style="font-size: 3rem; font-weight: 800; color: var(--accent-cyan);">80점</span>
+        </div>
+        <div style="flex: 1;">
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+            <span id="cbt-result-status-badge" style="background: rgba(16,185,129,0.15); border: 1px solid var(--accent-emerald); color: var(--accent-emerald); padding: 2px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 700;">PASS (합격)</span>
+            <span id="cbt-result-candidate" style="font-size: 0.95rem; font-weight: 700;">홍길동 응시생</span>
+          </div>
+          <p id="cbt-result-summary" style="font-size: 0.8rem; color: var(--color-text-muted); margin: 0; line-height: 1.4;">
+            총 소요시간: 45초 | 제출일시: 2026-06-19 13:40:20
+          </p>
+        </div>
+        <div>
+          <button id="btn-cbt-restart" class="btn-secondary" style="padding: 10px 20px; font-size: 0.85rem; cursor: pointer;">재시험 응시</button>
+        </div>
+      </div>
+
+      <h3 style="font-family: var(--font-display); font-size: 1.1rem; margin-bottom: 12px; color: var(--color-text-main);">과목 정오답 리포트 및 상세 해설</h3>
+      <div id="cbt-feedback-list" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 30px;">
+        <!-- Injected feedback cards -->
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- 20. CBT ADMIN MONITORING PANEL -->
+<section id="panel-cbt-admin" class="content-panel">
+  <div class="panel-intro">
+    <p>실시간으로 수집된 <strong>CBT 시험 결과</strong>를 모니터링하고 문항별 통계를 시각적으로 분석하는 관리자 대시보드입니다.</p>
+  </div>
+
+  <!-- KPI Summary Cards Grid -->
+  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px;">
+    <div class="stat-box bg-glass" style="padding: 16px; text-align: center; border-radius: 8px;">
+      <span style="font-size: 0.7rem; color: var(--color-text-muted); display: block; text-transform: uppercase; letter-spacing: 0.5px;">총 응시 건수</span>
+      <span id="admin-kpi-total" style="font-size: 1.6rem; font-weight: 700; color: var(--accent-cyan); display: block; margin-top: 4px;">0건</span>
+    </div>
+    <div class="stat-box bg-glass" style="padding: 16px; text-align: center; border-radius: 8px;">
+      <span style="font-size: 0.7rem; color: var(--color-text-muted); display: block; text-transform: uppercase; letter-spacing: 0.5px;">평균 점수</span>
+      <span id="admin-kpi-avg-score" style="font-size: 1.6rem; font-weight: 700; color: var(--accent-orange); display: block; margin-top: 4px;">0.0점</span>
+    </div>
+    <div class="stat-box bg-glass" style="padding: 16px; text-align: center; border-radius: 8px;">
+      <span style="font-size: 0.7rem; color: var(--color-text-muted); display: block; text-transform: uppercase; letter-spacing: 0.5px;">평균 합격률</span>
+      <span id="admin-kpi-pass-rate" style="font-size: 1.6rem; font-weight: 700; color: var(--accent-emerald); display: block; margin-top: 4px;">0%</span>
+    </div>
+    <div class="stat-box bg-glass" style="padding: 16px; text-align: center; border-radius: 8px;">
+      <span style="font-size: 0.7rem; color: var(--color-text-muted); display: block; text-transform: uppercase; letter-spacing: 0.5px;">평균 소요 시간</span>
+      <span id="admin-kpi-avg-time" style="font-size: 1.6rem; font-weight: 700; color: var(--color-text-main); display: block; margin-top: 4px;">0초</span>
+    </div>
+  </div>
+
+  <!-- Utilities and Charts -->
+  <div style="background: rgba(255,255,255,0.01); border: 1px solid var(--border-light); border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <span style="font-size: 0.75rem; color: var(--color-text-muted);">※ 모니터링 시뮬레이션용 데이터 관리 도구</span>
+    <div style="display: flex; gap: 8px;">
+      <button id="btn-admin-mock-data" style="padding: 6px 12px; font-size: 0.75rem; background: var(--accent-yellow); color: #080c14; border: none; border-radius: 4px; cursor: pointer; font-weight: 700;">
+        ⚡ 데모 데이터 생성 (5건)
+      </button>
+      <button id="btn-admin-reset-data" style="padding: 6px 12px; font-size: 0.75rem; background: transparent; border: 1px solid var(--accent-crimson); color: var(--accent-crimson); border-radius: 4px; cursor: pointer;">
+        🧹 모든 기록 초기화
+      </button>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px;">
+    <!-- Left: Detailed Candidate Table -->
+    <div class="bg-glass" style="padding: 16px; border-radius: 8px; display: flex; flex-direction: column;">
+      <div class="panel-section-title" style="margin-bottom: 12px;">최근 응시 이력 모니터링</div>
+      <div style="overflow-x: auto; max-height: 320px; overflow-y: auto;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.78rem;">
+          <thead>
+            <tr style="border-bottom: 1px solid var(--border-light); color: var(--color-text-muted); font-weight: 600;">
+              <th style="padding: 8px;">성명</th>
+              <th style="padding: 8px;">과목명</th>
+              <th style="padding: 8px;">점수</th>
+              <th style="padding: 8px;">결과</th>
+              <th style="padding: 8px;">소요시간</th>
+              <th style="padding: 8px;">제출일시</th>
+              <th style="padding: 8px; text-align: center;">동작</th>
+            </tr>
+          </thead>
+          <tbody id="admin-results-tbody">
+            <!-- Dynamically populated rows -->
+            <tr>
+              <td colspan="7" style="padding: 30px; text-align: center; color: var(--color-text-dark);">
+                응시 내역이 존재하지 않습니다. 데모 데이터를 생성하거나 CBT 시험을 치러 주십시오.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Right: High Error Rate Question Stats -->
+    <div class="bg-glass" style="padding: 16px; border-radius: 8px;">
+      <div class="panel-section-title" style="margin-bottom: 12px;">문항별 오답률 분석 (Error Rate Analysis)</div>
+      
+      <div id="admin-error-chart-container" style="display: flex; flex-direction: column; gap: 14px; padding: 5px 0;">
+        <!-- Injected custom CSS progress bar blocks -->
+        <div style="font-size: 0.8rem; text-align: center; color: var(--color-text-dark); padding: 40px 0;">
+          데이터가 부족하여 차트를 활성화할 수 없습니다.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
