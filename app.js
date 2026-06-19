@@ -38,8 +38,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 소모임 패널은 partials/perf-club.html 로 분리됨 → 주입 후 초기화 (index.html 경량화)
   window.__panelsReady = (async () => {
-    await injectPartial("partials/perf-club.html?v=7.2");
-    await injectPartial("partials/cbt.html?v=7.2");
+    await injectPartial("partials/perf-club.html?v=7.3");
+    await injectPartial("partials/cbt.html?v=7.3");
     initPerfClubLabs();
     initCbtSystem();
   })();
@@ -4329,77 +4329,236 @@ const cbtDb = {
   }
 };
 
-// CBT 5 Questions Database (Week 3 themed)
-const cbtQuestions = [
-  {
-    qNum: 1,
-    text: "Q1. 결합 인덱스 IX_EMP_DEPT_SAL(DEPT_NO, SALARY)가 존재하는 상황에서, 아래 쿼리가 수행될 때 인덱스의 스캔 방식에 대한 설명으로 가장 올바른 것은?<br><br><code>SELECT * FROM TB_EMP WHERE DEPT_NO = 10 AND SALARY >= 3000;</code>",
-    options: [
-      "선두 컬럼 DEPT_NO가 '=' 등가 조건이고 후행 컬럼 SALARY가 범위 조건이므로, 두 조건 모두 인덱스 탐색 범위를 한정하는 Access Predicate로 작동한다.",
-      "선두 컬럼 DEPT_NO는 Access Predicate로 작동하지만, SALARY 컬럼은 등가 조건이 아니므로 Filter Predicate로 작동하여 스캔 완료 후 버려진다.",
-      "등가 조건이 아닌 범위 조건이 포함되어 있으므로 옵티마이저는 인덱스 스캔을 포기하고 Table Full Scan을 수행한다.",
-      "인덱스 컬럼 전체를 인덱스 처음부터 끝까지 다 스캔하는 Index Full Scan 방식으로 작동한다."
-    ],
-    correctIdx: 0,
-    explanation: "결합 인덱스에서 선두 컬럼이 등가(=) 조건이고, 그 다음 컬럼이 범위(>=) 조건인 경우, 두 조건 모두 인덱스 리프 노드의 시작점과 끝점을 제한하는 최적의 <strong>Access Predicate</strong>로 작동하여 디스크 I/O를 가장 최소화할 수 있습니다."
+// CBT Subjects Database
+const cbtSubjects = {
+  week3: {
+    title: "3주차 실행계획 & 옵티마이저 종합 평가",
+    desc: "본 평가는 실행 계획 분석, Access/Filter Predicate 식별, 클러스터링 팩터의 영향 및 튜닝 대응책, 상관 서브쿼리 풀이 등 3주차 핵심 영역을 평가합니다.",
+    limitSeconds: 300,
+    questions: [
+      {
+        qNum: 1,
+        text: "Q1. 결합 인덱스 IX_EMP_DEPT_SAL(DEPT_NO, SALARY)가 존재하는 상황에서, 아래 쿼리가 수행될 때 인덱스의 스캔 방식에 대한 설명으로 가장 올바른 것은?<br><br><code>SELECT * FROM TB_EMP WHERE DEPT_NO = 10 AND SALARY >= 3000;</code>",
+        options: [
+          "선두 컬럼 DEPT_NO가 '=' 등가 조건이고 후행 컬럼 SALARY가 범위 조건이므로, 두 조건 모두 인덱스 탐색 범위를 한정하는 Access Predicate로 작동한다.",
+          "선두 컬럼 DEPT_NO는 Access Predicate로 작동하지만, SALARY 컬럼은 등가 조건이 아니므로 Filter Predicate로 작동하여 스캔 완료 후 버려진다.",
+          "등가 조건이 아닌 범위 조건이 포함되어 있으므로 옵티마이저는 인덱스 스캔을 포기하고 Table Full Scan을 수행한다.",
+          "인덱스 컬럼 전체를 인덱스 처음부터 끝까지 다 스캔하는 Index Full Scan 방식으로 작동한다."
+        ],
+        correctIdx: 0,
+        explanation: "결합 인덱스에서 선두 컬럼이 등가(=) 조건이고, 그 다음 컬럼이 범위(>=) 조건인 경우, 두 조건 모두 인덱스 리프 노드의 시작점과 끝점을 제한하는 최적의 <strong>Access Predicate</strong>로 작동하여 디스크 I/O를 가장 최소화할 수 있습니다."
+      },
+      {
+        qNum: 2,
+        text: "Q2. 결합 인덱스 IX_EMP_DEPT_SAL(DEPT_NO, SALARY)가 있을 때, 선두 컬럼 조건이 아래와 같이 작성되었습니다. 이에 대한 성능 영향 분석으로 옳은 것은?<br><br><code>SELECT * FROM TB_EMP WHERE DEPT_NO LIKE '%10%' AND SALARY >= 3000;</code>",
+        options: [
+          "중간 일치 LIKE 패턴이어도 선두 컬럼이므로 여전히 최적의 Access Predicate 수직 탐색이 이루어진다.",
+          "선두 컬럼에 중간 일치 와일드카드(%)가 오면 인덱스 수직 탐색을 위한 시작점을 찾을 수 없으므로, 인덱스를 스캔(Index Range/Full Scan) 하더라도 Filter Predicate로 작동하여 리프 노드를 대량으로 읽고 필터링하므로 비효율적이다.",
+          "SALARY 조건이 우수하므로 옵티마이저가 SALARY를 선두로 인덱스를 자동 재구성하여 스캔 속도를 획득한다.",
+          "인덱스를 전혀 타지 못하고 무조건 HASH JOIN으로 변환되어 임시 세그먼트 디스크 공간을 낭비한다."
+        ],
+        correctIdx: 1,
+        explanation: "인덱스 선두 컬럼 조건에 <code>LIKE '%10%'</code>처럼 전방 와일드카드가 사용되면 인덱스 수직 탐색이 불가능합니다. 이로 인해 인덱스 스캔 시 탐색 시작점을 좁히지 못하고, 전체 또는 아주 넓은 영역을 스캔하며 하나씩 조건에 부합하는지 <strong>Filter Predicate</strong> 검증을 수행하므로 I/O 비효율이 크게 치솟습니다."
+      },
+      {
+        qNum: 3,
+        text: "Q3. 인덱스 정렬 순서와 테이블 실제 행들의 물리적 디스크 저장 순서가 얼마나 일치하는지 나타내는 지표로, 이 값이 나쁠 경우 넓은 범위 인덱스 스캔 시 심각한 무작위 Single Block Read(Random I/O) 폭사를 유발하는 핵심 통계정보 지표는 무엇인가?",
+        options: [
+          "DENSITY (밀도)",
+          "NUM_DISTINCT (고유값 수)",
+          "CLUSTERING_FACTOR (클러스터링 팩터)",
+          "HISTOGRAM_BUCKETS (히스토그램 버킷 수)"
+        ],
+        correctIdx: 2,
+        explanation: "<strong>Clustering Factor(클러스터링 팩터)</strong>는 인덱스 키 순서와 테이블 디스크 데이터의 물리적 정렬도가 얼마나 매칭되는지 보여줍니다. 이 수치가 테이블 전체 블록 수에 육박할 정도로 나쁘면, 인덱스 리프 노드를 통해 테이블 로우에 액세스할 때마다 매번 새로운 디스크 블록을 읽는 Random I/O 병목이 발생하여 Full Table Scan보다도 훨씬 느려질 수 있습니다."
+      },
+      {
+        qNum: 4,
+        text: "Q4. SQL 튜닝 시 아래와 같이 인덱스 컬럼의 좌변을 가공했을 때 발생하는 현상으로 가장 거리가 먼 것은?<br><br><code>SELECT * FROM TB_LOG WHERE TO_CHAR(LOG_DATE, 'YYYYMMDD') = '20260619';</code>",
+        options: [
+          "인덱스 컬럼 값 자체가 가공되었으므로 B-Tree 인덱스 고유의 정렬 구조를 활용할 수 없어 인덱스가 무력화된다.",
+          "옵티마이저는 이 조건으로 인덱스 범위 검색을 할 수 없어 Table Full Scan으로 플랜을 선회한다.",
+          "이를 튜닝하려면 좌변 가공을 제거하고 우변 상수를 가공(<code>LOG_DATE >= TO_DATE('20260619', 'YYYYMMDD')</code> 등)해 범위 조건으로 검색해야 한다.",
+          "인덱스 리프 노드를 탐색하는 도중, 함수 가공값에 의해 동적으로 해시 테이블 조인이 적용되어 오히려 정렬 속도가 향상된다."
+        ],
+        correctIdx: 3,
+        explanation: "인덱스 컬럼을 함수로 가공(TO_CHAR, SUBSTR 등)하거나 산술 연산을 가하면 B-Tree 인덱스 키의 정렬 상태가 손상되어 옵티마이저가 인덱스를 범위 검색 용도로 쓸 수 없게 됩니다. 따라서 Index Scan이 무력화되어 대량의 풀 테이블 스캔이 발생하며, 해시 조인 등으로 성능이 향상된다는 것은 명백한 허구입니다."
+      },
+      {
+        qNum: 5,
+        text: "Q5. 상관 서브쿼리(Correlated Subquery)가 조건절에 포함되어 메인 쿼리의 매 레코드마다 서브쿼리가 반복 실행(FILTER 동작)됨으로써 성능이 급락하는 현상을 해결하기 위해, 옵티마이저가 서브쿼리 블록을 해체하여 메인 조인 쿼리문 형태로 변환하는 내부 최적화 기술은 무엇인가?",
+        options: [
+          "Subquery Unnesting (서브쿼리 언네스팅)",
+          "View Merging (뷰 머징)",
+          "Query Rewrite (쿼리 재작성)",
+          "Index Split (인덱스 분할)"
+        ],
+        correctIdx: 0,
+        explanation: "상관 서브쿼리의 반복 처리에 따른 FILTER 병목을 해소하기 위해 옵티마이저는 서브쿼리를 일반 조인 구조로 변경하여 풀 수 있는데, 이를 <strong>Subquery Unnesting(서브쿼리 언네스팅)</strong>이라고 합니다. 언네스팅이 실행되어야 해시 조인이나 네스티드 루프 조인 등으로 최적화 플랜을 수립할 수 있습니다."
+      }
+    ]
   },
-  {
-    qNum: 2,
-    text: "Q2. 결합 인덱스 IX_EMP_DEPT_SAL(DEPT_NO, SALARY)가 있을 때, 선두 컬럼 조건이 아래와 같이 작성되었습니다. 이에 대한 성능 영향 분석으로 옳은 것은?<br><br><code>SELECT * FROM TB_EMP WHERE DEPT_NO LIKE '%10%' AND SALARY >= 3000;</code>",
-    options: [
-      "중간 일치 LIKE 패턴이어도 선두 컬럼이므로 여전히 최적의 Access Predicate 수직 탐색이 이루어진다.",
-      "선두 컬럼에 중간 일치 와일드카드(%)가 오면 인덱스 수직 탐색을 위한 시작점을 찾을 수 없으므로, 인덱스를 스캔(Index Range/Full Scan) 하더라도 Filter Predicate로 작동하여 리프 노드를 대량으로 읽고 필터링하므로 비효율적이다.",
-      "SALARY 조건이 우수하므로 옵티마이저가 SALARY를 선두로 인덱스를 자동 재구성하여 스캔 속도를 획득한다.",
-      "인덱스를 전혀 타지 못하고 무조건 HASH JOIN으로 변환되어 임시 세그먼트 디스크 공간을 낭비한다."
-    ],
-    correctIdx: 1,
-    explanation: "인덱스 선두 컬럼 조건에 <code>LIKE '%10%'</code>처럼 전방 와일드카드가 사용되면 인덱스 수직 탐색이 불가능합니다. 이로 인해 인덱스 스캔 시 탐색 시작점을 좁히지 못하고, 전체 또는 아주 넓은 영역을 스캔하며 하나씩 조건에 부합하는지 <strong>Filter Predicate</strong> 검증을 수행하므로 I/O 비효율이 크게 치솟습니다."
-  },
-  {
-    qNum: 3,
-    text: "Q3. 인덱스 정렬 순서와 테이블 실제 행들의 물리적 디스크 저장 순서가 얼마나 일치하는지 나타내는 지표로, 이 값이 나쁠 경우 넓은 범위 인덱스 스캔 시 심각한 무작위 Single Block Read(Random I/O) 폭사를 유발하는 핵심 통계정보 지표는 무엇인가?",
-    options: [
-      "DENSITY (밀도)",
-      "NUM_DISTINCT (고유값 수)",
-      "CLUSTERING_FACTOR (클러스터링 팩터)",
-      "HISTOGRAM_BUCKETS (히스토그램 버킷 수)"
-    ],
-    correctIdx: 2,
-    explanation: "<strong>Clustering Factor(클러스터링 팩터)</strong>는 인덱스 키 순서와 테이블 디스크 데이터의 물리적 정렬도가 얼마나 매칭되는지 보여줍니다. 이 수치가 테이블 전체 블록 수에 육박할 정도로 나쁘면, 인덱스 리프 노드를 통해 테이블 로우에 액세스할 때마다 매번 새로운 디스크 블록을 읽는 Random I/O 병목이 발생하여 Full Table Scan보다도 훨씬 느려질 수 있습니다."
-  },
-  {
-    qNum: 4,
-    text: "Q4. SQL 튜닝 시 아래와 같이 인덱스 컬럼의 좌변을 가공했을 때 발생하는 현상으로 가장 거리가 먼 것은?<br><br><code>SELECT * FROM TB_LOG WHERE TO_CHAR(LOG_DATE, 'YYYYMMDD') = '20260619';</code>",
-    options: [
-      "인덱스 컬럼 값 자체가 가공되었으므로 B-Tree 인덱스 고유의 정렬 구조를 활용할 수 없어 인덱스가 무력화된다.",
-      "옵티마이저는 이 조건으로 인덱스 범위 검색을 할 수 없어 Table Full Scan으로 플랜을 선회한다.",
-      "이를 튜닝하려면 좌변 가공을 제거하고 우변 상수를 가공(<code>LOG_DATE >= TO_DATE('20260619', 'YYYYMMDD')</code> 등)해 범위 조건으로 검색해야 한다.",
-      "인덱스 리프 노드를 탐색하는 도중, 함수 가공값에 의해 동적으로 해시 테이블 조인이 적용되어 오히려 정렬 속도가 향상된다."
-    ],
-    correctIdx: 3,
-    explanation: "인덱스 컬럼을 함수로 가공(TO_CHAR, SUBSTR 등)하거나 산술 연산을 가하면 B-Tree 인덱스 키의 정렬 상태가 손상되어 옵티마이저가 인덱스를 범위 검색 용도로 쓸 수 없게 됩니다. 따라서 Index Scan이 무력화되어 대량의 풀 테이블 스캔이 발생하며, 해시 조인 등으로 성능이 향상된다는 것은 명백한 허구입니다."
-  },
-  {
-    qNum: 5,
-    text: "Q5. 상관 서브쿼리(Correlated Subquery)가 조건절에 포함되어 메인 쿼리의 매 레코드마다 서브쿼리가 반복 실행(FILTER 동작)됨으로써 성능이 급락하는 현상을 해결하기 위해, 옵티마이저가 서브쿼리 블록을 해체하여 메인 조인 쿼리문 형태로 변환하는 내부 최적화 기술은 무엇인가?",
-    options: [
-      "Subquery Unnesting (서브쿼리 언네스팅)",
-      "View Merging (뷰 머징)",
-      "Query Rewrite (쿼리 재작성)",
-      "Index Split (인덱스 분할)"
-    ],
-    correctIdx: 0,
-    explanation: "상관 서브쿼리의 반복 처리에 따른 FILTER 병목을 해소하기 위해 옵티마이저는 서브쿼리를 일반 조인 구조로 변경하여 풀 수 있는데, 이를 <strong>Subquery Unnesting(서브쿼리 언네스팅)</strong>이라고 합니다. 언네스팅이 실행되어야 해시 조인이나 네스티드 루프 조인 등으로 최적화 플랜을 수립할 수 있습니다."
+  basics: {
+    title: "SQL 튜닝 기본 종합 퀴즈",
+    desc: "1장 튜닝 지표(I/O, 파싱)부터 시작하여 인덱스 무력화 패턴, 클러스터링 팩터, 조인 방식 선택(NL, Hash), 소트 튜닝 및 옵티마이저 통계정보까지 SQL 튜닝의 전 과정을 종합 테스트합니다.",
+    limitSeconds: 600, // 10 minutes
+    questions: [
+      {
+        qNum: 1,
+        text: "Q1. 데이터베이스 튜닝을 수행할 때 가장 1차적인 분석 지표가 되며, 옵티마이저가 쿼리 비용을 산정할 때 핵심 기준으로 삼는 지표는 무엇인가?",
+        options: [
+          "논리적 I/O (Buffer Gets)",
+          "네트워크 전송 대역폭",
+          "디스크 전체 잔여 용량",
+          "데이터베이스 백업 주기"
+        ],
+        correctIdx: 0,
+        explanation: "SQL 튜닝의 가장 기본적이고 결정적인 지표는 디스크 I/O와 버퍼 캐시에서 발생하는 <strong>논리적 I/O (Buffer Gets)</strong>입니다. 이를 최소화해야 CPU 사용률과 응답 속도가 획기적으로 개선됩니다."
+      },
+      {
+        qNum: 2,
+        text: "Q2. 데이터베이스 애플리케이션 개발 시 SQL문에 바인드 변수(Bind Variable)를 적극적으로 사용하는 주된 목적과 성능적 이점은 무엇인가?",
+        options: [
+          "옵티마이저에게 강제로 복합 인덱스 스캔을 강요하여 전체 조인 속도를 높이기 위함",
+          "하드 파싱(Hard Parsing)을 방지하여 데이터베이스 엔진의 라이브러리 캐시 내 커서를 공유하기 위함",
+          "데이터베이스 테이블의 특정 컬럼 값을 물리적으로 정렬(Sort)하여 반환하기 위함",
+          "데이터 디바이스 레벨에서 비대칭 키 알고리즘으로 데이터를 암호화하기 위함"
+        ],
+        correctIdx: 0,
+        explanation: "바인드 변수를 적용하면 쿼리 텍스트 형태가 동일하게 유지되어 데이터베이스 엔진은 매번 무겁게 컴파일하는 하드 파싱을 피하고, 기존에 생성된 실행 계획 커서를 메모리(라이브러리 캐시)에서 재사용하는 <strong>소프트 파싱(커서 공유)</strong>을 수행하게 됩니다."
+      },
+      {
+        qNum: 3,
+        text: "Q3. B-Tree 인덱스 구조 하에서 WHERE 조건절의 인덱스 선두 컬럼을 가공(예: TO_CHAR, SUBSTR 등 함수 적용)하거나 묵시적 형변환을 유발했을 때 나타나는 성능 병목 현상에 대한 설명으로 옳은 것은?",
+        options: [
+          "옵티마이저가 인덱스의 정렬성 정보를 활용할 수 없게 되어 Index Range Scan이 차단되고 Full Table Scan을 유발한다.",
+          "인덱스 컬럼 가공에 따라 CPU가 가용 자원을 10배 이상 확보하여 데이터 압축이 더 빨라진다.",
+          "옵티마이저가 자동으로 세그먼트를 쪼개어 해시 파티션을 구축하여 처리 능력이 극대화된다.",
+          "DML 쓰기 작업 시 락(Lock) 점유 시간이 50% 단축되어 동시성이 눈에 띄게 개선된다."
+        ],
+        correctIdx: 0,
+        explanation: "인덱스 컬럼 자체를 좌변에서 함수나 연산으로 가공하면, B-Tree 인덱스가 정렬된 기준과 대조를 이룰 수 없게 되므로 <strong>Index Range Scan이 원천 차단</strong>되고 테이블 전체를 훑는 Full Table Scan으로 선회하게 되어 성능이 극도로 저하됩니다."
+      },
+      {
+        qNum: 4,
+        text: "Q4. 인덱스의 클러스터링 팩터(Clustering Factor) 상태가 극도로 좋지 못할 때(즉, 테이블 블록 수에 육박할 때) 발생하는 성능 문제와 거리가 먼 것은?",
+        options: [
+          "인덱스를 경유해 테이블 로우를 조회하는 과정에서 대량의 랜덤 Single Block Read I/O가 폭사한다.",
+          "소량의 데이터 범위를 스캔할 때조차 디스크 대기 지연(Db file sequential read)이 치솟는다.",
+          "테이블 실제 행들의 물리적 저장 배열 순서가 무질서하게 흩어져 있어 발생하므로 인덱스 REBUILD만으로는 개선되지 않는다.",
+          "옵티마이저가 항상 인덱스 풀 스캔을 선호하게 되어 Multi-Block Read를 적극적으로 장려하게 만든다."
+        ],
+        correctIdx: 3,
+        explanation: "클러스터링 팩터가 나쁘면 인덱스를 통한 테이블 랜덤 액세스 비용이 극적으로 증가합니다. 이 상태에서는 넓은 범위 검색 시 인덱스 스캔보다 오히려 <strong>Multi-Block Read를 쓰는 Table Full Scan</strong>이 훨씬 경제적입니다. 따라서 옵티마이저가 인덱스 풀 스캔을 무조건 선호하게 만든다는 설명은 옳지 않습니다."
+      },
+      {
+        qNum: 5,
+        text: "Q5. 인덱스 튜닝 기법 중 '커버링 인덱스(Covering Index)'를 활용하여 테이블 액세스를 최소화함으로써 성능을 향상시키는 원리로 가장 적절한 것은?",
+        options: [
+          "쿼리문에 사용된 모든 컬럼(SELECT절, WHERE절 등)이 인덱스 키 컬럼에 존재하여 테이블 물리 블록을 아예 읽지 않고 인덱스만으로 처리를 끝낸다.",
+          "동시에 여러 개의 단일 인덱스 세그먼트들을 병렬 검색(Index Merge Join)하도록 지시한다.",
+          "테이블의 물리적인 디스크 블록 정렬도를 인덱스 정렬도와 100% 매칭시켜 클러스터링 팩터를 1에 가깝게 리빌딩한다.",
+          "데이터베이스 트랜잭션의 Redo 로그 생성량을 획기적으로 낮춰 DML 성능을 끌어올린다."
+        ],
+        correctIdx: 0,
+        explanation: "<strong>커버링 인덱스(Covering Index)</strong>는 쿼리에 명시된 모든 데이터 컬럼이 인덱스 세그먼트 자체에 포함된 상태를 말합니다. 이 경우 인덱스 잎 노드 스캔만으로 결과를 반환하므로 무거운 테이블 블록 읽기(Table Access by Index ROWID)를 완전히 생략할 수 있습니다."
+      },
+      {
+        qNum: 6,
+        text: "Q6. 조인(Join) 방식 중에서 대량의 결과집합 간 등치(=) 조인을 수행하고, 한쪽 테이블이 PGA 메모리에 Hash Area 형태로 올라가 조인 대상이 대량일 때 극적으로 효과를 내는 최적의 조인 방식은?",
+        options: [
+          "Hash Join (해시 조인)",
+          "Nested Loops Join (중첩 루프 조인)",
+          "Sort Merge Join (소트 머지 조인)",
+          "Cross Join (크로스 조인)"
+        ],
+        correctIdx: 0,
+        explanation: "대량의 데이터 집합 조인 시 한쪽(Build Input)을 메모리에 해시 맵으로 로드한 뒤 다른 쪽(Probe Input)을 읽으며 탐색하는 <strong>해시 조인(Hash Join)</strong>이 가장 적합합니다. 랜덤 I/O 부하 없이 순차적으로 읽어 해싱 처리하므로 대용량 처리에 매우 우수합니다."
+      },
+      {
+        qNum: 7,
+        text: "Q7. Nested Loops 조인을 수행할 때, 가장 먼저 액세스되어 반복 스캔의 횟수를 결정짓는 '선행 테이블(Driving/Outer Table)'을 선정할 때 튜닝 관점에서 가장 우선시해야 하는 사항은?",
+        options: [
+          "선행 테이블 조건절의 조건 검색 이후의 결과 집합 크기(카디널리티)가 상대적으로 작아야 한다.",
+          "테이블 컬럼 갯수가 가장 많고 인덱스가 하나도 없어야 한다.",
+          "물리 디스크 영역에서 가장 마지막 파티션 테이블이어야 한다.",
+          "두 테이블 중 Row 수가 절대적으로 가장 많은 거대 마스터 테이블이어야 한다."
+        ],
+        correctIdx: 0,
+        explanation: "Nested Loops 조인은 선행 테이블의 추출 건수만큼 후행 테이블(Inner Input) 루프를 돌며 인덱스를 반복 검색합니다. 따라서 루프 횟수를 줄이기 위해서는 <strong>필터링 후 결과집합 건수가 더 적은 쪽</strong>이 선행 테이블(Driving Table)로 낙점되어야 합니다."
+      },
+      {
+        qNum: 8,
+        text: "Q8. SQL문에서 UNION 연산과 UNION ALL 연산의 주요 차이점과 성능 영향성에 대한 설명으로 가장 올바른 것은?",
+        options: [
+          "UNION은 결과의 중복 제거를 위해 강제로 SORT UNIQUE 정렬을 수행하여 소트 부하가 크지만, UNION ALL은 중복 제거 없이 결과를 그냥 합쳐 정렬 부하가 없다.",
+          "UNION ALL은 결과 합병 속도가 UNION보다 10배 느리지만 데이터 보안성이 훨씬 높다.",
+          "UNION은 정렬을 일체 수행하지 않는 반면 UNION ALL은 항상 디스크 기반 대용량 정렬(Disk Sort)을 강제한다.",
+          "두 연산 모두 디스크 튜닝 시 버퍼 캐시를 공유하므로 I/O 측면에서 완전히 동일한 부하를 가진다."
+        ],
+        correctIdx: 0,
+        explanation: "<code>UNION</code>은 중복 데이터 제거를 위해 내부적으로 <strong>SORT UNIQUE</strong> 연산을 실행하여 소트 부하를 일으킵니다. 중복 데이터가 나올 염려가 없거나 중복을 허용해도 되는 비즈니스 환경이라면 소트 과정이 생략되는 <code>UNION ALL</code>을 써야 합니다."
+      },
+      {
+        qNum: 9,
+        text: "Q9. 데이터베이스 튜닝 규칙상 인덱스의 개수가 지나치게 많아질 경우 데이터베이스의 DML(INSERT, UPDATE, DELETE) 쓰기 성능에 미치는 영향으로 가장 옳은 것은?",
+        options: [
+          "DML 수행 속도가 점차 저하된다. (테이블 행 입력/수정 시마다 매칭되는 모든 인덱스 세그먼트도 함께 정렬 갱신해야 하기 때문)",
+          "DML 작업의 트랜잭션 락 점유 속도가 극적으로 단축되어 성능이 상승한다.",
+          "인덱스가 많아지면 디스크 I/O가 메모리 내에서 완전 분산 처리되므로 DML 속도가 무조건 향상된다.",
+          "DML 성능에는 영향이 없으며 오직 배치(Batch) 정렬 작업의 PGA 자원 소모량만 상승한다."
+        ],
+        correctIdx: 0,
+        explanation: "인덱스는 정렬된 별도 물리 구조입니다. 따라서 테이블에 DML을 수행해 레코드가 생성/변경되면, <strong>테이블과 관련된 모든 인덱스 블록도 정렬 상태를 맞춰 실시간 갱신</strong>해야 하므로 인덱스가 많을수록 쓰기 속도는 대폭 저하됩니다."
+      },
+      {
+        qNum: 10,
+        text: "Q10. Oracle 등 대용량 데이터베이스 적재(INSERT) 시, 버퍼 캐시(Buffer Cache)를 거치지 않고 데이터 파일(디스크)에 HWM(High Water Mark) 직후 블록에 바로 데이터를 쓰는 방식으로 속도를 극적으로 끌어올리는 힌트 기법은?",
+        options: [
+          "/*+ APPEND */ (Direct Path Insert)",
+          "/*+ INDEX_DESC */",
+          "/*+ NESTED_LOOPS */",
+          "/*+ PARALLEL */"
+        ],
+        correctIdx: 0,
+        explanation: "<strong>/*+ APPEND */</strong> 힌트는 버퍼 캐시를 무시하고 디스크에 곧바로 적재를 고속 개시하는 <strong>Direct Path Insert</strong> 메커니즘을 작동시켜 대용량 배치 적재 시 비약적인 속도 향상을 냅니다."
+      },
+      {
+        qNum: 11,
+        text: "Q11. 데이터베이스 옵티마이저가 쿼리의 실제 카디널리티(Cardinality)를 잘못 추정하여 비효율적인 조인 및 부적합한 테이블 스캔 실행 계획을 수립하는 주요 원인은 무엇인가?",
+        options: [
+          "대상 테이블들의 통계 정보가 누락되거나 너무 과거에 수집되어 현재 데이터와 맞지 않음",
+          "서버의 네트워크 연결 대역폭의 불규칙한 순간 변동",
+          "데이터베이스 파일 백업 주기가 너무 잦아 로그 파일 잠금이 지속됨",
+          "응용 프로그램단에서 커밋(Commit) 명령을 너무 자주 유발하여 PGA 버퍼가 고갈됨"
+        ],
+        correctIdx: 0,
+        explanation: "옵티마이저는 테이블/인덱스 통계 정보를 읽어 예상 행수인 카디널리티를 계산합니다. <strong>통계 정보가 누락되거나 왜곡</strong>되어 있으면 계산 비용이 어긋나 엉뚱하고 불량한 실행 계획을 낳는 대형 장애를 유발합니다."
+      },
+      {
+        qNum: 12,
+        text: "Q12. SQL 실행 계획 상의 예상 행수(E-Rows)가 아닌, 실제 오라클 데이터베이스 런타임 상에서 디스크/메모리 블록을 액세스하여 수행된 '실측 행수(A-Rows)'의 수리적 차이를 디버깅하기 위해 SQL에 부여하는 힌트와 표시 방법으로 올바른 세트는?",
+        options: [
+          "/*+ GATHER_PLAN_STATISTICS */ 힌트 후 DISPLAY_CURSOR(null, null, 'ALLSTATS LAST') 포맷으로 실측 계획 조회",
+          "/*+ RULE */ 힌트 후 EXPLAIN PLAN을 활용한 디스크 스캔",
+          "/*+ FIRST_ROWS */ 힌트 후 V$PARAMETER 파라미터 값 매칭",
+          "/*+ INDEX */ 힌트 후 DISPLAY_AWR 리포트 파싱"
+        ],
+        correctIdx: 0,
+        explanation: "실제 실행 행수(A-Rows) 및 실제 소요 시간을 실측하려면 <strong>/*+ GATHER_PLAN_STATISTICS */</strong> 힌트와 함께 쿼리를 수행한 뒤, 'DBMS_XPLAN.DISPLAY_CURSOR' 패키지의 포맷 매개변수로 <code>'ALLSTATS LAST'</code>를 부여해 실행계획과 실측 통계를 비교해야 합니다."
+      }
+    ]
   }
-];
+};
 
 // CBT Live State Variables
 let cbtActive = false;
-let cbtTimeRemaining = 300; // 5 minutes in seconds
+let currentSubjectKey = "week3";
+let cbtTimeRemaining = 300;
 let cbtTimerInterval = null;
 let cbtCurrentQ = 0;
 let cbtCandidateName = "홍길동";
-let cbtAnswers = [null, null, null, null, null];
+let cbtAnswers = [];
 let cbtStartTime = null;
 
 function initCbtSystem() {
@@ -4411,6 +4570,7 @@ function initCbtSystem() {
 
   const btnMockData = document.getElementById("btn-admin-mock-data");
   const btnResetData = document.getElementById("btn-admin-reset-data");
+  const adminFilter = document.getElementById("admin-subject-filter");
 
   if (btnStart) btnStart.onclick = startCbtExam;
   if (btnPrev) btnPrev.onclick = () => moveCbtQuestion(-1);
@@ -4420,6 +4580,31 @@ function initCbtSystem() {
 
   if (btnMockData) btnMockData.onclick = injectCbtMockData;
   if (btnResetData) btnResetData.onclick = resetCbtAdminData;
+  if (adminFilter) {
+    adminFilter.onchange = renderCbtAdminDashboard;
+  }
+
+  // Bind Subject Selector buttons in Intro
+  const subjectBtns = document.querySelectorAll(".cbt-subject-btn");
+  subjectBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+      subjectBtns.forEach(b => {
+        b.classList.remove("active");
+        b.style.border = "1px solid var(--border-light)";
+        b.style.background = "transparent";
+        b.style.color = "var(--color-text-muted)";
+        b.style.fontWeight = "500";
+      });
+      btn.classList.add("active");
+      btn.style.border = "1px solid var(--accent-cyan)";
+      btn.style.background = "rgba(6,182,212,0.1)";
+      btn.style.color = "var(--accent-cyan)";
+      btn.style.fontWeight = "700";
+
+      const subKey = btn.getAttribute("data-subject");
+      selectCbtSubject(subKey);
+    });
+  });
 
   // Initialize Embedded Database
   cbtDb.init().then(() => {
@@ -4430,6 +4615,21 @@ function initCbtSystem() {
 
   // Initialize view
   renderCbtIntro();
+}
+
+function selectCbtSubject(subKey) {
+  currentSubjectKey = subKey;
+  const sub = cbtSubjects[subKey];
+  if (!sub) return;
+
+  const titleEl = document.getElementById("cbt-selected-title");
+  const descEl = document.getElementById("cbt-selected-desc");
+
+  if (titleEl) titleEl.textContent = sub.title;
+  if (descEl) {
+    const min = Math.floor(sub.limitSeconds / 60);
+    descEl.innerHTML = `${sub.desc}<br><strong>제한 시간: ${min}분 (${sub.limitSeconds}초) | 총 문항: ${sub.questions.length}문항 | 합격 기준: 70점 이상</strong>`;
+  }
 }
 
 function renderCbtIntro() {
@@ -4447,6 +4647,9 @@ function renderCbtIntro() {
   if (examView) examView.style.display = "none";
   if (resultView) resultView.style.display = "none";
 
+  // Default select current key
+  selectCbtSubject(currentSubjectKey);
+
   // Focus on input
   const nameInput = document.getElementById("cbt-candidate-name");
   if (nameInput) nameInput.focus();
@@ -4461,11 +4664,14 @@ function startCbtExam() {
     return;
   }
 
+  const sub = cbtSubjects[currentSubjectKey];
+  if (!sub) return;
+
   cbtCandidateName = name;
   cbtActive = true;
-  cbtAnswers = [null, null, null, null, null];
+  cbtAnswers = Array(sub.questions.length).fill(null);
   cbtCurrentQ = 0;
-  cbtTimeRemaining = 300;
+  cbtTimeRemaining = sub.limitSeconds;
   cbtStartTime = Date.now();
 
   const introView = document.getElementById("cbt-intro-view");
@@ -4514,7 +4720,10 @@ function buildCbtOmrGrid() {
   if (!grid) return;
   grid.innerHTML = "";
 
-  for (let i = 0; i < 5; i++) {
+  const sub = cbtSubjects[currentSubjectKey];
+  const qCount = sub.questions.length;
+
+  for (let i = 0; i < qCount; i++) {
     const btn = document.createElement("button");
     btn.id = `cbt-omr-btn-${i}`;
     btn.style.width = "100%";
@@ -4538,7 +4747,11 @@ function buildCbtOmrGrid() {
 }
 
 function updateCbtOmrStatus() {
-  for (let i = 0; i < 5; i++) {
+  const sub = cbtSubjects[currentSubjectKey];
+  if (!sub) return;
+  const qCount = sub.questions.length;
+
+  for (let i = 0; i < qCount; i++) {
     const btn = document.getElementById(`cbt-omr-btn-${i}`);
     if (!btn) continue;
 
@@ -4568,16 +4781,17 @@ function updateCbtOmrStatus() {
 }
 
 function loadCbtQuestion(qIdx) {
-  if (qIdx < 0 || qIdx >= 5) return;
+  const sub = cbtSubjects[currentSubjectKey];
+  if (!sub || qIdx < 0 || qIdx >= sub.questions.length) return;
   cbtCurrentQ = qIdx;
 
   const badge = document.getElementById("cbt-current-q-badge");
   const qText = document.getElementById("cbt-question-text");
   const optContainer = document.getElementById("cbt-options-container");
 
-  if (badge) badge.textContent = `문항 ${qIdx + 1} / 5`;
+  if (badge) badge.textContent = `문항 ${qIdx + 1} / ${sub.questions.length}`;
   
-  const q = cbtQuestions[qIdx];
+  const q = sub.questions[qIdx];
   if (qText) qText.innerHTML = q.text;
 
   if (optContainer) {
@@ -4632,19 +4846,24 @@ function loadCbtQuestion(qIdx) {
   const nextBtn = document.getElementById("btn-cbt-next");
   
   if (prevBtn) prevBtn.disabled = (qIdx === 0);
-  if (nextBtn) nextBtn.disabled = (qIdx === 4);
+  if (nextBtn) nextBtn.disabled = (qIdx === sub.questions.length - 1);
 
   updateCbtOmrStatus();
 }
 
 function moveCbtQuestion(direction) {
+  const sub = cbtSubjects[currentSubjectKey];
+  if (!sub) return;
   const targetIdx = cbtCurrentQ + direction;
-  if (targetIdx >= 0 && targetIdx < 5) {
+  if (targetIdx >= 0 && targetIdx < sub.questions.length) {
     loadCbtQuestion(targetIdx);
   }
 }
 
 function submitCbtExam(force = false) {
+  const sub = cbtSubjects[currentSubjectKey];
+  if (!sub) return;
+
   if (!force) {
     const unansweredCount = cbtAnswers.filter(a => a === null).length;
     if (unansweredCount > 0) {
@@ -4662,14 +4881,16 @@ function submitCbtExam(force = false) {
     cbtTimerInterval = null;
   }
 
-  // Calculate scores
-  let score = 0;
-  cbtQuestions.forEach((q, idx) => {
+  // Calculate scores (100-point scale scaling)
+  let correctCount = 0;
+  sub.questions.forEach((q, idx) => {
     if (cbtAnswers[idx] === q.correctIdx) {
-      score += 20;
+      correctCount++;
     }
   });
 
+  const totalQ = sub.questions.length;
+  const score = Math.round((correctCount / totalQ) * 100);
   const duration = Math.round((Date.now() - cbtStartTime) / 1000);
   const isPassed = score >= 70;
 
@@ -4677,7 +4898,7 @@ function submitCbtExam(force = false) {
   const newRecord = {
     ID: "cbt_" + Date.now(),
     CANDIDATE_NAME: cbtCandidateName,
-    EXAM_NAME: "3주차 실행계획 & 옵티마이저 종합 평가",
+    EXAM_NAME: sub.title,
     SCORE: score,
     PASS_OR_FAIL: isPassed ? "PASS" : "FAIL",
     DURATION_SECONDS: duration,
@@ -4708,7 +4929,7 @@ function submitCbtExam(force = false) {
 
   if (scoreEl) scoreEl.textContent = `${score}점`;
   if (badgeEl) {
-    badgeEl.textContent = isPassed ? "PASS (합격)" : "FAIL (불합격)";
+    badgeEl.textContent = isPassed ? `PASS (합격 - ${correctCount}/${totalQ})` : `FAIL (불합격 - ${correctCount}/${totalQ})`;
     badgeEl.style.background = isPassed ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.15)";
     badgeEl.style.borderColor = isPassed ? "var(--accent-emerald)" : "var(--accent-crimson)";
     badgeEl.style.color = isPassed ? "var(--accent-emerald)" : "var(--accent-crimson)";
@@ -4719,14 +4940,14 @@ function submitCbtExam(force = false) {
     const secs = duration % 60;
     const durationText = mins > 0 ? `${mins}분 ${secs}초` : `${secs}초`;
     const formattedDate = new Date(newRecord.SUBMITTED_AT).toLocaleString();
-    summaryEl.textContent = `총 소요시간: ${durationText} | 제출일시: ${formattedDate}`;
+    summaryEl.textContent = `과목: ${sub.title} | 총 소요시간: ${durationText} | 제출일시: ${formattedDate}`;
   }
 
   // Render Detailed Feedback Cards
   const feedbackList = document.getElementById("cbt-feedback-list");
   if (feedbackList) {
     feedbackList.innerHTML = "";
-    cbtQuestions.forEach((q, idx) => {
+    sub.questions.forEach((q, idx) => {
       const userAnswerIdx = cbtAnswers[idx];
       const isCorrect = userAnswerIdx === q.correctIdx;
       
@@ -4803,7 +5024,7 @@ function submitCbtExam(force = false) {
 }
 
 // -------------------------------------------------------------
-// CBT Admin Dashboard Operations (Async DB Fetching)
+// CBT Admin Dashboard Operations (Async DB Fetching & Filtering)
 // -------------------------------------------------------------
 
 function renderCbtAdminDashboard() {
@@ -4815,8 +5036,17 @@ function renderCbtAdminDashboard() {
 
     const tbody = document.getElementById("admin-results-tbody");
     const chartContainer = document.getElementById("admin-error-chart-container");
+    const adminFilter = document.getElementById("admin-subject-filter");
 
-    if (!results || results.length === 0) {
+    const selectedFilter = adminFilter ? adminFilter.value : "all";
+
+    // 0. Filter results by exam name
+    let filteredResults = results;
+    if (selectedFilter !== "all") {
+      filteredResults = results.filter(r => r.EXAM_NAME === selectedFilter);
+    }
+
+    if (!filteredResults || filteredResults.length === 0) {
       if (totalEl) totalEl.textContent = "0건";
       if (scoreEl) scoreEl.textContent = "0.0점";
       if (rateEl) rateEl.textContent = "0%";
@@ -4826,7 +5056,7 @@ function renderCbtAdminDashboard() {
         tbody.innerHTML = `
           <tr>
             <td colspan="7" style="padding: 30px; text-align: center; color: var(--color-text-dark);">
-              응시 내역이 존재하지 않습니다. 데모 데이터를 생성하거나 CBT 시험을 치러 주십시오.
+              해당 과목의 응시 내역이 존재하지 않습니다.
             </td>
           </tr>
         `;
@@ -4835,7 +5065,7 @@ function renderCbtAdminDashboard() {
       if (chartContainer) {
         chartContainer.innerHTML = `
           <div style="font-size: 0.8rem; text-align: center; color: var(--color-text-dark); padding: 40px 0;">
-            데이터가 부족하여 차트를 활성화할 수 없습니다.
+            데이터가 부족합니다.
           </div>
         `;
       }
@@ -4843,12 +5073,12 @@ function renderCbtAdminDashboard() {
     }
 
     // 1. Calculate KPI Statistics
-    const count = results.length;
+    const count = filteredResults.length;
     let scoreSum = 0;
     let passCount = 0;
     let timeSum = 0;
 
-    results.forEach(r => {
+    filteredResults.forEach(r => {
       scoreSum += r.SCORE;
       if (r.PASS_OR_FAIL === "PASS") passCount++;
       timeSum += r.DURATION_SECONDS;
@@ -4870,7 +5100,7 @@ function renderCbtAdminDashboard() {
     // 2. Populate Results Table
     if (tbody) {
       tbody.innerHTML = "";
-      results.forEach(row => {
+      filteredResults.forEach(row => {
         const tr = document.createElement("tr");
         tr.style.borderBottom = "1px solid var(--border-light)";
         tr.style.transition = "background-color 0.25s";
@@ -4888,7 +5118,7 @@ function renderCbtAdminDashboard() {
 
         tr.innerHTML = `
           <td style="padding: 10px 8px; font-weight:600; color: var(--color-text-main);">${row.CANDIDATE_NAME}</td>
-          <td style="padding: 10px 8px; color: var(--color-text-muted);">${row.EXAM_NAME}</td>
+          <td style="padding: 10px 8px; color: var(--color-text-muted); font-size: 0.72rem;">${row.EXAM_NAME}</td>
           <td style="padding: 10px 8px; font-weight:700; color: var(--accent-cyan);">${row.SCORE}점</td>
           <td style="padding: 10px 8px;">
             <span style="font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; ${badgeStyle}">${row.PASS_OR_FAIL}</span>
@@ -4904,21 +5134,37 @@ function renderCbtAdminDashboard() {
       });
     }
 
-    // 3. Compute High Error Rate Analysis
-    const errors = [0, 0, 0, 0, 0];
-    results.forEach(r => {
-      cbtQuestions.forEach((q, idx) => {
-        const userAnswer = r.MARKED_ANSWERS[idx];
-        if (userAnswer !== q.correctIdx) {
-          errors[idx]++;
-        }
-      });
-    });
-
+    // 3. Compute High Error Rate Analysis (Only enabled when filtered by a specific subject)
     if (chartContainer) {
+      if (selectedFilter === "all") {
+        chartContainer.innerHTML = `
+          <div style="font-size: 0.8rem; text-align: center; color: var(--color-text-dark); padding: 40px 0;">
+            오답률 상세 그래프를 활성화하려면<br>상단 필터에서 특정 과목을 선택해 주십시오.
+          </div>
+        `;
+        return;
+      }
+
       chartContainer.innerHTML = "";
       
-      cbtQuestions.forEach((q, idx) => {
+      // Map subject name back to key
+      let subKey = "week3";
+      if (selectedFilter === "SQL 튜닝 기본 종합 퀴즈") subKey = "basics";
+      
+      const sub = cbtSubjects[subKey];
+      const qCount = sub.questions.length;
+      
+      const errors = Array(qCount).fill(0);
+      filteredResults.forEach(r => {
+        sub.questions.forEach((q, idx) => {
+          const userAnswer = r.MARKED_ANSWERS[idx];
+          if (userAnswer !== q.correctIdx) {
+            errors[idx]++;
+          }
+        });
+      });
+
+      sub.questions.forEach((q, idx) => {
         const wrongCount = errors[idx];
         const errorPct = Math.round((wrongCount / count) * 100);
 
@@ -4930,14 +5176,27 @@ function renderCbtAdminDashboard() {
         const labelRow = document.createElement("div");
         labelRow.style.display = "flex";
         labelRow.style.justifyContent = "space-between";
-        labelRow.style.fontSize = "0.78rem";
+        labelRow.style.fontSize = "0.76rem";
 
         const qTitleText = `문항 ${q.qNum}. ` + (
-          idx === 0 ? "Access Predicate 식별" :
-          idx === 1 ? "Filter Predicate 성능 영향" :
-          idx === 2 ? "Clustering Factor 원리" :
-          idx === 3 ? "인덱스 컬럼 가공 오류" :
-          "Subquery Unnesting 개념"
+          subKey === "week3" 
+            ? (idx === 0 ? "Access Predicate 식별" :
+               idx === 1 ? "Filter Predicate 성능 영향" :
+               idx === 2 ? "Clustering Factor 원리" :
+               idx === 3 ? "인덱스 컬럼 가공 오류" :
+               "Subquery Unnesting 개념")
+            : (idx === 0 ? "논리적 I/O 지표 원리" :
+               idx === 1 ? "바인드 변수 적용 목적" :
+               idx === 2 ? "인덱스 선두 컬럼 가공" :
+               idx === 3 ? "CF 불량의 성능 부하" :
+               idx === 4 ? "커버링 인덱스 원리" :
+               idx === 5 ? "대용량 해시 조인" :
+               idx === 6 ? "NL조인 선행 테이블" :
+               idx === 7 ? "UNION vs UNION ALL" :
+               idx === 8 ? "인덱스 과다 DML 지연" :
+               idx === 9 ? "APPEND Direct Insert" :
+               idx === 10 ? "카디널리티 추정 오차" :
+               "GATHER_PLAN 실측행수")
         );
 
         labelRow.innerHTML = `
@@ -4947,16 +5206,16 @@ function renderCbtAdminDashboard() {
 
         const barTrack = document.createElement("div");
         barTrack.style.width = "100%";
-        barTrack.style.height = "10px";
+        barTrack.style.height = "8px";
         barTrack.style.background = "rgba(255,255,255,0.05)";
-        barTrack.style.borderRadius = "5px";
+        barTrack.style.borderRadius = "4px";
         barTrack.style.overflow = "hidden";
         barTrack.style.border = "1px solid var(--border-light)";
 
         const barFill = document.createElement("div");
         barFill.style.width = `${errorPct}%`;
         barFill.style.height = "100%";
-        barFill.style.borderRadius = "5px";
+        barFill.style.borderRadius = "4px";
         barFill.style.transition = "width 0.6s ease";
         
         if (errorPct >= 60) {
@@ -5003,6 +5262,7 @@ function resetCbtAdminData() {
 
 function injectCbtMockData() {
   const mockRecords = [
+    // Subject 1: Week 3
     {
       ID: "cbt_mock_1",
       CANDIDATE_NAME: "김지민",
@@ -5033,25 +5293,26 @@ function injectCbtMockData() {
       SUBMITTED_AT: new Date(Date.now() - 3600000 * 12).toISOString(),
       MARKED_ANSWERS: [0, 1, 2, 3, 0]
     },
+    // Subject 2: Basics
     {
       ID: "cbt_mock_4",
       CANDIDATE_NAME: "정우진",
-      EXAM_NAME: "3주차 실행계획 & 옵티마이저 종합 평가",
-      SCORE: 60,
+      EXAM_NAME: "SQL 튜닝 기본 종합 퀴즈",
+      SCORE: 58,
       PASS_OR_FAIL: "FAIL",
-      DURATION_SECONDS: 190,
-      SUBMITTED_AT: new Date(Date.now() - 86400000).toISOString(),
-      MARKED_ANSWERS: [0, 2, 2, 0, 1]
+      DURATION_SECONDS: 480,
+      SUBMITTED_AT: new Date(Date.now() - 3600000 * 6).toISOString(),
+      MARKED_ANSWERS: [0, 0, 1, 2, 0, 1, 0, 1, 0, 1, 1, 1] // Got 7 correct out of 12 (approx 58%)
     },
     {
       ID: "cbt_mock_5",
       CANDIDATE_NAME: "강다혜",
-      EXAM_NAME: "3주차 실행계획 & 옵티마이저 종합 평가",
-      SCORE: 80,
+      EXAM_NAME: "SQL 튜닝 기본 종합 퀴즈",
+      SCORE: 83,
       PASS_OR_FAIL: "PASS",
-      DURATION_SECONDS: 110,
-      SUBMITTED_AT: new Date(Date.now() - 86400000 * 2).toISOString(),
-      MARKED_ANSWERS: [0, 1, 1, 3, 0]
+      DURATION_SECONDS: 320,
+      SUBMITTED_AT: new Date(Date.now() - 3600000 * 8).toISOString(),
+      MARKED_ANSWERS: [0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 1, 0] // Got 10 correct out of 12 (approx 83%)
     }
   ];
 
@@ -5059,7 +5320,7 @@ function injectCbtMockData() {
   
   Promise.all(promises).then(() => {
     renderCbtAdminDashboard();
-    alert("테스트용 응시 이력 5건이 내장 RDBMS(IndexedDB)에 정상 저장되었습니다.");
+    alert("테스트용 응시 이력 5건(과목별 분산)이 내장 RDBMS(IndexedDB)에 정상 로드되었습니다.");
   }).catch(err => {
     console.error("Mock injection error:", err);
   });
