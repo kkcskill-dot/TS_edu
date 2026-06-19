@@ -94,10 +94,6 @@ function initPerfTextbook() {
       mathBlocks.push({ type: 'display', formula: formula });
       return `@@MATH_PLACEHOLDER_${mathBlocks.length - 1}@@`;
     });
-    processedMd = processedMd.replace(/\$([\s\S]+?)\$/g, (match, formula) => {
-      mathBlocks.push({ type: 'inline', formula: formula });
-      return `@@MATH_PLACEHOLDER_${mathBlocks.length - 1}@@`;
-    });
 
     // Parse Markdown to HTML
     let htmlContent = marked.parse(processedMd);
@@ -106,11 +102,7 @@ function initPerfTextbook() {
     htmlContent = htmlContent.replace(/@@MATH_PLACEHOLDER_(\d+)@@/g, (match, index) => {
       const item = mathBlocks[parseInt(index)];
       if (!item) return match;
-      if (item.type === 'display') {
-        return `$$${item.formula}$$`;
-      } else {
-        return `$${item.formula}$`;
-      }
+      return `$$${item.formula}$$`;
     });
 
     viewer.innerHTML = htmlContent;
