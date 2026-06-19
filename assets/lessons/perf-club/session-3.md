@@ -432,7 +432,7 @@ SQL 문장 내에 `/*+ HINT_NAME */` 형태로 기입하는 옵티마이저 지�
   3. 원인 추적: 야간 자동 통계 수집 작업이 `TB_ORDER` 테이블의 통계를 갱신하면서 `CLUSTERING_FACTOR` 값이 변동되어 옵티마이저의 인덱스 비용 계산 결과가 뒤바뀜.
 
 * **긴급 조치**: `DBMS_SPM.LOAD_PLANS_FROM_CURSOR_CACHE`를 활용하여 기존 양호한 플랜(PLAN_HASH_VALUE: 1234567)을 SQL Plan Baseline으로 고정 등록.
-* **근본 해결**: `TB_ORDER` 테이블의 인덱스 `CLUSTERING_FACTOR`를 주기적으로 모니터링하고, 통계 수집 시 해당 테이블은 고정 통계(Locked Statistics)로 보호하여 자동 갱신 대상에서 제외.
+* **근본 해결**: 통계 수집 시 해당 테이블은 고정 통계(Locked Statistics)로 보호하여 자동 갱신 대상에서 제외.
 
 **[실무 스크립트 3-5] 테이블 통계 고정(Lock) 및 해제**
 
