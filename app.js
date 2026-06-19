@@ -38,8 +38,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 소모임 패널은 partials/perf-club.html 로 분리됨 → 주입 후 초기화 (index.html 경량화)
   window.__panelsReady = (async () => {
-    await injectPartial("partials/perf-club.html?v=7.0");
-    await injectPartial("partials/cbt.html?v=7.0");
+    await injectPartial("partials/perf-club.html?v=7.1");
+    await injectPartial("partials/cbt.html?v=7.1");
     initPerfClubLabs();
     initCbtSystem();
   })();
@@ -4211,8 +4211,116 @@ Predicate Information (identified by operation id):
 
 
 /* -------------------------------------------------------------
- * 19. CBT Exam System & Admin Dashboard Logic
+ * 19. CBT Exam System & Admin Dashboard Logic (IndexedDB RDBMS Engine)
  * ------------------------------------------------------------- */
+
+// Embedded RDBMS Mock Interface using IndexedDB
+const cbtDb = {
+  dbName: "H2_Embedded_CBT",
+  dbVersion: 1,
+  db: null,
+
+  init() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.dbName, this.dbVersion);
+
+      request.onerror = (e) => {
+        console.error("IndexedDB Open Error:", e);
+        reject(e);
+      };
+
+      request.onsuccess = (e) => {
+        this.db = e.target.result;
+        resolve(this.db);
+      };
+
+      request.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains("TB_CBT_RESULT")) {
+          // Schema definition: Primary Key is ID
+          const store = db.createObjectStore("TB_CBT_RESULT", { keyPath: "ID" });
+          // Indexes for sorting and queries
+          store.createIndex("SUBMITTED_AT", "SUBMITTED_AT", { unique: false });
+        }
+      };
+    });
+  },
+
+  // MERGE INTO TB_CBT_RESULT VALUES (...)
+  saveResult(record) {
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject("Database not initialized");
+        return;
+      }
+      const transaction = this.db.transaction(["TB_CBT_RESULT"], "readwrite");
+      const store = transaction.objectStore("TB_CBT_RESULT");
+      const request = store.put(record);
+
+      request.onsuccess = () => resolve(true);
+      request.onerror = (e) => reject(e);
+    });
+  },
+
+  // SELECT * FROM TB_CBT_RESULT ORDER BY SUBMITTED_AT DESC
+  getAllResults() {
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        resolve([]);
+        return;
+      }
+      const transaction = this.db.transaction(["TB_CBT_RESULT"], "readonly");
+      const store = transaction.objectStore("TB_CBT_RESULT");
+      const index = store.index("SUBMITTED_AT");
+      const request = index.openCursor(null, "prev"); // Descending order
+      const results = [];
+
+      request.onsuccess = (e) => {
+        const cursor = e.target.result;
+        if (cursor) {
+          results.push(cursor.value);
+          cursor.continue();
+        } else {
+          resolve(results);
+        }
+      };
+
+      request.onerror = (e) => reject(e);
+    });
+  },
+
+  // DELETE FROM TB_CBT_RESULT WHERE ID = ...
+  deleteResult(id) {
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject("Database not initialized");
+        return;
+      }
+      const transaction = this.db.transaction(["TB_CBT_RESULT"], "readwrite");
+      const store = transaction.objectStore("TB_CBT_RESULT");
+      const request = store.delete(id);
+
+      request.onsuccess = () => resolve(true);
+      request.onerror = (e) => reject(e);
+    });
+  },
+
+  // TRUNCATE TABLE TB_CBT_RESULT
+  clearAll() {
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject("Database not initialized");
+        return;
+      }
+      const transaction = this.db.transaction(["TB_CBT_RESULT"], "readwrite");
+      const store = transaction.objectStore("TB_CBT_RESULT");
+      const request = store.clear();
+
+      request.onsuccess = () => resolve(true);
+      request.onerror = (e) => reject(e);
+    });
+  }
+};
 
 // CBT 5 Questions Database (Week 3 themed)
 const cbtQuestions = [
@@ -4305,6 +4413,13 @@ function initCbtSystem() {
 
   if (btnMockData) btnMockData.onclick = injectCbtMockData;
   if (btnResetData) btnResetData.onclick = resetCbtAdminData;
+
+  // Initialize Embedded Database
+  cbtDb.init().then(() => {
+    console.log("H2_Embedded_CBT (IndexedDB RDBMS) successfully initialized.");
+  }).catch(err => {
+    console.error("Embedded DB failure:", err);
+  });
 
   // Initialize view
   renderCbtIntro();
@@ -4524,7 +4639,6 @@ function moveCbtQuestion(direction) {
 
 function submitCbtExam(force = false) {
   if (!force) {
-    // Check if there are unanswered questions
     const unansweredCount = cbtAnswers.filter(a => a === null).length;
     if (unansweredCount > 0) {
       const confirmSubmit = confirm(`아직 풀지 않은 문제가 ${unansweredCount}문항 있습니다. 이대로 최종 답안을 제출하시겠습니까?`);
@@ -4552,20 +4666,23 @@ function submitCbtExam(force = false) {
   const duration = Math.round((Date.now() - cbtStartTime) / 1000);
   const isPassed = score >= 70;
 
-  // Save to LocalStorage
-  const results = JSON.parse(localStorage.getItem("cbt_exam_results") || "[]");
+  // Save to Embedded DB (TB_CBT_RESULT)
   const newRecord = {
-    id: "cbt_" + Date.now(),
-    candidateName: cbtCandidateName,
-    examName: "3주차 실행계획 & 옵티마이저 종합 평가",
-    score: score,
-    passOrFail: isPassed ? "PASS" : "FAIL",
-    durationSeconds: duration,
-    submittedAt: new Date().toISOString(),
-    markedAnswers: [...cbtAnswers]
+    ID: "cbt_" + Date.now(),
+    CANDIDATE_NAME: cbtCandidateName,
+    EXAM_NAME: "3주차 실행계획 & 옵티마이저 종합 평가",
+    SCORE: score,
+    PASS_OR_FAIL: isPassed ? "PASS" : "FAIL",
+    DURATION_SECONDS: duration,
+    SUBMITTED_AT: new Date().toISOString(),
+    MARKED_ANSWERS: [...cbtAnswers]
   };
-  results.unshift(newRecord);
-  localStorage.setItem("cbt_exam_results", JSON.stringify(results));
+
+  cbtDb.saveResult(newRecord).then(() => {
+    console.log("Result saved successfully in TB_CBT_RESULT");
+  }).catch(err => {
+    console.error("RDBMS Save Failure:", err);
+  });
 
   // Render Result View
   const introView = document.getElementById("cbt-intro-view");
@@ -4594,7 +4711,7 @@ function submitCbtExam(force = false) {
     const mins = Math.floor(duration / 60);
     const secs = duration % 60;
     const durationText = mins > 0 ? `${mins}분 ${secs}초` : `${secs}초`;
-    const formattedDate = new Date(newRecord.submittedAt).toLocaleString();
+    const formattedDate = new Date(newRecord.SUBMITTED_AT).toLocaleString();
     summaryEl.textContent = `총 소요시간: ${durationText} | 제출일시: ${formattedDate}`;
   }
 
@@ -4679,181 +4796,179 @@ function submitCbtExam(force = false) {
 }
 
 // -------------------------------------------------------------
-// CBT Admin Dashboard Operations
+// CBT Admin Dashboard Operations (Async DB Fetching)
 // -------------------------------------------------------------
 
 function renderCbtAdminDashboard() {
-  const results = JSON.parse(localStorage.getItem("cbt_exam_results") || "[]");
+  cbtDb.getAllResults().then(results => {
+    const totalEl = document.getElementById("admin-kpi-total");
+    const scoreEl = document.getElementById("admin-kpi-avg-score");
+    const rateEl = document.getElementById("admin-kpi-pass-rate");
+    const timeEl = document.getElementById("admin-kpi-avg-time");
 
-  const totalEl = document.getElementById("admin-kpi-total");
-  const scoreEl = document.getElementById("admin-kpi-avg-score");
-  const rateEl = document.getElementById("admin-kpi-pass-rate");
-  const timeEl = document.getElementById("admin-kpi-avg-time");
+    const tbody = document.getElementById("admin-results-tbody");
+    const chartContainer = document.getElementById("admin-error-chart-container");
 
-  const tbody = document.getElementById("admin-results-tbody");
-  const chartContainer = document.getElementById("admin-error-chart-container");
+    if (!results || results.length === 0) {
+      if (totalEl) totalEl.textContent = "0건";
+      if (scoreEl) scoreEl.textContent = "0.0점";
+      if (rateEl) rateEl.textContent = "0%";
+      if (timeEl) timeEl.textContent = "0초";
 
-  if (results.length === 0) {
-    if (totalEl) totalEl.textContent = "0건";
-    if (scoreEl) scoreEl.textContent = "0.0점";
-    if (rateEl) rateEl.textContent = "0%";
-    if (timeEl) timeEl.textContent = "0초";
+      if (tbody) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" style="padding: 30px; text-align: center; color: var(--color-text-dark);">
+              응시 내역이 존재하지 않습니다. 데모 데이터를 생성하거나 CBT 시험을 치러 주십시오.
+            </td>
+          </tr>
+        `;
+      }
 
-    if (tbody) {
-      tbody.innerHTML = `
-        <tr>
-          <td colspan="7" style="padding: 30px; text-align: center; color: var(--color-text-dark);">
-            응시 내역이 존재하지 않습니다. 데모 데이터를 생성하거나 CBT 시험을 치러 주십시오.
-          </td>
-        </tr>
-      `;
+      if (chartContainer) {
+        chartContainer.innerHTML = `
+          <div style="font-size: 0.8rem; text-align: center; color: var(--color-text-dark); padding: 40px 0;">
+            데이터가 부족하여 차트를 활성화할 수 없습니다.
+          </div>
+        `;
+      }
+      return;
     }
+
+    // 1. Calculate KPI Statistics
+    const count = results.length;
+    let scoreSum = 0;
+    let passCount = 0;
+    let timeSum = 0;
+
+    results.forEach(r => {
+      scoreSum += r.SCORE;
+      if (r.PASS_OR_FAIL === "PASS") passCount++;
+      timeSum += r.DURATION_SECONDS;
+    });
+
+    const avgScore = (scoreSum / count).toFixed(1);
+    const passRate = Math.round((passCount / count) * 100);
+    const avgTime = Math.round(timeSum / count);
+
+    if (totalEl) totalEl.textContent = `${count}건`;
+    if (scoreEl) scoreEl.textContent = `${avgScore}점`;
+    if (rateEl) rateEl.textContent = `${passRate}%`;
+    if (timeEl) {
+      const mins = Math.floor(avgTime / 60);
+      const secs = avgTime % 60;
+      timeEl.textContent = mins > 0 ? `${mins}분 ${secs}초` : `${secs}초`;
+    }
+
+    // 2. Populate Results Table
+    if (tbody) {
+      tbody.innerHTML = "";
+      results.forEach(row => {
+        const tr = document.createElement("tr");
+        tr.style.borderBottom = "1px solid var(--border-light)";
+        tr.style.transition = "background-color 0.25s";
+        
+        const durationMins = Math.floor(row.DURATION_SECONDS / 60);
+        const durationSecs = row.DURATION_SECONDS % 60;
+        const durationText = durationMins > 0 ? `${durationMins}분 ${durationSecs}초` : `${durationSecs}초`;
+        
+        const formattedDate = new Date(row.SUBMITTED_AT).toLocaleDateString() + " " + new Date(row.SUBMITTED_AT).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+        const isPassed = row.PASS_OR_FAIL === "PASS";
+        const badgeStyle = isPassed 
+          ? "background: rgba(16,185,129,0.1); border: 1px solid var(--accent-emerald); color: var(--accent-emerald);"
+          : "background: rgba(239,68,68,0.1); border: 1px solid var(--accent-crimson); color: var(--accent-crimson);";
+
+        tr.innerHTML = `
+          <td style="padding: 10px 8px; font-weight:600; color: var(--color-text-main);">${row.CANDIDATE_NAME}</td>
+          <td style="padding: 10px 8px; color: var(--color-text-muted);">${row.EXAM_NAME}</td>
+          <td style="padding: 10px 8px; font-weight:700; color: var(--accent-cyan);">${row.SCORE}점</td>
+          <td style="padding: 10px 8px;">
+            <span style="font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; ${badgeStyle}">${row.PASS_OR_FAIL}</span>
+          </td>
+          <td style="padding: 10px 8px; font-family: var(--font-mono); color: var(--color-text-muted);">${durationText}</td>
+          <td style="padding: 10px 8px; color: var(--color-text-dark);">${formattedDate}</td>
+          <td style="padding: 10px 8px; text-align: center;">
+            <button class="delete-btn" style="background:transparent; border:none; color:var(--accent-crimson); cursor:pointer; font-size:0.85rem; padding: 2px 6px;" onclick="deleteCbtRecord('${row.ID}')">✕</button>
+          </td>
+        `;
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    // 3. Compute High Error Rate Analysis
+    const errors = [0, 0, 0, 0, 0];
+    results.forEach(r => {
+      cbtQuestions.forEach((q, idx) => {
+        const userAnswer = r.MARKED_ANSWERS[idx];
+        if (userAnswer !== q.correctIdx) {
+          errors[idx]++;
+        }
+      });
+    });
 
     if (chartContainer) {
-      chartContainer.innerHTML = `
-        <div style="font-size: 0.8rem; text-align: center; color: var(--color-text-dark); padding: 40px 0;">
-          데이터가 부족하여 차트를 활성화할 수 없습니다.
-        </div>
-      `;
+      chartContainer.innerHTML = "";
+      
+      cbtQuestions.forEach((q, idx) => {
+        const wrongCount = errors[idx];
+        const errorPct = Math.round((wrongCount / count) * 100);
+
+        const barBlock = document.createElement("div");
+        barBlock.style.display = "flex";
+        barBlock.style.flexDirection = "column";
+        barBlock.style.gap = "6px";
+
+        const labelRow = document.createElement("div");
+        labelRow.style.display = "flex";
+        labelRow.style.justifyContent = "space-between";
+        labelRow.style.fontSize = "0.78rem";
+
+        const qTitleText = `문항 ${q.qNum}. ` + (
+          idx === 0 ? "Access Predicate 식별" :
+          idx === 1 ? "Filter Predicate 성능 영향" :
+          idx === 2 ? "Clustering Factor 원리" :
+          idx === 3 ? "인덱스 컬럼 가공 오류" :
+          "Subquery Unnesting 개념"
+        );
+
+        labelRow.innerHTML = `
+          <span style="font-weight: 600; color: var(--color-text-main);">${qTitleText}</span>
+          <span style="font-weight: 700; color: ${errorPct >= 50 ? 'var(--accent-crimson)' : 'var(--accent-orange)'};">${errorPct}% 오답 (${wrongCount}/${count}명)</span>
+        `;
+
+        const barTrack = document.createElement("div");
+        barTrack.style.width = "100%";
+        barTrack.style.height = "10px";
+        barTrack.style.background = "rgba(255,255,255,0.05)";
+        barTrack.style.borderRadius = "5px";
+        barTrack.style.overflow = "hidden";
+        barTrack.style.border = "1px solid var(--border-light)";
+
+        const barFill = document.createElement("div");
+        barFill.style.width = `${errorPct}%`;
+        barFill.style.height = "100%";
+        barFill.style.borderRadius = "5px";
+        barFill.style.transition = "width 0.6s ease";
+        
+        if (errorPct >= 60) {
+          barFill.style.background = "linear-gradient(90deg, var(--accent-orange), var(--accent-crimson))";
+        } else if (errorPct >= 30) {
+          barFill.style.background = "linear-gradient(90deg, var(--accent-cyan), var(--accent-orange))";
+        } else {
+          barFill.style.background = "linear-gradient(90deg, var(--accent-emerald), var(--accent-cyan))";
+        }
+
+        barTrack.appendChild(barFill);
+        barBlock.appendChild(labelRow);
+        barBlock.appendChild(barTrack);
+        chartContainer.appendChild(barBlock);
+      });
     }
-    return;
-  }
-
-  // 1. Calculate KPI Statistics
-  const count = results.length;
-  let scoreSum = 0;
-  let passCount = 0;
-  let timeSum = 0;
-
-  results.forEach(r => {
-    scoreSum += r.score;
-    if (r.passOrFail === "PASS") passCount++;
-    timeSum += r.durationSeconds;
+  }).catch(err => {
+    console.error("Dashboard DB fetch error:", err);
   });
-
-  const avgScore = (scoreSum / count).toFixed(1);
-  const passRate = Math.round((passCount / count) * 100);
-  const avgTime = Math.round(timeSum / count);
-
-  if (totalEl) totalEl.textContent = `${count}건`;
-  if (scoreEl) scoreEl.textContent = `${avgScore}점`;
-  if (rateEl) rateEl.textContent = `${passRate}%`;
-  if (timeEl) {
-    const mins = Math.floor(avgTime / 60);
-    const secs = avgTime % 60;
-    timeEl.textContent = mins > 0 ? `${mins}분 ${secs}초` : `${secs}초`;
-  }
-
-  // 2. Populate Results Table
-  if (tbody) {
-    tbody.innerHTML = "";
-    results.forEach(row => {
-      const tr = document.createElement("tr");
-      tr.style.borderBottom = "1px solid var(--border-light)";
-      tr.style.transition = "background-color 0.25s";
-      
-      const durationMins = Math.floor(row.durationSeconds / 60);
-      const durationSecs = row.durationSeconds % 60;
-      const durationText = durationMins > 0 ? `${durationMins}분 ${durationSecs}초` : `${durationSecs}초`;
-      
-      const formattedDate = new Date(row.submittedAt).toLocaleDateString() + " " + new Date(row.submittedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-
-      const isPassed = row.passOrFail === "PASS";
-      const badgeStyle = isPassed 
-        ? "background: rgba(16,185,129,0.1); border: 1px solid var(--accent-emerald); color: var(--accent-emerald);"
-        : "background: rgba(239,68,68,0.1); border: 1px solid var(--accent-crimson); color: var(--accent-crimson);";
-
-      tr.innerHTML = `
-        <td style="padding: 10px 8px; font-weight:600; color: var(--color-text-main);">${row.candidateName}</td>
-        <td style="padding: 10px 8px; color: var(--color-text-muted);">${row.examName}</td>
-        <td style="padding: 10px 8px; font-weight:700; color: var(--accent-cyan);">${row.score}점</td>
-        <td style="padding: 10px 8px;">
-          <span style="font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; ${badgeStyle}">${row.passOrFail}</span>
-        </td>
-        <td style="padding: 10px 8px; font-family: var(--font-mono); color: var(--color-text-muted);">${durationText}</td>
-        <td style="padding: 10px 8px; color: var(--color-text-dark);">${formattedDate}</td>
-        <td style="padding: 10px 8px; text-align: center;">
-          <button class="delete-btn" style="background:transparent; border:none; color:var(--accent-crimson); cursor:pointer; font-size:0.85rem; padding: 2px 6px;" onclick="deleteCbtRecord('${row.id}')">✕</button>
-        </td>
-      `;
-
-      tbody.appendChild(tr);
-    });
-  }
-
-  // 3. Compute High Error Rate Analysis
-  // Out of all entries, how many got Q1, Q2, Q3, Q4, Q5 wrong?
-  const errors = [0, 0, 0, 0, 0];
-  results.forEach(r => {
-    cbtQuestions.forEach((q, idx) => {
-      const userAnswer = r.markedAnswers[idx];
-      if (userAnswer !== q.correctIdx) {
-        errors[idx]++;
-      }
-    });
-  });
-
-  if (chartContainer) {
-    chartContainer.innerHTML = "";
-    
-    cbtQuestions.forEach((q, idx) => {
-      const wrongCount = errors[idx];
-      const errorPct = Math.round((wrongCount / count) * 100);
-
-      const barBlock = document.createElement("div");
-      barBlock.style.display = "flex";
-      barBlock.style.flexDirection = "column";
-      barBlock.style.gap = "6px";
-
-      const labelRow = document.createElement("div");
-      labelRow.style.display = "flex";
-      labelRow.style.justifyContent = "space-between";
-      labelRow.style.fontSize = "0.78rem";
-
-      const qTitleText = `문항 ${q.qNum}. ` + (
-        idx === 0 ? "Access Predicate 식별" :
-        idx === 1 ? "Filter Predicate 성능 영향" :
-        idx === 2 ? "Clustering Factor 원리" :
-        idx === 3 ? "인덱스 컬럼 가공 오류" :
-        "Subquery Unnesting 개념"
-      );
-
-      labelRow.innerHTML = `
-        <span style="font-weight: 600; color: var(--color-text-main);">${qTitleText}</span>
-        <span style="font-weight: 700; color: ${errorPct >= 50 ? 'var(--accent-crimson)' : 'var(--accent-orange)'};">${errorPct}% 오답 (${wrongCount}/${count}명)</span>
-      `;
-
-      // Draw custom CSS gauge bar
-      const barTrack = document.createElement("div");
-      barTrack.style.width = "100%";
-      barTrack.style.height = "10px";
-      barTrack.style.background = "rgba(255,255,255,0.05)";
-      barTrack.style.borderRadius = "5px";
-      barTrack.style.overflow = "hidden";
-      barTrack.style.border = "1px solid var(--border-light)";
-
-      const barFill = document.createElement("div");
-      barFill.style.width = `${errorPct}%`;
-      barFill.style.height = "100%";
-      barFill.style.borderRadius = "5px";
-      barFill.style.transition = "width 0.6s ease";
-      
-      if (errorPct >= 60) {
-        barFill.style.background = "linear-gradient(90deg, var(--accent-orange), var(--accent-crimson))";
-      } else if (errorPct >= 30) {
-        barFill.style.background = "linear-gradient(90deg, var(--accent-cyan), var(--accent-orange))";
-      } else {
-        barFill.style.background = "linear-gradient(90deg, var(--accent-emerald), var(--accent-cyan))";
-      }
-
-      barTrack.appendChild(barFill);
-
-      barBlock.appendChild(labelRow);
-      barBlock.appendChild(barTrack);
-
-      chartContainer.appendChild(barBlock);
-    });
-  }
 }
 
 // Global scope exposed deletion function
@@ -4861,82 +4976,84 @@ window.deleteCbtRecord = function(id) {
   const confirmDelete = confirm("해당 응시 기록을 삭제하시겠습니까?");
   if (!confirmDelete) return;
 
-  const results = JSON.parse(localStorage.getItem("cbt_exam_results") || "[]");
-  const filtered = results.filter(r => r.id !== id);
-  localStorage.setItem("cbt_exam_results", JSON.stringify(filtered));
-
-  renderCbtAdminDashboard();
+  cbtDb.deleteResult(id).then(() => {
+    renderCbtAdminDashboard();
+  }).catch(err => {
+    console.error("Failed to delete record:", err);
+  });
 };
 
 function resetCbtAdminData() {
   const confirmReset = confirm("정말로 모든 응시 이력 데이터를 지우시겠습니까? 복구할 수 없습니다.");
   if (!confirmReset) return;
 
-  localStorage.removeItem("cbt_exam_results");
-  renderCbtAdminDashboard();
+  cbtDb.clearAll().then(() => {
+    renderCbtAdminDashboard();
+  }).catch(err => {
+    console.error("Failed to truncate database:", err);
+  });
 }
 
 function injectCbtMockData() {
   const mockRecords = [
     {
-      id: "cbt_mock_1",
-      candidateName: "김지민",
-      examName: "3주차 실행계획 & 옵티마이저 종합 평가",
-      score: 80,
-      passOrFail: "PASS",
-      durationSeconds: 145,
-      submittedAt: new Date(Date.now() - 3600000 * 2).toISOString(), // 2 hours ago
-      markedAnswers: [0, 1, 2, 3, 1] // Wrong Q5
+      ID: "cbt_mock_1",
+      CANDIDATE_NAME: "김지민",
+      EXAM_NAME: "3주차 실행계획 & 옵티마이저 종합 평가",
+      SCORE: 80,
+      PASS_OR_FAIL: "PASS",
+      DURATION_SECONDS: 145,
+      SUBMITTED_AT: new Date(Date.now() - 3600000 * 2).toISOString(),
+      MARKED_ANSWERS: [0, 1, 2, 3, 1]
     },
     {
-      id: "cbt_mock_2",
-      candidateName: "박준영",
-      examName: "3주차 실행계획 & 옵티마이저 종합 평가",
-      score: 40,
-      passOrFail: "FAIL",
-      durationSeconds: 260,
-      submittedAt: new Date(Date.now() - 3600000 * 4).toISOString(), // 4 hours ago
-      markedAnswers: [1, 1, 0, 0, 3] // Wrong Q1, Q3, Q4, Q5
+      ID: "cbt_mock_2",
+      CANDIDATE_NAME: "박준영",
+      EXAM_NAME: "3주차 실행계획 & 옵티마이저 종합 평가",
+      SCORE: 40,
+      PASS_OR_FAIL: "FAIL",
+      DURATION_SECONDS: 260,
+      SUBMITTED_AT: new Date(Date.now() - 3600000 * 4).toISOString(),
+      MARKED_ANSWERS: [1, 1, 0, 0, 3]
     },
     {
-      id: "cbt_mock_3",
-      candidateName: "최윤서",
-      examName: "3주차 실행계획 & 옵티마이저 종합 평가",
-      score: 100,
-      passOrFail: "PASS",
-      durationSeconds: 85,
-      submittedAt: new Date(Date.now() - 3600000 * 12).toISOString(), // 12 hours ago
-      markedAnswers: [0, 1, 2, 3, 0] // All correct
+      ID: "cbt_mock_3",
+      CANDIDATE_NAME: "최윤서",
+      EXAM_NAME: "3주차 실행계획 & 옵티마이저 종합 평가",
+      SCORE: 100,
+      PASS_OR_FAIL: "PASS",
+      DURATION_SECONDS: 85,
+      SUBMITTED_AT: new Date(Date.now() - 3600000 * 12).toISOString(),
+      MARKED_ANSWERS: [0, 1, 2, 3, 0]
     },
     {
-      id: "cbt_mock_4",
-      candidateName: "정우진",
-      examName: "3주차 실행계획 & 옵티마이저 종합 평가",
-      score: 60,
-      passOrFail: "FAIL",
-      durationSeconds: 190,
-      submittedAt: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
-      markedAnswers: [0, 2, 2, 0, 1] // Wrong Q2, Q4, Q5
+      ID: "cbt_mock_4",
+      CANDIDATE_NAME: "정우진",
+      EXAM_NAME: "3주차 실행계획 & 옵티마이저 종합 평가",
+      SCORE: 60,
+      PASS_OR_FAIL: "FAIL",
+      DURATION_SECONDS: 190,
+      SUBMITTED_AT: new Date(Date.now() - 86400000).toISOString(),
+      MARKED_ANSWERS: [0, 2, 2, 0, 1]
     },
     {
-      id: "cbt_mock_5",
-      candidateName: "강다혜",
-      examName: "3주차 실행계획 & 옵티마이저 종합 평가",
-      score: 80,
-      passOrFail: "PASS",
-      durationSeconds: 110,
-      submittedAt: new Date(Date.now() - 86400000 * 2).toISOString(), // 2 days ago
-      markedAnswers: [0, 1, 1, 3, 0] // Wrong Q3
+      ID: "cbt_mock_5",
+      CANDIDATE_NAME: "강다혜",
+      EXAM_NAME: "3주차 실행계획 & 옵티마이저 종합 평가",
+      SCORE: 80,
+      PASS_OR_FAIL: "PASS",
+      DURATION_SECONDS: 110,
+      SUBMITTED_AT: new Date(Date.now() - 86400000 * 2).toISOString(),
+      MARKED_ANSWERS: [0, 1, 1, 3, 0]
     }
   ];
 
-  const results = JSON.parse(localStorage.getItem("cbt_exam_results") || "[]");
-  // Prepend to current records
-  const merged = [...mockRecords, ...results];
-  localStorage.setItem("cbt_exam_results", JSON.stringify(merged));
-
-  renderCbtAdminDashboard();
-  alert("테스트용 응시 이력 5건이 대시보드에 성공적으로 로드되었습니다.");
+  const promises = mockRecords.map(rec => cbtDb.saveResult(rec));
+  
+  Promise.all(promises).then(() => {
+    renderCbtAdminDashboard();
+    alert("테스트용 응시 이력 5건이 내장 RDBMS(IndexedDB)에 정상 저장되었습니다.");
+  }).catch(err => {
+    console.error("Mock injection error:", err);
+  });
 }
-
-
