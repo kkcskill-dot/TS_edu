@@ -4804,7 +4804,7 @@ function initCbtSystem() {
   if (btnStart) btnStart.onclick = startCbtExam;
   if (btnPrev) btnPrev.onclick = () => moveCbtQuestion(-1);
   if (btnNext) btnNext.onclick = () => moveCbtQuestion(1);
-  if (btnSubmit) btnSubmit.onclick = submitCbtExam;
+  if (btnSubmit) btnSubmit.onclick = () => submitCbtExam();
   if (btnRestart) btnRestart.onclick = renderCbtIntro;
 
   if (btnMockData) btnMockData.onclick = injectCbtMockData;
