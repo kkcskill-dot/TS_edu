@@ -201,14 +201,15 @@ function initRouter() {
         selectCbtSubject(subKey);
         renderCbtIntro();
       } else if (targetPanel === "panel-cbt-admin") {
-        const pw = prompt("관리자 비밀번호를 입력해 주세요:");
-        if (pw === "qhdkscjfwj!!") {
-          renderCbtAdminDashboard();
-        } else {
-          alert("비밀번호가 일치하지 않습니다. 관리자 권한이 필요합니다.");
-          const homeBtn = document.getElementById("brand-home-btn");
-          if (homeBtn) homeBtn.click();
-        }
+        showAdminPasswordModal().then(granted => {
+          if (granted) {
+            renderCbtAdminDashboard();
+          } else {
+            const homeBtn = document.getElementById("brand-home-btn");
+            if (homeBtn) homeBtn.click();
+          }
+        });
+        return; // prevent default panel switch until modal resolves
       }
     });
   });
@@ -5617,5 +5618,66 @@ function injectCbtMockData() {
     alert("테스트용 응시 이력 8건(5대 과목 분산)이 내장 RDBMS(IndexedDB)에 정상 로드되었습니다.");
   }).catch(err => {
     console.error("Mock injection error:", err);
+  });
+}
+
+/* -------------------------------------------------------------
+ * Admin Password Modal Helper
+ * ------------------------------------------------------------- */
+function showAdminPasswordModal() {
+  return new Promise(resolve => {
+    const modal = document.getElementById("admin-pw-modal");
+    const input = document.getElementById("admin-pw-input");
+    const btnConfirm = document.getElementById("admin-pw-confirm");
+    const btnCancel = document.getElementById("admin-pw-cancel");
+
+    if (!modal || !input) {
+      // Fallback if modal elements missing
+      resolve(false);
+      return;
+    }
+
+    // Reset & show
+    input.value = "";
+    modal.style.display = "flex";
+    setTimeout(() => input.focus(), 100);
+
+    function cleanup() {
+      modal.style.display = "none";
+      input.value = "";
+      btnConfirm.onclick = null;
+      btnCancel.onclick = null;
+      input.onkeydown = null;
+      modal.onclick = null;
+    }
+
+    function handleConfirm() {
+      const pw = input.value;
+      cleanup();
+      if (pw === "qhdkscjfwj!!") {
+        resolve(true);
+      } else {
+        alert("비밀번호가 일치하지 않습니다. 관리자 권한이 필요합니다.");
+        resolve(false);
+      }
+    }
+
+    function handleCancel() {
+      cleanup();
+      resolve(false);
+    }
+
+    btnConfirm.onclick = handleConfirm;
+    btnCancel.onclick = handleCancel;
+
+    input.onkeydown = (e) => {
+      if (e.key === "Enter") handleConfirm();
+      if (e.key === "Escape") handleCancel();
+    };
+
+    // Click outside modal content to cancel
+    modal.onclick = (e) => {
+      if (e.target === modal) handleCancel();
+    };
   });
 }
