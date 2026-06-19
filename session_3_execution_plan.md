@@ -278,15 +278,15 @@ $$\text{E-Rows} \times \text{Starts} \approx \text{A-Rows}$$
 ------------------------------------------------------------------------------------------------------
 | Id  | Operation                     | Name              | Starts | E-Rows | A-Rows | Buffers | Cost |
 ------------------------------------------------------------------------------------------------------
-|   0 | SELECT STATEMENT              |                   |      1 |        |     85 |    120K |  450 |
-|   1 |  TABLE ACCESS BY INDEX ROWID  | TB_LOG            |      1 |  250K  |     85 |    120K |  450 |
-|*  2 |   INDEX RANGE SCAN            | IX_LOG_STATUS     |      1 |  250K  |     85 |      3  |    4 |
+|   0 | SELECT STATEMENT              |                   |      1 |        |     85 |      88 |  450 |
+|   1 |  TABLE ACCESS BY INDEX ROWID  | TB_LOG            |      1 |  250K  |     85 |      88 |  450 |
+|*  2 |   INDEX RANGE SCAN            | IX_LOG_STATUS     |      1 |  250K  |     85 |       3 |    4 |
 ------------------------------------------------------------------------------------------------------
    Predicate: STATUS = 'ERROR'
 ```
 
 * **수리적 오차 추적**: `Id 2`번 인덱스 스캔에서 옵티마이저는 `STATUS = 'ERROR'` 조건에 매칭되는 건수를 **250,000건**(25만 건)으로 예측했습니다. 그러나 실제로는 **85건**만 존재했습니다.
-* **원인 분석**: `STATUS` 컬럼의 `NUM_DISTINCT = 4`이고 `NUM_ROWS = 1,000,000`이므로, 히스토그램이 없는 상태에서 균등 분포를 가정하여 $1{,}000{,}000 \div 4 = 250{,}000$건으로 계산한 것입니다. 실제로는 'ACTIVE' 99.5%, 'PENDING' 0.3%, 'CLOSED' 0.19%, 'ERROR' 0.01%의 극단적 편향 분포였습니다.
+* **원인 분석**: `STATUS` 컬럼의 `NUM_DISTINCT = 4`이고 `NUM_ROWS = 1,000,000`이므로, 히스토그램이 없는 상태에서 균등 분포를 가정하여 **1,000,000 ÷ 4 = 250,000** 건으로 계산한 것입니다. 실제로는 'ACTIVE' 99.5%, 'PENDING' 0.3%, 'CLOSED' 0.19%, 'ERROR' 0.01%의 극단적 편향 분포였습니다.
 * **성능 영향**: 옵티마이저는 25만 건을 인덱스로 뽑으면 Random I/O가 과다하다고 판단하여, Full Table Scan이 더 저렴하다고 결론 내릴 수도 있었습니다. 이 케이스에서는 인덱스를 선택했지만, `E-Rows`를 25만 건으로 잡은 결과 후속 조인에서 HASH JOIN을 선택하는 등 연쇄적 오판이 발생합니다.
 * **해결책**: `DBMS_STATS.GATHER_TABLE_STATS`에서 `method_opt => 'FOR COLUMNS SIZE 254 STATUS'`를 명시하여 `STATUS` 컬럼에 히스토그램을 수집합니다.
 
