@@ -38,8 +38,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 소모임 패널은 partials/perf-club.html 로 분리됨 → 주입 후 초기화 (index.html 경량화)
   window.__panelsReady = (async () => {
-    await injectPartial("partials/perf-club.html?v=7.3");
-    await injectPartial("partials/cbt.html?v=7.3");
+    await injectPartial("partials/perf-club.html?v=7.4");
+    await injectPartial("partials/cbt.html?v=7.4");
     initPerfClubLabs();
     initCbtSystem();
   })();
@@ -197,6 +197,8 @@ function initRouter() {
       } else if (targetPanel === "panel-index-efficiency") {
         renderIndexScanEfficiencyLab();
       } else if (targetPanel === "panel-cbt") {
+        const subKey = btn.getAttribute("data-cbt-subject") || "week3";
+        selectCbtSubject(subKey);
         renderCbtIntro();
       } else if (targetPanel === "panel-cbt-admin") {
         const pw = prompt("관리자 비밀번호를 입력해 주세요:");
@@ -4867,8 +4869,8 @@ function submitCbtExam(force = false) {
   if (!force) {
     const unansweredCount = cbtAnswers.filter(a => a === null).length;
     if (unansweredCount > 0) {
-      const confirmSubmit = confirm(`아직 풀지 않은 문제가 ${unansweredCount}문항 있습니다. 이대로 최종 답안을 제출하시겠습니까?`);
-      if (!confirmSubmit) return;
+      alert(`아직 풀지 않은 문제가 ${unansweredCount}문항 있습니다. 모든 문항을 마킹하셔야 최종 답안을 제출할 수 있습니다.`);
+      return;
     } else {
       const confirmSubmit = confirm("답안을 모두 작성하셨습니다. 제출하고 시험을 끝마치시겠습니까?");
       if (!confirmSubmit) return;
