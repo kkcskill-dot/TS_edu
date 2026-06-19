@@ -39,7 +39,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // 소모임 패널은 partials/perf-club.html 로 분리됨 → 주입 후 초기화 (index.html 경량화)
   window.__panelsReady = (async () => {
     await injectPartial("partials/perf-club.html?v=7.4");
-    await injectPartial("partials/cbt.html?v=7.4");
+    await injectPartial("partials/cbt.html?v=7.5");
     initPerfClubLabs();
     initCbtSystem();
   })();
@@ -4849,6 +4849,7 @@ function initCbtSystem() {
   const btnSubmit = document.getElementById("btn-cbt-submit");
   const btnRestart = document.getElementById("btn-cbt-restart");
 
+  const btnRefresh = document.getElementById("btn-admin-refresh");
   const btnMockData = document.getElementById("btn-admin-mock-data");
   const btnResetData = document.getElementById("btn-admin-reset-data");
   const adminFilter = document.getElementById("admin-subject-filter");
@@ -4859,6 +4860,7 @@ function initCbtSystem() {
   if (btnSubmit) btnSubmit.onclick = () => submitCbtExam();
   if (btnRestart) btnRestart.onclick = renderCbtIntro;
 
+  if (btnRefresh) btnRefresh.onclick = renderCbtAdminDashboard; // 서버에서 전 사용자 기록 재조회
   if (btnMockData) btnMockData.onclick = injectCbtMockData;
   if (btnResetData) btnResetData.onclick = resetCbtAdminData;
   if (adminFilter) {
