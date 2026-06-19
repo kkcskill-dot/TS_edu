@@ -271,6 +271,11 @@
 .app-container[data-course="sql-foundation"] .course-menu[data-course="sql-foundation"],
 .app-container[data-course="sql-tuning-basics"] .course-menu[data-course="sql-tuning-basics"],
 .app-container[data-course="data-modeling"] .course-menu[data-course="data-modeling"] { display: block; }
+.app-container[data-course="cbt"] .course-menu[data-course="cbt"] {
+  display: flex !important;
+  flex-direction: column;
+  flex-grow: 1;
+}
 
 /* 학습자료 마크다운 코드 폰트 = D2Coding */
 .markdown-body code,

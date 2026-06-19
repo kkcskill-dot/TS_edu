@@ -4218,7 +4218,6 @@ Predicate Information (identified by operation id):
   }
 }
 
-
 /* -------------------------------------------------------------
  * 19. CBT Exam System & Admin Dashboard Logic (IndexedDB RDBMS Engine)
  * ------------------------------------------------------------- */
@@ -4550,6 +4549,233 @@ const cbtSubjects = {
         explanation: "실제 실행 행수(A-Rows) 및 실제 소요 시간을 실측하려면 <strong>/*+ GATHER_PLAN_STATISTICS */</strong> 힌트와 함께 쿼리를 수행한 뒤, 'DBMS_XPLAN.DISPLAY_CURSOR' 패키지의 포맷 매개변수로 <code>'ALLSTATS LAST'</code>를 부여해 실행계획과 실측 통계를 비교해야 합니다."
       }
     ]
+  },
+  sql_basics: {
+    title: "SQL 기초 종합 퀴즈",
+    desc: "SQL 입문 단계의 논리적 실행 순서, NULL 조건 처리, GROUP BY 집계 및 HAVING 조건절, OUTER JOIN의 작동 원리, 분석함수(DENSE_RANK) 및 집합 연산자(UNION ALL)의 정석을 종합적으로 테스트합니다.",
+    limitSeconds: 480, // 8 minutes
+    questions: [
+      {
+        qNum: 1,
+        text: "Q1. 데이터베이스 쿼리 수행 시 옵티마이저가 논리적으로 가장 먼저 구문 분석하고 실행을 개시하는 SQL 절(Clause)은 무엇인가?",
+        options: ["FROM 절", "SELECT 절", "ORDER BY 절", "WHERE 절"],
+        correctIdx: 0,
+        explanation: "SQL의 논리적 실행 순서는 <strong>FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY</strong> 순서입니다. 따라서 최우선으로 테이블과 대상 집합을 식별하는 FROM 절이 논리적으로 가장 먼저 실행되며, 이로 인해 WHERE 절 조건에서는 SELECT 절에서 선언한 컬럼 별칭(Alias)을 절대 참조할 수 없습니다."
+      },
+      {
+        qNum: 2,
+        text: "Q2. 데이터베이스 테이블 내 특정 컬럼의 값이 NULL인 데이터를 식별하여 추출하기 위해 WHERE 절에 기입해야 하는 문법적으로 올바른 조건식은 무엇인가?",
+        options: ["MEMBER_NO = NULL", "MEMBER_NO IS NULL", "MEMBER_NO == NULL", "MEMBER_NO <> NULL"],
+        correctIdx: 1,
+        explanation: "관계형 데이터베이스에서 NULL은 '값 없음' 또는 '미정'을 뜻하는 특수 마커로, 일반적인 비교 연산자(=, !=, <>)로는 식별이 절대 불가능합니다. 따라서 반드시 <strong>IS NULL</strong> 또는 <strong>IS NOT NULL</strong> 비교 조건식을 사용해야 올바르게 처리됩니다."
+      },
+      {
+        qNum: 3,
+        text: "Q3. 그룹 함수(집계 연산) 적용 결과 그룹별 집계 데이터(예: SUM, AVG 등)에 대한 필터링 조건절을 지정할 때 사용하는 전용 쿼리 구절은 무엇인가?",
+        options: ["WHERE 절", "HAVING 절", "FILTER 절", "GROUP BY 절"],
+        correctIdx: 1,
+        explanation: "<strong>WHERE 절</strong>은 그룹화(GROUP BY)가 진행되기 전 테이블 개별 레코드에 대한 조건 필터링을 수행하며, <strong>HAVING 절</strong>은 그룹화 및 집계가 완전히 완료된 결과 집합 컬럼에 대해 필터 조건을 가하는 절입니다."
+      },
+      {
+        qNum: 4,
+        text: "Q4. 두 테이블을 조인할 때, 조인 매칭 조건에 실패하더라도 좌측(Left) 테이블의 모든 행을 유실시키지 않고 그대로 결과셋에 잔존시켜 출력해 주는 아웃 조인 방식은?",
+        options: ["INNER JOIN", "LEFT OUTER JOIN", "CROSS JOIN", "INTERSECT"],
+        correctIdx: 1,
+        explanation: "<strong>LEFT OUTER JOIN</strong>은 좌측 테이블의 모든 레코드를 유지하고, 우측 테이블에 등치되는 값이 없을 경우 우측 테이블 컬럼을 NULL로 패딩하여 결과셋을 보존합니다."
+      },
+      {
+        qNum: 5,
+        text: "Q5. 특정 테이블에 대해 COUNT(COMMISSION) 함수를 적용한 결과가 전체 테이블 행의 총 갯수인 COUNT(*)를 수행한 결과보다 더 작은 정수로 반환될 수 있는 핵심 요인은 무엇인가?",
+        options: ["COMMISSION 컬럼 데이터 중 일부 행에 NULL이 적재되어 있기 때문", "COMMISSION 컬럼의 선언 형태가 숫자(NUMBER)형 타입이기 때문", "ORDER BY 정렬 과정에서 내부 래치 잠금(Lock) 병목이 생겼기 때문", "데이터베이스 엔진에서 COUNT(*) 결과는 항상 COMMISSION 개수보다 크게 자동 보정되기 때문"],
+        correctIdx: 0,
+        explanation: "<code>COUNT(*)</code>는 테이블의 물리적 행(레코드)의 총 개수를 집계하며, <code>COUNT(컬럼명)</code>은 대상 컬럼의 데이터 중 <strong>NULL이 아닌 유효 데이터가 적재된 행의 개수만</strong>을 카운트하므로 NULL이 존재할 시 결과값 차이가 발생합니다."
+      },
+      {
+        qNum: 6,
+        text: "Q6. SQL 윈도우(분석) 함수 중 정렬 순서대로 동점자에게 동일한 순위(예: 공동 2등)를 부여하되, 동점 순위 집합 바로 다음 레코드의 순위 번호를 건너뛰지 않고 순차적으로 일련번호(예: 1, 2, 2, 3...)를 이어붙여 출력해 주는 함수는 무엇인가?",
+        options: ["RANK", "DENSE_RANK", "ROW_NUMBER", "NTILE"],
+        correctIdx: 1,
+        explanation: "분석함수 중 <strong>RANK</strong>는 공동 순위 수만큼 다음 번호를 건너뛰고(예: 1, 2, 2, 4), <strong>DENSE_RANK</strong>는 건너뛰지 않고 촘촘하게 다음 순위를 출력하며(예: 1, 2, 2, 3), <strong>ROW_NUMBER</strong>는 중복 없이 유일한 순위를 강제(예: 1, 2, 3, 4)합니다."
+      },
+      {
+        qNum: 7,
+        text: "Q7. 여러 테이블의 결과 행셋을 병합할 때, 데이터 결과의 중복 제거 연산을 거치지 않고 가장 빠르고 기계적으로 결과를 두 계층으로 단순 누적 합치기 연산을 수행할 수 있는 집합 연산자는?",
+        options: ["UNION", "UNION ALL", "INTERSECT", "MINUS"],
+        correctIdx: 1,
+        explanation: "<code>UNION</code> 연산자는 중복된 데이터를 제거하기 위해 임시 세그먼트 공간에서 무거운 <strong>SORT UNIQUE</strong> 정렬 작업을 강행하지만, <code>UNION ALL</code>은 단순 합병을 무정렬(Direct 합산)로 수행하므로 성능 병목이 전혀 발생하지 않아 대단히 고속으로 처리됩니다."
+      },
+      {
+        qNum: 8,
+        text: "Q8. 조건절(WHERE 절)을 완전히 누락시킨 상태에서 UPDATE 명령문을 호출하여 테이블 내 특정 필드를 변경하려 했을 때 나타나는 현상으로 가장 올바른 것은?",
+        options: ["데이터베이스 문법 에러를 유발하며 실행이 원천 차단된다.", "테이블에 어떤 변경도 일어나지 않고 트랜잭션이 종료된다.", "테이블 내 적재되어 있는 모든 전체 레코드의 해당 컬럼 값이 일괄 변경된다.", "테이블의 가장 첫 번째(ROWID가 가장 빠른) 레코드 한 건만 변경된다."],
+        correctIdx: 2,
+        explanation: "조건절(WHERE)이 생략된 UPDATE문은 <strong>테이블 전체 블록의 모든 행을 수정 대상으로 간주</strong>하여 일괄 갱신을 수행합니다. 운영 서버에서 대형 유실 장애를 초래하므로 주의해야 합니다."
+      }
+    ]
+  },
+  data_modeling: {
+    title: "데이터 모델링 종합 퀴즈",
+    desc: "업무 요건 분석부터 데이터 모델의 개념·논리·물리적 추상화 구조, 기본키/외래키 규칙, 정규화(1NF~3NF)를 통한 설계 이상현상 제어, 물리 컬럼 설계 안티패턴 및 선분 이력 모델링까지 정석 구조를 테스트합니다.",
+    limitSeconds: 600, // 10 minutes
+    questions: [
+      {
+        qNum: 1,
+        text: "Q1. 데이터 모델 추상화의 3가지 수준(Architecture Level)을 비즈니스 분석부터 데이터베이스 물리 저장 장치 설계까지 단계별 정석 흐름 순서로 올바르게 배열한 것은?",
+        options: ["개념 데이터 모델링 → 논리 데이터 모델링 → 물리 데이터 모델링", "물리 데이터 모델링 → 논리 데이터 모델링 → 개념 데이터 모델링", "논리 데이터 모델링 → 개념 데이터 모델링 → 물리 데이터 모델링", "개념 데이터 모델링 → 물리 데이터 모델링 → 논리 데이터 모델링"],
+        correctIdx: 0,
+        explanation: "가장 먼저 업무 요건의 핵심 뼈대 엔티티를 정하는 <strong>개념 모델링</strong>을 거쳐, 이를 정밀하게 관계 구조화하고 정규화하는 <strong>논리 모델링</strong>을 진행한 뒤, 특정 RDBMS의 물리 데이터 공간과 인덱스를 타겟팅하여 저장소 구조를 픽스하는 <strong>물리 모델링</strong> 순서로 진행됩니다."
+      },
+      {
+        qNum: 2,
+        text: "Q2. 관계형 데이터베이스 무결성(Integrity) 규약 중 개체 무결성(Entity Integrity)이 기본적으로 제약 및 보장하는 성질을 가장 정확하게 표현한 것은?",
+        options: ["테이블의 기본키(Primary Key)를 구성하는 속성은 절대 NULL이 될 수 없으며 고유하다.", "테이블의 외래키(Foreign Key)는 항상 참조 대상 테이블의 기본키로 존재하거나 완전한 NULL 상태여야 한다.", "특정 컬럼에 적재되는 데이터의 값은 사전에 도메인(Domain) 제약에 맵핑된 범위 내에서만 허용된다.", "모든 테이블 세그먼트에는 고속 검색을 위해 최소 1개 이상의 유효한 B-Tree 인덱스가 존재해야 한다."],
+        correctIdx: 0,
+        explanation: "<strong>개체 무결성</strong>은 식별자의 정체성을 확립하기 위한 약속으로, 기본키(PK)는 <strong>NOT NULL 조건과 UNIQUE 제약</strong>을 반드시 모두 충족해야 한다는 규칙입니다. 외래키 관련 조건은 참조 무결성(Referential Integrity) 규약입니다."
+      },
+      {
+        qNum: 3,
+        text: "Q3. 관계형 데이터베이스 정규화 모델 구축 시 두 엔티티 간에 존재할 수 있는 다대다(M:N) 관계의 논리적 한계를 보완하고 실제 RDBMS 세그먼트로 구현하기 위해 수행하는 정석 설계 흐름은?",
+        options: ["두 엔티티를 매개해 주는 신규 교차(연관/매핑) 엔티티를 정의하여 1:N + N:1 관계로 해소한다.", "RDBMS 테이블은 M:N 관계를 직접 매핑할 수 있으므로 설계 구조를 그대로 유지한다.", "두 엔티티 중 우선순위가 떨어지는 한쪽 테이블의 참조 식별자 관계를 완전히 삭제한다.", "두 엔티티의 최하단에 외래키(Foreign Key) 속성만을 각각 2개씩 순환 생성하여 물리 조인 경로를 고정한다."],
+        correctIdx: 0,
+        explanation: "관계형 모델은 두 테이블 간 M:N 연결을 물리적으로 구현할 수 없습니다. 따라서 업무적 중복과 불일치를 피하기 위해 주문상품, 계약상세와 같은 <strong>교차(연관) 엔티티</strong>를 가운데 추가함으로써 1:N과 N:1 관계 구조로 세부 분해해야 합니다."
+      },
+      {
+        qNum: 4,
+        text: "Q4. 비즈니스 설계 전반을 정의하는 데이터 모델링 3단계 중, 개념 데이터 모델링(Conceptual Modeling) 단계에서 도달해야 하는 가장 핵심적인 마일스톤 목표는 무엇인가?",
+        options: ["현업 비즈니스의 핵심 엔티티(뼈대)와 관계를 발굴하여 전사 수준에서 조속히 합의하는 것", "RDBMS의 종류별 데이터 블록 구조 및 물리 디스크 스토리지 분할 설계를 고정하는 것", "모든 컬럼의 데이터 타입을 VARCHAR2/NUMBER 등으로 확정하고 인덱스 분할 전략을 픽스하는 것", "대용량 테이블 해시 파티셔닝 키를 지정하고 PGA 임시 정렬 메모리를 확장시키는 것"],
+        correctIdx: 0,
+        explanation: "<strong>개념 모델링</strong>은 초기 설계 분석 단계에서 핵심적인 엔티티(Entity)와 주요 비즈니스 관계를 도출하여 이해관계자 간에 아키텍처의 큰 뼈대를 합의 및 동기화하는 데 주안점을 둡니다."
+      },
+      {
+        qNum: 5,
+        text: "Q5. 데이터 모델 관계 매핑 설계 시, 부모 엔티티의 기본키(PK)가 상속되면서 자식 엔티티의 '기본키의 일부 속성'으로 포함되는 논리적 참조 식별자 형태는?",
+        options: ["식별 관계 (Identifying Relationship)", "비식별 관계 (Non-Identifying Relationship)", "순환 관계 (Recursive Relationship)", "선택 관계 (Optional Relationship)"],
+        correctIdx: 0,
+        explanation: "부모의 기본키가 자식 엔티티의 기본키(PK) 영역의 일부 속성으로 고정 편입되면 <strong>식별 관계(실선 표현)</strong>라고 하며, 기본키가 아닌 단순 일반 속성(외래키)으로 연결되면 <strong>비식별 관계(점선 표현)</strong>라고 합니다."
+      },
+      {
+        qNum: 6,
+        text: "Q6. 정규화(Normalization) 과정 중 기본키가 아닌 일반 속성 간에 존재하는 이행적 함수 종속성(Transitive Functional Dependency: A→B 이고 B→C 일 때 A→C 가 유도되는 종속)을 완전히 제거하여 무손실 분해를 보장하는 정규형 단계는?",
+        options: ["제3정규형 (3NF)", "제1정규형 (1NF)", "제2정규형 (2NF)", "보이스-코드 정규형 (BCNF)"],
+        correctIdx: 0,
+        explanation: "1NF는 컬럼의 원자값을 보장하고, 2NF는 기본키의 일부분에 종속되는 부분 함수 종속을 제거하며, <strong>3NF</strong>는 주 식별자를 거치지 않고 일반 속성 간에 이중으로 종속되는 이행적 함수 종속성을 완전히 분해하여 제거합니다."
+      },
+      {
+        qNum: 7,
+        text: "Q7. 정규화가 완료되지 않은 테이블 구조에서 발생하는 갱신 이상(Update Anomaly) 병목의 근본적인 원인을 가장 정확하게 지적한 것은?",
+        options: ["동일한 사실(Data Fact)이 한 개 테이블 내 혹은 여러 블록에 중복 저장되어 있기 때문", "테이블 세그먼트에 유효한 인덱스가 존재하지 않아 전체 행 스캔 속도가 느려지기 때문", "컬럼 속성에 NULL 값이 지나치게 대량으로 포진되어 메모리 정렬 공간을 낭비하기 때문", "테이블 파티셔닝 설계가 누락되어 쓰기 락(Lock) 점유 시간이 지연되기 때문"],
+        correctIdx: 0,
+        explanation: "데이터 이상현상(삽입, 삭제, 갱신 이상)의 핵심 원인은 데이터 중복입니다. <strong>'One Fact in One Place'</strong> 원칙이 무너지고 같은 사실이 테이블 내에 여러 차례 복제되어 적재될 때, 특정 레코드만 업데이트하면 데이터 무결성과 일관성이 붕괴되는 현상입니다."
+      },
+      {
+        qNum: 8,
+        text: "Q8. 데이터베이스 물리 튜닝 단계에서 널리 검토되는 반정규화(Denormalization)에 대한 올바른 설계적 관점 및 수행 방법은?",
+        options: ["실측된 조회 병목(Read Performance) 경로에 한해, 정밀한 검증을 거쳐 의도적으로 데이터 중복을 일부 허용하는 기법", "데이터 모델링 초기 단계부터 성능 향상을 위해 아예 정규화 자체를 일체 배제하고 설계하는 일", "RDBMS 조회 처리가 무조건 빨라지므로 정규화 수립 즉시 테이블 병합부터 우선적으로 적용하는 일", "테이블을 제1정규형(1NF) 이전의 단순 원시 텍스트 파일 단위로 분해하여 저장하는 일"],
+        correctIdx: 0,
+        explanation: "반정규화는 정규화가 완료된 물리 모델을 대상으로 조회 부하가 입증된 특정 트랜잭션 경로에 한하여 중복 테이블/중복 컬럼을 추가해 I/O 성능을 보장하는 <strong>최후의 튜닝 제어 수단</strong>입니다."
+      },
+      {
+        qNum: 9,
+        text: "Q9. 주민등록번호, 가격, 계좌번호 등 수치나 고유 코드로 구성된 중요 데이터를 데이터 타입 매칭 분석 없이 테이블의 VARCHAR2(문자) 컬럼으로 무분별하게 적재했을 때 발생하는 가장 치명적인 성능 병목은?",
+        options: ["조인 및 범위 조건절 검색 시 데이터베이스 엔진의 강제 묵시적 형변환을 유발하여 B-Tree 인덱스가 작동하지 않는다.", "문자 데이터 컬럼은 숫자형 컬럼에 비해 물리적 저장 공간을 언제나 100배 이상 추가 소모하게 만든다.", "문자 컬럼 조회 시 ORDER BY 정렬 처리가 임시 메모리를 통하지 않고 즉시 완료되어 CPU 병목을 낳는다.", "RDBMS의 외래키(FK) 참조 제약 조건이 영구 손상되어 트랜잭션 롤백 성능이 크게 저하된다."],
+        correctIdx: 0,
+        explanation: "문자 컬럼과 숫자 비교, 또는 그 반대의 경우 데이터베이스 엔진은 내부 우선순위에 입각하여 강제로 좌변의 인덱스 컬럼을 변환시키는 <strong>묵시적 형변환</strong>을 시도합니다. 이로 인해 인덱스 구조가 완전히 무력화(Index Range Scan 차단)되는 성능 재앙을 낳습니다."
+      },
+      {
+        qNum: 10,
+        text: "Q10. 데이터베이스 튜닝 시 특정 테이블에 너무 많은 갯수(예: 10개 초과)의 과다한 인덱스를 설정할 경우 발생하는 현상으로 가장 올바른 것은?",
+        options: ["테이블 데이터를 수정할 때마다 연관된 모든 인덱스 세그먼트도 함께 실시간 정렬 갱신해야 하므로 DML(INSERT, UPDATE, DELETE) 쓰기 성능이 급락한다.", "동시 다발성 쓰기 트랜잭션 작업 시, 락(Lock) 점유 대기 시간이 극도로 단축되어 시스템 동시 처리량이 극대화된다.", "RDBMS 조회(SELECT)의 효율성이 하락하며 무조건 Table Full Scan만 강제 가동하게 된다.", "데이터 세그먼트의 논리적 무결성이 완전히 깨지며 PGA 정렬 영역의 잔여 메모리가 즉시 고갈된다."],
+        correctIdx: 0,
+        explanation: "인덱스는 물리적으로 독자적인 정렬 상태를 유지하는 저장 블록입니다. 따라서 테이블 데이터가 추가/수정/삭제되면 해당 테이블에 설정된 <strong>모든 인덱스 블록을 대상으로 실시간 DML 변경 및 리프 노드 재정렬</strong>을 유발하므로 과다 인덱스는 쓰기 부하를 치솟게 만듭니다."
+      },
+      {
+        qNum: 11,
+        text: "Q11. 데이터가 변경된 특정일의 상태(과거 이력 상태)를 조회할 때, 시작일자와 종료일자를 테이블에 칼럼으로 병렬 적재하여 BETWEEN 한 줄의 단순 쿼리 검색 조건만으로 고속 조회가 가능하도록 고안한 정석 이력 데이터 설계 방식은?",
+        options: ["선분 이력 모델링 (시작일자~종료일자 동시 보존)", "점 이력 모델링 (변경이 일어난 시점의 단일 이시각만 보존)", "무이력 상태 유지 기법 (과거 이력 데이터를 보관하지 않음)", "반복 그룹 컬럼 할당 방식 (컬럼1, 컬럼2를 병렬 복제 나열)"],
+        correctIdx: 0,
+        explanation: "<strong>선분 이력</strong>은 레코드의 유효 기간(유효 시작일자~종료일자)을 별도 컬럼으로 보존하는 방식입니다. 특정 시점의 데이터 조회가 단순 `BETWEEN` 연산 한 번으로 해결되어 조회 쿼리가 극도로 직관적이고 효율적이지만, 신규 변경 DML 발생 시 기존 행의 종료일도 함께 수정해야 하므로 동시성/쓰기 제어 로직이 정밀해야 합니다."
+      },
+      {
+        qNum: 12,
+        text: "Q12. 관계형 테이블 설계 시 비즈니스적으로 실존하지 않는 임의의 시스템 순번(예: 시퀀스 컬럼)을 기본키로 잡는 대리 식별자(Surrogate Key)를 채택할 때, 데이터 무결성 보장을 위해 DBA로서 설계상 함께 누락하지 않고 지정해야 하는 것은?",
+        options: ["실제 업무 규칙 상의 고유 속성군(자연 식별자)에 대한 UNIQUE 제약 조건과 인덱스를 별도 정의한다.", "테이블 내 다른 외래키(Foreign Key) 참조 관계를 RDBMS 딕셔너리에서 전면 영구 봉인한다.", "기본키 컬럼을 물리적으로 가공(TO_CHAR)하여 B-Tree 탐색 효율성을 강제 소멸시킨다.", "대리 식별자 기본키 컬럼에 대해 무조건 NULL 입력을 적극 허용하도록 속성을 정의한다."],
+        correctIdx: 0,
+        explanation: "인조(대리) 식별자는 업무적인 정체성이 없는 무의미한 숫자 등에 불과합니다. 따라서 업무적 기준의 중복 등록을 원천 방지하기 위해서는, 본래의 업무적 고유 식별 속성군(자연 식별자)에 <strong>UNIQUE 제약과 인덱스</strong>를 필수로 수립해야만 데이터 무결성이 지켜집니다."
+      }
+    ]
+  },
+  plan_quiz: {
+    title: "실행계획 실무 분석 퀴즈",
+    desc: "오라클 DBMS_XPLAN의 Starts, Buffers, E-Rows, A-Rows 실측 수치를 결합 분석하여 NL조인 병목 구간을 진단하고, Index Skip Scan 및 STALE 노후화 데이터 잠금, SPM을 활용한 운영 플랜 원복 기법을 테스트합니다.",
+    limitSeconds: 480, // 8 minutes
+    questions: [
+      {
+        qNum: 1,
+        text: "Q1. 중첩 루프 조인(Nested Loops) 실행 계획 분석 결과, Inner Table 스캔 노드(Starts=50,000, Buffers=150,000, A-Rows=2)에서 매번 3개 블록의 아주 효율적인 인덱스 스캔(Buffers=150,000/50,000=3)이 이루어졌음에도 누적 Buffers 부하가 심한 원인과 조치법은?",
+        options: [
+          "IX_ORDER_DATE 인덱스의 정렬 형태가 유실되었으므로 FBI(함수 기반 인덱스)를 추가하여 디스크 I/O를 단축시킨다.",
+          "단일 인덱스 탐색은 최적이나, 대량 조인 루프(Starts 50,000)로 인한 미시적 Buffers 누적이 병목의 근본 원인이므로 HASH JOIN 방식으로 조인 경로를 전환한다.",
+          "인덱스 RANGE SCAN의 Starts 횟수를 줄이기 위해 SGA 버퍼 캐시(db_cache_size) 크기를 10배 늘려 디스크 물리 I/O(Reads)를 소멸시킨다."
+        ],
+        correctIdx: 1,
+        explanation: "단일 인덱스 탐색(회당 3블록)은 지극히 효율적이지만, 중첩 루프 조인의 하위 노드로 배치되어 50,000번 반복 실행(Starts 누적)되면서 총 Buffers가 150,000블록까지 누적되어 병목을 초래했습니다. 이 경우 대량 조인 연산에 적합한 HASH JOIN을 사용하도록 조인 경로를 전환하는 것이 유일하고 정석적인 해결 방법입니다."
+      },
+      {
+        qNum: 2,
+        text: "Q2. 쿼리의 옵티마이저 예측 통계 외에, 런타임 상에서 디스크/메모리 블록을 실제 탐색하여 계측된 A-Rows(실측 행수), Starts(루프 횟수), Buffers(논리 I/O) 수치를 실행 계획과 함께 테이블 형태로 완벽히 출력하기 위한 가장 정석적인 힌트와 호출 구문 세트는?",
+        options: [
+          "수행할 SQL에 /*+ EXPLAIN */ 힌트를 지정하여 가동하고, DBMS_XPLAN.DISPLAY_CURSOR(format => 'TYPICAL') 함수를 호출",
+          "수행할 SQL에 /*+ GATHER_PLAN_STATISTICS */ 힌트를 기입하여 실행한 후, DBMS_XPLAN.DISPLAY_CURSOR('SQL_ID', NULL, 'ALLSTATS LAST +COST +BYTES +NOTE') 함수를 호출",
+          "EXPLAIN PLAN FOR 구문을 실행하여 Plan Table에 가상 실행 계획을 적재한 뒤, DBMS_XPLAN.DISPLAY(format => 'ALL') 함수를 호출"
+        ],
+        correctIdx: 1,
+        explanation: "런타임 실행 통계를 수집하도록 <strong>/*+ GATHER_PLAN_STATISTICS */</strong> 힌트를 기입하여 SQL을 구동하고, DISPLAY_CURSOR 함수에 <strong>ALLSTATS LAST</strong> 옵션을 인자로 주어야 실제 수행 런타임 프로파일링 지표가 정상적으로 추출됩니다."
+      },
+      {
+        qNum: 3,
+        text: "Q3. 결합 인덱스가 (DEPT_CODE, EMP_NAME) 순서로 구성된 상태에서 WHERE EMP_NAME = '홍길동' 조건만으로 조회할 때, 옵티마이저가 INDEX SKIP SCAN을 활성화하여 큰 성능 효과를 보기 위한 결정적인 조건과 데이터 딕셔너리 기준 지표는 무엇인가?",
+        options: [
+          "선두 컬럼인 DEPT_CODE의 고유 값 수(NUM_DISTINCT)가 매우 적어 가상 서브 인덱스 분기 개수가 최소화되어야 효율적이며, 고유 값이 많으면 스킵 오버헤드가 폭증해 오히려 Full Scan보다 훨씬 느려진다.",
+          "선두 컬럼 DEPT_CODE의 CLUSTERING_FACTOR가 테이블 전체 레코드 수(NUM_ROWS)에 완벽히 정합되어야 옵티마이저가 리프 블록 건너뛰기 연산을 안전하게 활성화한다.",
+          "선두 컬럼인 DEPT_CODE에 TO_CHAR나 TO_NUMBER와 같은 가공 함수가 조건절에 명시적으로 추가되어야 인덱스 스킵 분기가 구동된다."
+        ],
+        correctIdx: 0,
+        explanation: "Index Skip Scan은 선두 컬럼의 고유 값별로 가상의 서브 인덱스를 가상화하여 탐색하는 원리입니다. 따라서 선두 컬럼의 NUM_DISTINCT가 적을수록 스킵 루프 횟수가 적어 극도로 효율적이지만, 선두 컬럼 종류가 수백~수천 개로 많아지면 수천 번의 스킵(수직 탐색)이 발생해 테이블 전체 풀 스캔보다 훨씬 높은 I/O 부하를 초래합니다."
+      },
+      {
+        qNum: 4,
+        text: "Q4. 오라클의 자동 통계 수집(Auto Task)에서 테이블 통계의 STALE(노후화) 판정 기준과, 야간 통계 갱신 작업으로 인해 특정 핵심 이력 테이블의 실행 계획이 임의로 돌변하여 서비스 장애를 유발하는 현상을 방어하기 위한 정석적인 차단 예방책은 무엇인가?",
+        options: [
+          "테이블의 전체 레코드 중 DML 변경이 1% 이상 발생 시 STALE로 마킹되며, 이를 예방하기 위해 DBMS_STATS.SET_TABLE_PREFS로 샘플 비율을 100% 강제 고정한다.",
+          "테이블의 전체 레코드 중 DML 변경이 10% 이상 발생 시 STALE로 마킹되며, 플랜의 급격한 변동을 막기 위해 DBMS_STATS.LOCK_TABLE_STATS 프로시저로 통계를 고정한다.",
+          "테이블에 데이터가 1건이라도 DML되면 즉시 STALE로 판정되며, 플랜을 고정하려면 쿼리에 매번 /*+ OPT_PARAM('_optimizer_use_feedback', 'true') */ 힌트를 사용한다."
+        ],
+        correctIdx: 1,
+        explanation: "오라클은 테이블 데이터 변경량이 10%를 넘으면 노후화(STALE)로 규정하고 자동 야간 통계 수집 대상으로 마킹합니다. 특정 주요 테이블의 통계 정보가 강제로 변경되어 실행 계획이 돌변하는 것을 막으려면 LOCK_TABLE_STATS를 사용해 통계 수집을 영구 차단하고 고정하는 것이 정석입니다."
+      },
+      {
+        qNum: 5,
+        text: "Q5. 회원번호 컬럼 MEMBER_NO는 VARCHAR2(10)이고 단일 인덱스 IX_MEMBER_NO가 존재할 때, 쿼리 상에서 MEMBER_NO = 20260012 형태로 조건을 지정하여 묵시적 형변환(filter(TO_NUMBER(MEMBER_NO)=20260012))이 발생하고 TABLE ACCESS FULL 병목이 유발되었을 때의 가장 적절한 조치는?",
+        options: [
+          "인덱스 강제 적용 힌트인 /*+ INDEX(IX_MEMBER_NO) */를 강제 기입하여 함수 연산을 인덱스 레벨로 소멸시킨다.",
+          "애플리케이션(예: Java PreparedStatement)에서 바인드 변수를 숫자형(setInt)으로 전달하여 옵티마이저가 컬럼 전체에 TO_NUMBER 형변환을 적용한 것이 원인이므로, 바인드 변수를 문자형(setString)으로 전달하도록 코드를 교정한다.",
+          "MEMBER_NO 컬럼의 데이터 중 숫자가 아닌 문자 블록이 존재하여 발생하였으므로, 해당 컬럼의 모든 레코드를 숫자로 형변환한 뒤 ALTER TABLE 명령으로 타입을 NUMBER로 강제 축소한다."
+        ],
+        correctIdx: 1,
+        explanation: "물리 컬럼은 VARCHAR2이고 바인드 변수는 NUMBER인 경우, 데이터 타입 우선순위에 따라 오라클은 좌변의 컬럼 데이터 전체를 숫자로 바꾸는 TO_NUMBER(MEMBER_NO) 묵시적 형변환을 강행합니다. 컬럼이 함수로 가공되면서 인덱스를 타지 못하게 되므로, 애플리케이션 파라미터 전달 타입을 문자열로 정확히 맞춰주어야 합니다."
+      },
+      {
+        qNum: 6,
+        text: "Q6. 소스 코드 수정이나 재배포 없이, Plan Hash Value가 바뀌어 30초 이상 속도가 저하되는 플랜 변경(Plan Regression) 장애가 발생한 특정 악성 SQL 쿼리를 기존의 정상적인 실행 계획( PHV 1234567 )으로 운영 DB 수준에서 강제 원복하여 고정하는 가장 바람직한 긴급 조치는?",
+        options: [
+          "ALTER SYSTEM FLUSH SHARED_POOL을 즉각 가동하여 메모리에 있는 모든 악성 쿼리의 락 정보를 초기화하고 소프트 파싱을 재수행하게 유도한다.",
+          "DBMS_SPM.LOAD_PLANS_FROM_CURSOR_CACHE를 사용하여 메모리에 상주하고 있는 정상 실행 계획(Good Plan Hash Value)을 SQL Plan Baseline으로 고정(fixed => 'YES') 등록한다.",
+          "DBMS_STATS.GATHER_TABLE_STATS를 estimate_percent => 100으로 호출하여 테이블의 통계 정보를 전체 재수집함으로써 옵티마이저의 비용 공식을 물리적으로 강제 초기화한다."
+        ],
+        correctIdx: 1,
+        explanation: "힌트를 기입하기 위해 소스 코드를 배포하거나 재기동하기 어려운 운영 환경에서는, SQL Plan Management(SPM) 패키지를 가동하여 기존의 우수했던 실행 계획 해시(PHV 1234567)를 SQL Plan Baseline으로 등록해주는 것이 가장 안전하고 빠른 긴급 구제 기법입니다. 옵티마이저는 등록된 Baseline 플랜을 강제 준수하게 됩니다."
+      }
+    ]
   }
 };
 
@@ -4869,8 +5095,8 @@ function submitCbtExam(force = false) {
   if (!force) {
     const unansweredCount = cbtAnswers.filter(a => a === null).length;
     if (unansweredCount > 0) {
-      alert(`아직 풀지 않은 문제가 ${unansweredCount}문항 있습니다. 모든 문항을 마킹하셔야 최종 답안을 제출할 수 있습니다.`);
-      return;
+      const confirmSubmit = confirm(`아직 풀지 않은 문제가 ${unansweredCount}문항 있습니다. 이대로 최종 답안을 제출하시겠습니까?`);
+      if (!confirmSubmit) return;
     } else {
       const confirmSubmit = confirm("답안을 모두 작성하셨습니다. 제출하고 시험을 끝마치시겠습니까?");
       if (!confirmSubmit) return;
@@ -5152,6 +5378,9 @@ function renderCbtAdminDashboard() {
       // Map subject name back to key
       let subKey = "week3";
       if (selectedFilter === "SQL 튜닝 기본 종합 퀴즈") subKey = "basics";
+      else if (selectedFilter === "SQL 기초 종합 퀴즈") subKey = "sql_basics";
+      else if (selectedFilter === "데이터 모델링 종합 퀴즈") subKey = "data_modeling";
+      else if (selectedFilter === "실행계획 실무 분석 퀴즈") subKey = "plan_quiz";
       
       const sub = cbtSubjects[subKey];
       const qCount = sub.questions.length;
@@ -5187,7 +5416,8 @@ function renderCbtAdminDashboard() {
                idx === 2 ? "Clustering Factor 원리" :
                idx === 3 ? "인덱스 컬럼 가공 오류" :
                "Subquery Unnesting 개념")
-            : (idx === 0 ? "논리적 I/O 지표 원리" :
+            : subKey === "basics"
+            ? (idx === 0 ? "논리적 I/O 지표 원리" :
                idx === 1 ? "바인드 변수 적용 목적" :
                idx === 2 ? "인덱스 선두 컬럼 가공" :
                idx === 3 ? "CF 불량의 성능 부하" :
@@ -5199,6 +5429,35 @@ function renderCbtAdminDashboard() {
                idx === 9 ? "APPEND Direct Insert" :
                idx === 10 ? "카디널리티 추정 오차" :
                "GATHER_PLAN 실측행수")
+            : subKey === "sql_basics"
+            ? (idx === 0 ? "SQL 실행 순서" :
+               idx === 1 ? "IS NULL 연산" :
+               idx === 2 ? "HAVING 조건절" :
+               idx === 3 ? "LEFT OUTER JOIN" :
+               idx === 4 ? "COUNT(컬럼) vs COUNT(*)" :
+               idx === 5 ? "DENSE_RANK 특징" :
+               idx === 6 ? "UNION ALL의 이점" :
+               "WHERE 없는 UPDATE")
+            : subKey === "data_modeling"
+            ? (idx === 0 ? "데이터 모델 3단계" :
+               idx === 1 ? "개체 무결성 정의" :
+               idx === 2 ? "M:N 관계 해소" :
+               idx === 3 ? "개념 모델링 목적" :
+               idx === 4 ? "식별 vs 비식별" :
+               idx === 5 ? "이행 함수 종속(3NF)" :
+               idx === 6 ? "갱신 이상 발생 원인" :
+               idx === 7 ? "반정규화의 절차" :
+               idx === 8 ? "VARCHAR2 숫자 저장" :
+               idx === 9 ? "인덱스 과다 부하" :
+               idx === 10 ? "선분 이력의 목적" :
+               "인조 식별자 주의점")
+            : // plan_quiz
+              (idx === 0 ? "NL 조인 Buffers 병목" :
+               idx === 1 ? "DISPLAY_CURSOR 옵션" :
+               idx === 2 ? "Skip Scan의 조건" :
+               idx === 3 ? "STALE 통계 락" :
+               idx === 4 ? "묵시적 형변환" :
+               "AWR Plan 원복 SPM")
         );
 
         labelRow.innerHTML = `
@@ -5315,6 +5574,39 @@ function injectCbtMockData() {
       DURATION_SECONDS: 320,
       SUBMITTED_AT: new Date(Date.now() - 3600000 * 8).toISOString(),
       MARKED_ANSWERS: [0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 1, 0] // Got 10 correct out of 12 (approx 83%)
+    },
+    // Subject 3: SQL Basics
+    {
+      ID: "cbt_mock_6",
+      CANDIDATE_NAME: "이민우",
+      EXAM_NAME: "SQL 기초 종합 퀴즈",
+      SCORE: 75,
+      PASS_OR_FAIL: "PASS",
+      DURATION_SECONDS: 200,
+      SUBMITTED_AT: new Date(Date.now() - 3600000 * 3).toISOString(),
+      MARKED_ANSWERS: [0, 1, 1, 1, 0, 1, 1, 2]
+    },
+    // Subject 4: Data Modeling
+    {
+      ID: "cbt_mock_7",
+      CANDIDATE_NAME: "윤지수",
+      EXAM_NAME: "데이터 모델링 종합 퀴즈",
+      SCORE: 91,
+      PASS_OR_FAIL: "PASS",
+      DURATION_SECONDS: 250,
+      SUBMITTED_AT: new Date(Date.now() - 3600000 * 5).toISOString(),
+      MARKED_ANSWERS: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    },
+    // Subject 5: Plan Quiz
+    {
+      ID: "cbt_mock_8",
+      CANDIDATE_NAME: "한태양",
+      EXAM_NAME: "실행계획 실무 분석 퀴즈",
+      SCORE: 50,
+      PASS_OR_FAIL: "FAIL",
+      DURATION_SECONDS: 310,
+      SUBMITTED_AT: new Date(Date.now() - 3600000 * 7).toISOString(),
+      MARKED_ANSWERS: [0, 0, 0, 1, 1, 1]
     }
   ];
 
@@ -5322,7 +5614,7 @@ function injectCbtMockData() {
   
   Promise.all(promises).then(() => {
     renderCbtAdminDashboard();
-    alert("테스트용 응시 이력 5건(과목별 분산)이 내장 RDBMS(IndexedDB)에 정상 로드되었습니다.");
+    alert("테스트용 응시 이력 8건(5대 과목 분산)이 내장 RDBMS(IndexedDB)에 정상 로드되었습니다.");
   }).catch(err => {
     console.error("Mock injection error:", err);
   });

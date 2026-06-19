@@ -175,12 +175,6 @@
             <div class="ts-study-desc">과정별 핵심 이론 및 실전 SQL 튜닝 지식을 테스트하고 결과를 관리자 페이지에서 실시간 조회·모니터링합니다.</div>
             <div class="ts-study-cta" style="color: var(--accent-yellow);">평가 응시 ➔</div>
           </div>
-          <div class="ts-study" data-name="시험 결과 모니터링" data-enter="nav-btn-cbt-admin" data-course="cbt-admin">
-            <div class="ts-study-name">시험 결과 모니터링</div>
-            <div class="ts-study-sub">Admin Dashboard</div>
-            <div class="ts-study-desc">실시간으로 수집된 CBT 평가 응시생 기록을 추적하고 문항별 오답률 및 종합 KPI 대시보드를 확인합니다.</div>
-            <div class="ts-study-cta">모니터링 입장 ➔</div>
-          </div>
         </aside>
       </div>`;
 
