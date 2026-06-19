@@ -254,6 +254,14 @@ $$\text{E-Rows} \times \text{Starts} \approx \text{A-Rows}$$
 
 #### 케이스 A: 통계 노후화에 의한 조인 방식 오판
 
+**[실행 대상 SQL]**
+```sql
+SELECT U.NAME, O.ORDER_ID, O.ORDER_DATE
+  FROM TB_USER U
+  JOIN TB_ORDER O ON U.USER_ID = O.USER_ID
+ WHERE O.ORDER_DATE = TO_DATE('2026-05-18', 'YYYY-MM-DD');
+```
+
 ```
 ------------------------------------------------------------------------------------------------------
 | Id  | Operation                     | Name          | Starts | E-Rows | A-Rows | Buffers   | Cost  |
@@ -274,6 +282,13 @@ $$\text{E-Rows} \times \text{Starts} \approx \text{A-Rows}$$
 
 #### 케이스 B: 히스토그램 부재에 의한 접근 경로 오판
 
+**[실행 대상 SQL]**
+```sql
+SELECT *
+  FROM TB_LOG
+ WHERE STATUS = 'ERROR';
+```
+
 ```
 ------------------------------------------------------------------------------------------------------
 | Id  | Operation                     | Name              | Starts | E-Rows | A-Rows | Buffers | Cost |
@@ -292,6 +307,18 @@ $$\text{E-Rows} \times \text{Starts} \approx \text{A-Rows}$$
 
 #### 케이스 C: 상관 서브쿼리에 의한 반복 실행 폭증
 
+**[실행 대상 SQL]**
+```sql
+SELECT E.EMP_NAME, E.DEPT_NO, S.PAY_DATE, S.SALARY
+  FROM TB_EMP E, TB_SALARY S
+ WHERE S.EMP_ID = E.EMP_ID
+   AND S.PAY_DATE = (
+       SELECT MAX(SUB.PAY_DATE)
+         FROM TB_SALARY SUB
+        WHERE SUB.EMP_ID = E.EMP_ID
+   );
+```
+
 ```
 ------------------------------------------------------------------------------------------------------
 | Id  | Operation                     | Name          | Starts | E-Rows | A-Rows | Buffers   | Cost  |
@@ -305,7 +332,7 @@ $$\text{E-Rows} \times \text{Starts} \approx \text{A-Rows}$$
 ```
 
 * **수리적 오차 추적**: `Id 3`번 `TB_SALARY` 풀 스캔의 `Starts`가 **500**입니다. 이는 메인 쿼리의 `TB_EMP` 결과 500건에 대해 상관 서브쿼리가 매 행마다 반복 실행되었음을 의미합니다.
-* **병목 산출**: `TB_SALARY` 테이블이 한 번 풀 스캔할 때 1,600블록을 읽는다면, 500번 반복 시 $500 \times 1{,}600 = 800{,}000$ 블록(800K Buffers)의 논리적 I/O가 누적됩니다.
+* **병목 산출**: `TB_SALARY` 테이블이 한 번 풀 스캔할 때 1,600블록을 읽는다면, 500번 반복 시 **500 × 1,600 = 800,000** 블록(800K Buffers)의 논리적 I/O가 누적됩니다.
 * **해결책**: 상관 서브쿼리를 인라인 뷰 + 조인으로 변환(Subquery Unnesting)하거나, 분석 함수(`ROW_NUMBER() OVER(PARTITION BY ...)`)를 활용하여 1회 스캔으로 전환합니다.
 
 ---
