@@ -87,7 +87,33 @@ function initPerfTextbook() {
     } catch (e) {
       mdContent = '# 불러오기 실패\nhttp 서버에서 열어야 학습자료가 로드됩니다.';
     }
-    viewer.innerHTML = marked.parse(mdContent);
+
+    // LaTeX Math block preservation: Pre-process
+    const mathBlocks = [];
+    let processedMd = mdContent.replace(/\$\$([\s\S]+?)\$\$/g, (match, formula) => {
+      mathBlocks.push({ type: 'display', formula: formula });
+      return `@@MATH_PLACEHOLDER_${mathBlocks.length - 1}@@`;
+    });
+    processedMd = processedMd.replace(/\$([\s\S]+?)\$/g, (match, formula) => {
+      mathBlocks.push({ type: 'inline', formula: formula });
+      return `@@MATH_PLACEHOLDER_${mathBlocks.length - 1}@@`;
+    });
+
+    // Parse Markdown to HTML
+    let htmlContent = marked.parse(processedMd);
+
+    // Restore Math blocks: Post-process
+    htmlContent = htmlContent.replace(/@@MATH_PLACEHOLDER_(\d+)@@/g, (match, index) => {
+      const item = mathBlocks[parseInt(index)];
+      if (!item) return match;
+      if (item.type === 'display') {
+        return `$$${item.formula}$$`;
+      } else {
+        return `$${item.formula}$`;
+      }
+    });
+
+    viewer.innerHTML = htmlContent;
     viewer.dataset.rendered = "true";
     const mermaidBlocks = viewer.querySelectorAll('pre code.language-mermaid');
     mermaidBlocks.forEach((block) => {
@@ -99,6 +125,10 @@ function initPerfTextbook() {
     });
     mermaid.initialize({ startOnLoad: false, theme: 'dark' });
     mermaid.run({ nodes: viewer.querySelectorAll('.mermaid') });
+
+    if (window.MathJax) {
+      MathJax.typesetPromise([viewer]).catch(err => console.error('MathJax rendering error:', err));
+    }
   };
 
   const tbookTabs = document.querySelectorAll('#panel-textbook .tbook-tab');
