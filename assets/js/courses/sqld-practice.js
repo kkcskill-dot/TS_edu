@@ -39,7 +39,7 @@
   }
 
   function wrapResult(title, inner) {
-    return `<div class="ij-code-wrapper" style="margin-bottom:12px; border:1px solid var(--accent-cyan);"><div class="ij-code-titlebar" style="background:var(--accent-cyan); color:#000;"><span class="ij-code-icon">&#9881;</span> ${title}</div><div class="ij-plan-container">${inner}</div></div>`;
+    return `<div class="ij-code-wrapper" style="margin-bottom:12px; border:1px solid var(--accent-cyan);"><div class="ij-code-titlebar" style="background:var(--accent-cyan); color:#fff;"><span class="ij-code-icon">&#9881;</span> ${title}</div><div class="ij-plan-container">${inner}</div></div>`;
   }
 
   // --- Lab 1: NULL 처리와 집계함수 ---
@@ -197,7 +197,7 @@
       if (sel === "union") {
         sql = "SELECT val FROM TAB_A\nUNION\nSELECT val FROM TAB_B;";
         const merged = [...TAB_A.map(x=>x.val), ...TAB_B.map(x=>x.val)];
-        const unique = [...new Set(merged)].sort();
+        const unique = [...new Set(merged)].sort((a, b) => a - b);
         resRows = unique.map(x => [x]);
       } else if (sel === "unionall") {
         sql = "SELECT val FROM TAB_A\nUNION ALL\nSELECT val FROM TAB_B;";
@@ -207,13 +207,13 @@
         sql = "SELECT val FROM TAB_A\nINTERSECT\nSELECT val FROM TAB_B;";
         const aVals = TAB_A.map(x=>x.val);
         const bVals = TAB_B.map(x=>x.val);
-        const inter = [...new Set(aVals.filter(x => bVals.includes(x)))].sort();
+        const inter = [...new Set(aVals.filter(x => bVals.includes(x)))].sort((a, b) => a - b);
         resRows = inter.map(x => [x]);
       } else if (sel === "minus") {
         sql = "SELECT val FROM TAB_A\nMINUS\nSELECT val FROM TAB_B;";
         const aVals = TAB_A.map(x=>x.val);
         const bVals = TAB_B.map(x=>x.val);
-        const minus = [...new Set(aVals.filter(x => !bVals.includes(x)))].sort();
+        const minus = [...new Set(aVals.filter(x => !bVals.includes(x)))].sort((a, b) => a - b);
         resRows = minus.map(x => [x]);
       }
 
@@ -314,6 +314,13 @@
       return;
     }
 
+    if (chapter === "sql") {
+      // 브라우저 내장 SQLite(sql.js) 실습 환경 — sqld-playground.js
+      if (window.SqldPlayground) SqldPlayground.mount(viewer);
+      else viewer.innerHTML = '<div style="padding:20px;color:var(--accent-crimson);">SQL 실습 모듈을 불러오지 못했습니다.</div>';
+      return;
+    }
+
     viewer.innerHTML = `<div style="text-align:center;padding:40px;color:var(--color-text-muted);">
         <div class="loader" style="margin:0 auto 10px;width:24px;height:24px;border:3px solid var(--border-light);border-top-color:var(--accent-cyan);border-radius:50%;animation:spin 1s linear infinite;"></div>
         문제 불러오는 중...
@@ -346,19 +353,12 @@
   }
 
   document.addEventListener("DOMContentLoaded", () => {
-    // 챕터 버튼 클릭 리스너 등록
+    // 챕터 버튼 클릭 시 해당 문제를 지연 로드 (페이지 로드 시 선fetch 안 함)
     document.querySelectorAll('.menu-item[data-practice-chapter]').forEach(btn => {
       btn.addEventListener('click', () => {
-        const chapter = btn.getAttribute('data-practice-chapter');
-        loadPracticeChapter(chapter);
+        loadPracticeChapter(btn.getAttribute('data-practice-chapter'));
       });
     });
-
-    // 기본적으로 1장 로드 (sqld-practice 패널 진입 시 첫 화면 용도)
-    setTimeout(() => {
-      // url hash나 다른 상태가 없다면 1장을 띄웁니다.
-      loadPracticeChapter("1");
-    }, 100);
   });
 
 })();

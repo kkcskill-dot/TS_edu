@@ -28,11 +28,8 @@
       const s = SESSIONS.find(x => x.id === id);
       if (!s) return;
 
-      document.querySelectorAll("#sqld-tb-tabs .tbook-tab").forEach(b => {
-        b.classList.toggle("active", b.dataset.id === id);
-        b.style.borderBottomColor = b.dataset.id === id ? "var(--accent-cyan)" : "transparent";
-        b.style.color = b.dataset.id === id ? "var(--color-text-main)" : "var(--sph-slate)";
-      });
+      // active 클래스만 토글 → CSS(.tbook-tab.active, !important)가 강조 처리(다른 과정과 동일 표준)
+      tabbar.querySelectorAll(".tbook-tab").forEach(b => b.classList.toggle("active", b.dataset.id === id));
 
       viewer.innerHTML = `<div style="text-align:center;padding:40px;color:var(--color-text-muted);">
         <div class="loader" style="margin:0 auto 10px;width:24px;height:24px;border:3px solid var(--border-light);border-top-color:var(--accent-cyan);border-radius:50%;animation:spin 1s linear infinite;"></div>
@@ -41,7 +38,7 @@
 
       try {
         if (!cache[id]) {
-          const res = await fetch(BASE + s.file);
+          const res = await fetch(BASE + s.file, { cache: "no-store" });
           if (!res.ok) throw new Error("문서를 찾을 수 없습니다.");
           cache[id] = await res.text();
         }
@@ -73,12 +70,22 @@
       }
     }
 
+    // 탭바 우측에 '강의자료 보기'(PPT 슬라이드) 버튼 — slides.js가 위임 처리
+    tabbar.insertAdjacentHTML("beforeend",
+      '<button class="btn-open-slides" type="button" data-deck-title="SQLD 핵심 개념" data-deck-file="assets/slides/sqld-club/core.html?v=8.2">🖥️ 강의자료 보기</button>');
+
     tabbar.addEventListener("click", e => {
       const btn = e.target.closest(".tbook-tab");
       if (btn) show(btn.dataset.id);
     });
 
-    if (SESSIONS.length > 0) show(SESSIONS[0].id);
+    // 지연 로드: 페이지 로드가 아니라 '강의자료' 메뉴 첫 진입에 첫 장 fetch
+    let started = false;
+    const loadFirst = () => { if (!started && SESSIONS.length) { started = true; show(SESSIONS[0].id); } };
+    const entry = document.getElementById("nav-btn-sqld-textbook");
+    if (entry) entry.addEventListener("click", loadFirst);
+    const panel = document.getElementById("panel-sqld-textbook");
+    if (panel && panel.classList.contains("active")) loadFirst();
   }
 
   // DOMContentLoaded 이벤트 후에 초기화 (또는 패널 진입 시 호출)
