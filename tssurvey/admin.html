@@ -102,7 +102,7 @@
                 topics.forEach(t => {
                     const tr = document.createElement('tr');
                     
-                    const dateStr = new Date(t.CREATED_AT).toLocaleString('ko-KR');
+                    const dateStr = formatKST(t.CREATED_AT);
                     
                     tr.innerHTML = `
                         <td><strong>${t.TITLE}</strong></td>
@@ -145,7 +145,7 @@
 
                 responses.forEach(r => {
                     const tr = document.createElement('tr');
-                    const dateStr = new Date(r.SUBMITTED_AT).toLocaleString('ko-KR');
+                    const dateStr = formatKST(r.SUBMITTED_AT);
                     
                     const stars = '★'.repeat(r.STAR_RATING) + '☆'.repeat(5 - r.STAR_RATING);
                     
@@ -171,6 +171,16 @@
             } catch (e) {
                 alert('삭제 실패: ' + e.message);
             }
+        }
+
+        function formatKST(dateString) {
+            if (!dateString) return '';
+            let dStr = dateString;
+            // 서버가 UTC 기준으로 naive datetime을 저장한 경우(Z나 +가 없음), UTC로 간주하도록 'Z'를 붙임
+            if (!dStr.endsWith('Z') && !dStr.includes('+')) {
+                dStr += 'Z';
+            }
+            return new Date(dStr).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
         }
 
         function escapeHtml(unsafe) {
