@@ -1,0 +1,20 @@
+[Unit]
+Description=TSSURVEY API Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+# Adjust this path based on actual deployment
+WorkingDirectory=/opt/tssurvey
+ExecStart=/usr/bin/python3 /opt/tssurvey/tssurvey_api.py
+Restart=always
+RestartSec=3
+
+Environment=HOST=127.0.0.1
+Environment=PORT=8091
+# Change DB path to somewhere outside webroot for production
+Environment=TSSURVEY_DB_PATH=/var/lib/tssurvey/tssurvey_data.db
+
+[Install]
+WantedBy=multi-user.target
