@@ -41,6 +41,13 @@
         desc: "현재 운영 중인 성능진단·튜닝 실습(기초~심화)을 모아둔 사내 스터디입니다.",
         enter: "nav-btn-textbook",
         course: "perf-club"
+      },
+      {
+        name: "SQLD 취득!",
+        sub: "자격증 취득 스터디",
+        desc: "SQLD 자격증 취득을 목표로 핵심 개념과 기출문제를 분석하는 소모임입니다.",
+        enter: "nav-btn-sqld-textbook",
+        course: "sqld-club"
       }
     ]
   };

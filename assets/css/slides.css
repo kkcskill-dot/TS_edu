@@ -1,0 +1,170 @@
+/* =============================================================
+ * slides.css — 강의자료 슬라이드 뷰어(세로 스크롤 덱) · Spharos 디자인
+ *  규칙: 16:9 · 네이비30/옐로10 · ⛔한쪽 띠(border-left) 금지 →
+ *        전체 보더 / 배경 틴트 / 노란 사각 불릿 / 채운 배지로 강조.
+ *        옐로 위 텍스트는 네이비(ink), 네이비 위는 흰색.
+ * ============================================================= */
+.ts-slides {
+  position: fixed; inset: 0; z-index: 5000;
+  background: #07101d;
+  display: flex; flex-direction: column;
+  font-family: 'Pretendard', 'Noto Sans KR', system-ui, -apple-system, sans-serif;
+}
+.ts-slides[hidden] { display: none; }
+
+.ts-slides-bar {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 14px;
+  padding: 11px 22px; background: #002A5B; color: #fff;
+}
+.ts-slides-title { font-weight: 700; font-size: .95rem; letter-spacing: -.2px; }
+.ts-slides-spacer { margin-left: auto; }
+.ts-slides-count { font-size: .82rem; color: #b8c8de; font-variant-numeric: tabular-nums; }
+.ts-slides-close {
+  background: transparent; border: 1px solid rgba(255,255,255,.3); color: #fff;
+  width: 34px; height: 34px; border-radius: 6px; cursor: pointer; font-size: 1rem; line-height: 1;
+}
+.ts-slides-close:hover { background: rgba(255,255,255,.12); }
+
+.ts-slides-prog { flex: 0 0 auto; height: 3px; background: rgba(255,255,255,.12); }
+.ts-slides-prog > i { display: block; height: 100%; width: 0; background: #F9BB00; transition: width .3s ease; }
+
+.ts-slides-scroll {
+  flex: 1 1 auto; overflow-y: auto; scroll-snap-type: y mandatory; scroll-behavior: smooth;
+  cursor: pointer;
+}
+.ts-slides-scroll::-webkit-scrollbar { width: 9px; }
+.ts-slides-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.22); border-radius: 9px; }
+
+/* 슬라이드 한 장 — 더 큰 영역(16:9 지향, 내용 많으면 세로로 늘어남) */
+.ts-slide {
+  scroll-snap-align: center; min-height: calc(100vh - 60px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 18px; box-sizing: border-box;
+}
+.ts-slide > .inner {
+  position: relative;
+  width: min(96vw, 1340px);
+  min-height: min(86vh, 754px);   /* 1340 × 9/16 ≈ 754 → 거의 16:9 */
+  background: #fff; color: #121D2A;
+  border: 1px solid #CBD5E1; border-radius: 8px;
+  box-shadow: 0 26px 70px rgba(0,0,0,.45);
+  padding: 48px 60px 60px; box-sizing: border-box;
+  display: flex; flex-direction: column; justify-content: center;
+}
+/* 좌하단 시그니처(Spharos 푸터) */
+.ts-slide > .inner::after {
+  content: "TS Academy · 성능진단 소모임";
+  position: absolute; left: 60px; bottom: 24px;
+  font-size: .72rem; color: #8A93A3; letter-spacing: .3px;
+}
+.ts-slide.cover > .inner { background: #002A5B; color: #fff; border-color: #002A5B; align-items: flex-start; }
+.ts-slide.cover > .inner::after { color: rgba(255,255,255,.55); }
+.ts-slide.cover .s-kicker { color: #F9BB00; }
+.ts-slide.cover .s-title { color: #fff; font-size: 2.9rem; }
+.ts-slide.cover .s-lead { color: #c3d2e6; font-size: 1.2rem; }
+
+/* 타이포 */
+.s-kicker { font-size: .82rem; font-weight: 700; letter-spacing: 1px; color: #002A5B; text-transform: uppercase; margin-bottom: 14px; }
+.s-title { font-size: 2.15rem; font-weight: 700; color: #121D2A; line-height: 1.22; margin: 0 0 20px; letter-spacing: -.5px; }
+.s-lead { font-size: 1.1rem; color: #424A57; line-height: 1.65; margin: 0 0 22px; }
+.s-sub { font-size: .82rem; font-weight: 700; color: #002A5B; letter-spacing: .8px; text-transform: uppercase; margin: 18px 0 9px; }
+
+/* 카드 — 전체 보더 + 노란 사각 불릿(띠 없음) */
+.s-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px,1fr)); gap: 16px; }
+.s-card { background: #F7F8FA; border: 1px solid #E3E6EB; border-radius: 6px; padding: 18px 22px; }
+.s-card h4 { display: flex; align-items: center; gap: 9px; margin: 0 0 9px; font-size: 1.05rem; font-weight: 700; color: #002A5B; }
+.s-card h4::before { content: ""; width: 9px; height: 9px; flex: 0 0 auto; background: #F9BB00; border-radius: 2px; }
+.s-card p { margin: 0; font-size: .96rem; color: #424A57; line-height: 1.65; }
+.s-card.r h4::before { background: #DC2626; }
+.s-card.g h4::before { background: #0E7A53; }
+.s-card.c h4::before { background: #0061D7; }
+.s-card.y h4::before { background: #F9BB00; }
+.s-card.hl { background: #FFF6DA; border-color: #F9BB00; }
+
+/* 2단 레이아웃 — 본문(좌) + 부가자료(우)로 여백 없이 채움 */
+.s-cols { display: grid; grid-template-columns: 1.5fr 1fr; gap: 26px; align-items: stretch; }
+.s-cols .main { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.s-aside { background: #E6EDF7; border: 1px solid #BBD0F2; border-radius: 6px; padding: 18px 20px; align-self: stretch; }
+.s-aside .h { display: flex; align-items: center; gap: 7px; font-size: .76rem; font-weight: 700; color: #002A5B; letter-spacing: .6px; text-transform: uppercase; margin: 0 0 13px; }
+.s-aside .h::before { content: ""; width: 8px; height: 8px; flex: 0 0 auto; background: #F9BB00; border-radius: 2px; }
+.s-aside ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 11px; }
+.s-aside li { font-size: .92rem; color: #424A57; line-height: 1.55; padding-left: 14px; position: relative; }
+.s-aside li::before { content: ""; position: absolute; left: 0; top: 8px; width: 5px; height: 5px; background: #002A5B; border-radius: 1px; }
+.s-aside li b { color: #002A5B; }
+.s-aside code, .s-aside .kbd { font-family: 'D2Coding', 'Consolas', monospace; background: #fff; border: 1px solid #BBD0F2; border-radius: 4px; padding: 0 5px; font-size: .86em; color: #002A5B; }
+@media (max-width: 900px) { .s-cols { grid-template-columns: 1fr; } }
+
+/* 수식 카드 — 네이비 면(흰 글씨, 옐로 강조) */
+.s-formula {
+  background: #002A5B; color: #fff; border-radius: 8px; padding: 28px 32px; text-align: center;
+  font-family: 'D2Coding', 'Consolas', ui-monospace, monospace; font-size: 1.55rem; font-weight: 700; letter-spacing: .3px; margin: 10px 0;
+}
+.s-formula .hl { color: #F9BB00; }
+.s-formula small { display: block; font-family: 'Pretendard', sans-serif; font-size: .9rem; color: #b8c8de; margin-top: 12px; font-weight: 400; letter-spacing: 0; }
+
+/* 표 — 네이비 헤더 / 연블루 틴트 */
+.s-table { width: 100%; border-collapse: collapse; font-size: .95rem; margin: 8px 0; }
+.s-table th, .s-table td { border: 1px solid #E3E6EB; padding: 11px 15px; text-align: left; vertical-align: top; }
+.s-table th { background: #002A5B; color: #fff; font-weight: 700; }
+.s-table tr:nth-child(even) td { background: #E6EDF7; }
+.s-table code { font-family: 'D2Coding', 'Consolas', monospace; background: #EFEFEF; padding: 1px 5px; border-radius: 4px; color: #002A5B; }
+
+/* 코드 — 잉크 면 */
+.s-code { background: #121D2A; color: #e6edf6; border-radius: 8px; padding: 20px 24px; font-family: 'D2Coding', 'Consolas', ui-monospace, monospace; font-size: .92rem; line-height: 1.8; overflow-x: auto; white-space: pre; }
+.s-code .k { color: #F9BB00; }
+.s-code .c { color: #8A93A3; }
+
+/* 아키텍처 박스 — 전체 보더 */
+.s-arch { display: flex; gap: 14px; flex-wrap: wrap; align-items: stretch; }
+.s-arch .box { flex: 1; min-width: 140px; background: #E6EDF7; border: 1px solid #BBD0F2; border-radius: 6px; padding: 18px; text-align: center; }
+.s-arch .box.navy { background: #002A5B; border-color: #002A5B; }
+.s-arch .box.navy b, .s-arch .box.navy span { color: #fff; }
+.s-arch .box b { display: block; color: #002A5B; font-size: 1.05rem; margin-bottom: 4px; }
+.s-arch .box span { font-size: .85rem; color: #424A57; line-height: 1.5; }
+.s-arch .plus { align-self: center; font-size: 1.5rem; color: #002A5B; font-weight: 800; }
+
+/* 분포 바 */
+.s-bars { display: flex; flex-direction: column; gap: 10px; margin: 8px 0; }
+.s-bar { display: flex; align-items: center; gap: 12px; font-size: .95rem; }
+.s-bar .lab { width: 100px; color: #424A57; font-weight: 700; }
+.s-bar .track { flex: 1; height: 22px; background: #EFEFEF; border-radius: 4px; overflow: hidden; }
+.s-bar .fill { height: 100%; background: #002A5B; border-radius: 4px; }
+.s-bar .fill.y { background: #F9BB00; }
+.s-bar .val { width: 66px; text-align: right; color: #002A5B; font-weight: 800; }
+
+/* 흐름(장애 시나리오) */
+.s-flow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 10px 0; }
+.s-flow .step { background: #EFEFEF; border: 1px solid #CBD5E1; border-radius: 6px; padding: 11px 16px; font-size: .95rem; color: #121D2A; font-weight: 600; }
+.s-flow .arrow { color: #DC2626; font-weight: 800; font-size: 1.2rem; }
+
+/* 콜아웃 — 강조(골드 틴트, 텍스트는 잉크) */
+.s-note { background: #FFF6DA; border: 1px solid #F9BB00; border-radius: 6px; padding: 15px 20px; font-size: 1rem; color: #121D2A; margin-top: 18px; line-height: 1.65; }
+.s-note b { color: #002A5B; }
+/* 에러 콜아웃 — 전체 레드 보더(띠 아님) */
+.s-err { background: #FDECEC; border: 1px solid #E9A3A3; border-radius: 6px; padding: 14px 18px; font-size: .95rem; color: #8A1F1F; margin-top: 12px; line-height: 1.65; font-family: 'D2Coding', 'Consolas', monospace; }
+.s-err b { font-family: 'Pretendard', sans-serif; color: #B91C1C; }
+
+/* 핵심 정리 — 노란 사각 불릿 */
+.s-keys { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 15px; }
+.s-keys li { display: flex; gap: 13px; align-items: flex-start; font-size: 1.15rem; color: #121D2A; line-height: 1.5; }
+.s-keys li::before { content: ""; width: 11px; height: 11px; margin-top: 7px; flex: 0 0 auto; background: #F9BB00; border-radius: 2px; }
+
+.ts-slides-hint { flex: 0 0 auto; text-align: center; padding: 9px; font-size: .78rem; color: #b8c8de; background: #002A5B; }
+
+/* '강의자료 보기' 버튼 — 옐로 채움 / 네이비 글씨 */
+.btn-open-slides {
+  margin-left: auto; align-self: center;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 15px; border-radius: 6px; border: none; cursor: pointer;
+  background: #F9BB00; color: #002A5B; font-weight: 700; font-size: .82rem; white-space: nowrap;
+}
+.btn-open-slides:hover { filter: brightness(.96); }
+
+@media (max-width: 760px) {
+  .ts-slide { padding: 10px; }
+  .ts-slide > .inner { padding: 30px 26px 50px; min-height: 78vh; }
+  .ts-slide > .inner::after { left: 26px; bottom: 16px; }
+  .s-title { font-size: 1.6rem; }
+  .ts-slide.cover .s-title { font-size: 2rem; }
+  .s-formula { font-size: 1.15rem; }
+}

@@ -1,0 +1,434 @@
+<section class="ts-slide cover">
+  <div class="inner">
+    <div class="s-kicker">성능진단 소모임 · 3회차</div>
+    <div class="s-title">실행계획 · 조인 ·<br>카디널리티</div>
+    <p class="s-lead">CBO는 통계로 경로를 고른다 — 선택도·카디널리티 계산부터<br>접근경로·조인·예상 vs 실측·플랜 변경·힌트까지.</p>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">CBO 원리</div>
+    <div class="s-title">비용이 최소인 경로를 고른다</div>
+    <div class="s-cols">
+      <div class="main">
+        <p class="s-lead">옵티마이저는 여러 실행계획 대안을 만들고, 각 경로의 <b>I/O + CPU</b>를 <b>비용(Cost)</b>으로 환산해 <b>최솟값</b>을 선택한다.</p>
+        <div class="s-note"><b>비용 공식의 변수 = 통계 정보.</b> 통계가 틀리면 비용이 틀리고, 비용이 틀리면 플랜이 틀린다.</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">학습 목표</div>
+        <ul>
+          <li>통계 → 선택도 → 카디널리티 → 비용의 연쇄</li>
+          <li><code>DBMS_XPLAN</code>으로 실측 플랜 추출</li>
+          <li>트리 들여쓰기로 연산 순서 판독</li>
+          <li><b>E-Rows vs A-Rows</b> 오차로 병목 색출</li>
+          <li>플랜 변경(Regression) 대응</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">통계 정보</div>
+    <div class="s-title">비용 공식에 채워지는 변수들</div>
+    <div class="s-cols">
+      <div class="main">
+        <table class="s-table">
+          <tr><th>구분</th><th>핵심 통계</th></tr>
+          <tr><td><b>테이블</b></td><td><code>NUM_ROWS</code>, <code>BLOCKS</code>, <code>AVG_ROW_LEN</code></td></tr>
+          <tr><td><b>컬럼</b></td><td><code>NUM_DISTINCT</code>, <code>HISTOGRAM</code>, <code>LOW/HIGH_VALUE</code>, <code>NUM_NULLS</code></td></tr>
+          <tr><td><b>인덱스</b></td><td><code>BLEVEL</code>, <code>LEAF_BLOCKS</code>, <code>CLUSTERING_FACTOR</code></td></tr>
+        </table>
+      </div>
+      <aside class="s-aside">
+        <div class="h">클러스터링 팩터(CF)</div>
+        <ul>
+          <li>인덱스 정렬 ↔ 테이블 물리 정렬의 <b>일치도</b></li>
+          <li>CF ≈ <b>블록 수</b> → 좋음(적은 랜덤 I/O)</li>
+          <li>CF ≈ <b>행 수</b> → 나쁨(랜덤 I/O 폭증)</li>
+          <li>같은 인덱스라도 CF가 비용을 가른다</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">핵심 공식</div>
+    <div class="s-title">선택도 &amp; 카디널리티</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-formula">선택도 = <span class="hl">1 / NUM_DISTINCT</span></div>
+        <div class="s-formula">카디널리티(E-Rows) = <span class="hl">NUM_ROWS × 선택도</span></div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">의미</div>
+        <ul>
+          <li>"조건을 적용하면 전체 중 몇 %가 남는가"</li>
+          <li>고유값 많을수록(NDV↑) 선택도↓ → 적은 행</li>
+          <li>이 추정이 <b>접근경로·조인 선택</b>을 좌우</li>
+          <li>NULL·범위·결합조건은 공식이 더 복잡</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">실전 대입</div>
+    <div class="s-title">통계가 틀리면 25만 vs 1천</div>
+    <div class="s-cols">
+      <div class="main">
+        <p class="s-lead"><code>WHERE grade='VIP'</code> · <code>NUM_ROWS=1,000,000</code> · <code>NDV=4</code></p>
+        <div class="s-formula">1/4=0.25 → <span class="hl">100만 × 0.25 = 25만</span> 예측<small>옵티마이저: "25만이면 Full Scan"</small></div>
+        <div class="s-err"><b>실제 VIP는 0.1%(1천 건).</b> 히스토그램이 없으면 균등분포 가정 → 심각한 오판.</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">왜 균등 가정?</div>
+        <ul>
+          <li>히스토그램 없으면 4종이 각 25%라 가정</li>
+          <li>편향 분포(99% vs 1%)를 모름</li>
+          <li>해결: 해당 컬럼에 <b>히스토그램 수집</b></li>
+          <li><code>method_opt=&gt;'FOR COLUMNS SIZE 254 GRADE'</code></li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">통계 노후화</div>
+    <div class="s-title">STALE 통계와 자동 수집</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-grid">
+          <div class="s-card r"><h4>STALE 위험</h4><p>실제 1천만인데 통계는 100건 → 대량 쿼리를 가볍게 오판.</p></div>
+          <div class="s-card g"><h4>자동 수집</h4><p>야간 윈도(기본 22:00) <code>DBMS_STATS.GATHER_*</code>가 STALE 객체 갱신.</p></div>
+        </div>
+        <div class="s-note"><b>STALE 판정:</b> 전체의 <b>10% 이상</b> DML 변경 시 해당 객체 통계가 STALE로 마킹.</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">진단 · 수동 수집</div>
+        <ul>
+          <li><code>DBA_TAB_STATISTICS</code>: <code>STALE_STATS</code>, <code>LAST_ANALYZED</code></li>
+          <li><code>DBA_TAB_COL_STATISTICS</code>: 히스토그램·버킷</li>
+          <li>긴급: <code>GATHER_TABLE_STATS(..., cascade=&gt;TRUE)</code></li>
+          <li><code>AUTO_SAMPLE_SIZE</code> + <code>FOR ALL COLUMNS SIZE AUTO</code></li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">실측 플랜 추출</div>
+    <div class="s-title">DBMS_XPLAN — 예상이 아닌 실측</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-code"><span class="c">-- 메모리 커서: 최근 실행의 실측치</span>
+<span class="k">SELECT</span> * <span class="k">FROM</span> <span class="k">TABLE</span>(DBMS_XPLAN.DISPLAY_CURSOR(
+  <span class="k">'sql_id'</span>, <span class="k">NULL</span>, <span class="k">'ALLSTATS LAST +COST +BYTES +NOTE'</span>));
+
+<span class="c">-- 과거(메모리에서 밀려남): AWR 복원</span>
+<span class="k">SELECT</span> * <span class="k">FROM</span> <span class="k">TABLE</span>(DBMS_XPLAN.DISPLAY_AWR(<span class="k">'sql_id'</span>));</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">옵션 · 플랜 변경 추적</div>
+        <ul>
+          <li><code>ALLSTATS LAST</code> = 최근 실행 실측(A-Rows·Buffers)</li>
+          <li>전제: <code>/*+ GATHER_PLAN_STATISTICS */</code></li>
+          <li><code>EXPLAIN PLAN</code>은 바인드·캐시 반영 안 됨(예상만)</li>
+          <li>같은 SQL_ID에 <b>PLAN_HASH_VALUE 여러 개</b> = 플랜 변경</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">플랜 해독</div>
+    <div class="s-title">트리 들여쓰기 3규칙</div>
+    <div class="s-cols">
+      <div class="main">
+        <ul class="s-keys">
+          <li><b>가장 깊은 곳</b>(오른쪽으로 밀린 노드)이 먼저 실행</li>
+          <li>같은 깊이면 <b>위가 먼저</b></li>
+          <li>자식이 Row Source를 반환하면 <b>부모가 입력으로</b> 받아 구동</li>
+        </ul>
+      </div>
+      <aside class="s-aside">
+        <div class="h">읽기 팁</div>
+        <ul>
+          <li>안쪽 → 바깥, 위 → 아래 순으로 따라간다</li>
+          <li><code>*</code> 표시 = Predicate(조건) 있는 노드</li>
+          <li>하단 <b>Predicate Information</b>에서 access/filter 확인</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">접근 경로</div>
+    <div class="s-title">스캔 방식 6종</div>
+    <div class="s-cols">
+      <div class="main">
+        <table class="s-table">
+          <tr><th>방식</th><th>특징</th></tr>
+          <tr><td>TABLE ACCESS FULL</td><td>HWM까지 다중블록 — 대량/소형에 유리</td></tr>
+          <tr><td>INDEX UNIQUE SCAN</td><td>PK/유니크 = 정확히 1건</td></tr>
+          <tr><td>INDEX RANGE SCAN</td><td>범위(BETWEEN/LIKE 'A%') — 소량 고속</td></tr>
+          <tr><td>INDEX FULL SCAN</td><td>리프 순서대로(단일블록) — 정렬 생략</td></tr>
+          <tr><td>INDEX FAST FULL SCAN</td><td>다중블록·정렬X — Index Only/병렬</td></tr>
+          <tr><td>INDEX SKIP SCAN</td><td>선두 컬럼 없을 때(NDV 작아야 유리)</td></tr>
+        </table>
+      </div>
+      <aside class="s-aside">
+        <div class="h">갈림길</div>
+        <ul>
+          <li>소량 → 인덱스, <b>10~15% 초과 → FTS</b></li>
+          <li>Full vs Fast Full: 단일블록(정렬보장) vs 다중블록(정렬X)</li>
+          <li>Skip Scan: 선두 NDV 적으면 OK, 많으면 FTS만 못함</li>
+          <li>Index Only = 테이블 접근 생략(커버링)</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">조인 방식</div>
+    <div class="s-title">NL · HASH · SORT MERGE</div>
+    <div class="s-cols">
+      <div class="main">
+        <table class="s-table">
+          <tr><th>기준</th><th>NL</th><th>HASH</th><th>MERGE</th></tr>
+          <tr><td>규모</td><td>소량</td><td>대량</td><td>중~대</td></tr>
+          <tr><td>복잡도</td><td><code>O(N·M)</code></td><td><code>O(N+M)</code></td><td><code>O(NlogN)</code></td></tr>
+          <tr><td>인덱스</td><td>후행 필수</td><td>불필요</td><td>있으면 유리</td></tr>
+          <tr><td>조건</td><td>등치/부등</td><td>등치만</td><td>등치/부등</td></tr>
+          <tr><td>반환</td><td>부분(즉시)</td><td>전체</td><td>전체</td></tr>
+        </table>
+      </div>
+      <aside class="s-aside">
+        <div class="h">언제 무엇</div>
+        <ul>
+          <li><b>NL</b>: 온라인 화면(소량·부분범위)</li>
+          <li><b>HASH</b>: 배치 대량·리포트(등치)</li>
+          <li><b>MERGE</b>: 비등치·대량 정렬</li>
+          <li>HASH는 PGA 부족 시 TEMP로 저하</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">진단의 급소</div>
+    <div class="s-title">E-Rows vs A-Rows</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-formula">E-Rows × Starts ≈ <span class="hl">A-Rows</span><small>이 균형이 무너진 라인 = 옵티마이저 오판 = 병목</small></div>
+        <div class="s-grid">
+          <div class="s-card"><h4>Starts</h4><p>그 노드가 실제 구동된 횟수(NL 하위는 반복).</p></div>
+          <div class="s-card c"><h4>Buffers</h4><p>논리적 I/O — 클수록 자원 폭식.</p></div>
+        </div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">오차 3대 원인</div>
+        <ul>
+          <li><b>통계 노후화</b> — NUM_ROWS/NDV가 현실과 괴리</li>
+          <li><b>히스토그램 부재</b> — 편향 분포에 균등 가정</li>
+          <li><b>컬럼 상관관계</b> — <code>A=1 AND B=2</code>를 독립 가정</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">케이스 A</div>
+    <div class="s-title">통계 노후화 → NL 오판(45M Buffers)</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-code">| Id | Operation          | Starts |E-Rows|A-Rows|Buffers|
+|  1 | NESTED LOOPS       |     1  |   1  |   1  |  45M  |
+|  4 |  TABLE ACCESS(ORD) |     1  |   1  |  25M |  45M  |
+|* 5 |   INDEX RANGE SCAN |     1  |   1  |  25M | 200K  |</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">진단</div>
+        <ul>
+          <li>E-Rows <b>1</b> 예측 → NL 선택</li>
+          <li>실제 A-Rows <b>25M</b> → 200K 인덱스 + 45M 테이블 랜덤 I/O</li>
+          <li>원인: <code>TB_ORDER</code> 통계 노후화</li>
+          <li>조치: 통계 갱신 → <b>HASH JOIN</b> 유도</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">케이스 B</div>
+    <div class="s-title">히스토그램 부재 → 25만 vs 85</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-code"><span class="k">SELECT</span> * <span class="k">FROM</span> tb_log <span class="k">WHERE</span> status=<span class="k">'ERROR'</span>;
+<span class="c">-- E-Rows 250K  vs  A-Rows 85</span></div>
+        <div class="s-bars">
+          <div class="s-bar"><span class="lab">ACTIVE</span><span class="track"><span class="fill" style="width:99.5%"></span></span><span class="val">99.5%</span></div>
+          <div class="s-bar"><span class="lab">ERROR</span><span class="track"><span class="fill y" style="width:2%"></span></span><span class="val">0.01%</span></div>
+        </div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">분석</div>
+        <ul>
+          <li>NDV=4·NUM_ROWS=100만 → 100만/4 = <b>25만</b> 균등 가정</li>
+          <li>실제 ERROR는 <b>0.01%(85건)</b>의 희소값</li>
+          <li>오판이 후속 조인까지 연쇄</li>
+          <li>해결: <code>FOR COLUMNS SIZE 254 STATUS</code> 히스토그램</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">케이스 C</div>
+    <div class="s-title">상관 서브쿼리 → Starts 500</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-code">|* 5 | TABLE ACCESS FULL TB_SALARY |Starts 500|Buffers 800K|
+<span class="c">-- 메인 500행마다 서브쿼리 풀스캔 반복</span>
+<span class="c">-- 500 × 1,600블록 = 800,000 논리 I/O</span></div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">해결</div>
+        <ul>
+          <li><b>상관 서브쿼리</b>가 행마다 반복 = Starts 폭증</li>
+          <li>인라인 뷰 + 조인으로 <b>Subquery Unnesting</b></li>
+          <li>또는 <code>ROW_NUMBER() OVER(PARTITION BY)</code> 1회 스캔</li>
+          <li>플랜의 <b>FILTER</b> 연산 = 상관 서브쿼리 신호</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">플랜 변경(Regression)</div>
+    <div class="s-title">코드 그대로인데 갑자기 30초</div>
+    <div class="s-cols">
+      <div class="main">
+        <table class="s-table">
+          <tr><th>트리거</th><th>빈도</th></tr>
+          <tr><td>자동 통계 수집(야간 후)</td><td>매우 잦음</td></tr>
+          <tr><td>바인드 변수 피킹</td><td>잦음</td></tr>
+          <tr><td>적응형 커서 공유</td><td>간헐</td></tr>
+          <tr><td>DB 패치/업그레이드</td><td>드묾</td></tr>
+        </table>
+        <div class="s-note"><b>긴급 고정:</b> 양호 플랜을 <b>SQL Plan Baseline</b>(SPM)으로 등록 → 그 경로만 강제.</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">조치 스크립트</div>
+        <ul>
+          <li><code>DBMS_SPM.LOAD_PLANS_FROM_CURSOR_CACHE(fixed=&gt;'YES')</code></li>
+          <li>확인: <code>DBA_SQL_PLAN_BASELINES</code></li>
+          <li>근본: 해당 테이블 통계 <b>고정</b>(<code>LOCK_TABLE_STATS</code>)</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">옵티마이저 힌트</div>
+    <div class="s-title">최후의 수단, 신중하게</div>
+    <div class="s-cols">
+      <div class="main">
+        <table class="s-table">
+          <tr><th>분류</th><th>힌트</th></tr>
+          <tr><td>접근경로</td><td><code>FULL</code>, <code>INDEX</code>, <code>INDEX_FFS</code>, <code>NO_INDEX</code></td></tr>
+          <tr><td>조인</td><td><code>USE_NL</code>, <code>USE_HASH</code>, <code>USE_MERGE</code>, <code>LEADING</code></td></tr>
+          <tr><td>기타</td><td><code>PARALLEL</code>, <code>GATHER_PLAN_STATISTICS</code></td></tr>
+        </table>
+      </div>
+      <aside class="s-aside">
+        <div class="h">주의(중요)</div>
+        <ul>
+          <li>힌트는 <b>최후의 수단</b> — 분포 변하면 독</li>
+          <li>문법 오류 시 <b>에러 없이 무시</b> → 플랜 검증 필수</li>
+          <li>장기적으론 <b>통계 최신화 + Baseline</b>이 안정적</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">케이스 D</div>
+    <div class="s-title">묵시적 형변환 → 인덱스 무력화</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-code"><span class="c">-- Predicate: TO_NUMBER("MEMBER_NO") = 2026001234</span>
+<span class="c">-- 컬럼이 VARCHAR2인데 숫자로 비교 → 좌변에 함수 → 인덱스 불가 → FTS(24500 Buffers)</span>
+
+setInt(1, memberNo)   <span class="c">// 🚨 숫자 전달</span>
+setString(1, String.valueOf(memberNo))  <span class="c">// ✔ 문자 전달</span></div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">교훈</div>
+        <ul>
+          <li>좌변 컬럼에 <b>함수/형변환</b> = 인덱스 무력화</li>
+          <li>바인드 <b>타입</b>을 컬럼 타입에 일치</li>
+          <li>증거는 플랜 <b>Predicate</b> 섹션의 <code>TO_*()</code></li>
+          <li>수정 후 <code>DISPLAY_CURSOR</code>로 재검증</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">한 장 정리</div>
+    <div class="s-title">3회차 핵심</div>
+    <div class="s-cols">
+      <div class="main">
+        <ul class="s-keys">
+          <li>CBO는 <b>통계 → 선택도 → 카디널리티 → 비용</b>으로 선택</li>
+          <li><b>선택도=1/NDV</b>, 편향 분포엔 <b>히스토그램</b></li>
+          <li>실측은 <code>DISPLAY_CURSOR(ALLSTATS LAST)</code></li>
+          <li>접근경로 6종·조인 3종을 <b>데이터 규모·인덱스</b>로</li>
+          <li>모든 진단의 급소 = <b>E-Rows × Starts ≈ A-Rows</b></li>
+        </ul>
+      </div>
+      <aside class="s-aside">
+        <div class="h">평가 포인트</div>
+        <ul>
+          <li>Starts 폭증 = NL 오선택 → HASH 유도</li>
+          <li>Soft 99.8% + Hit 72% → I/O 이벤트·인덱스 점검</li>
+          <li>선두 컬럼 없으면 Skip Scan vs FTS</li>
+          <li>플랜 강제는 통계 최신화로 갈음</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>

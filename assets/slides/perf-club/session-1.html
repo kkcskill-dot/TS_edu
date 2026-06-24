@@ -1,0 +1,583 @@
+<section class="ts-slide cover">
+  <div class="inner">
+    <div class="s-kicker">성능진단 소모임 · 1회차</div>
+    <div class="s-title">오라클 아키텍처 &amp;<br>V$SESSION 기초</div>
+    <p class="s-lead">메모리·프로세스·스토리지 구조부터 Redo/Undo 장애,<br><code>V$SESSION</code>·AAS·6대 대기 이벤트·장애 조치 원칙까지.</p>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">오늘의 지도</div>
+    <div class="s-title">진단 엔지니어의 큰 그림</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-grid">
+          <div class="s-card"><h4>① 구조</h4><p>SGA · 백그라운드 프로세스 · Disk 파일</p></div>
+          <div class="s-card c"><h4>② 트랜잭션</h4><p>Redo / Undo 와 대표 장애</p></div>
+          <div class="s-card y"><h4>③ 관측</h4><p>V$SESSION · AAS 로 부하 읽기</p></div>
+          <div class="s-card r"><h4>④ 병목</h4><p>6대 대기 이벤트 · 락 트리</p></div>
+          <div class="s-card g"><h4>⑤ 조치</h4><p>장애 대응 3대 제약 · RAC/Exadata</p></div>
+        </div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">진단의 3원칙</div>
+        <ul>
+          <li><b>증상이 아니라 원인</b>을 본다 — 느림은 결과, 대기 이벤트가 원인</li>
+          <li><b>거시 → 미시</b> 순서 — AAS로 부하 수준부터, 그다음 세션 단위</li>
+          <li>장애 중엔 <b>가벼운 <code>V$</code></b>만 — 무거운 카탈로그 조인 금지</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">큰 그림</div>
+    <div class="s-title">인스턴스(메모리) ↔ 데이터베이스(디스크)</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-arch">
+          <div class="box navy"><b>Instance</b><span>SGA(공유 메모리)<br>+ 백그라운드 프로세스</span></div>
+          <div class="plus">⇄</div>
+          <div class="box"><b>Database</b><span>Data · Redo · Undo<br>· Control Files</span></div>
+        </div>
+        <p class="s-lead">사용자는 <b>인스턴스(메모리)</b>를 통해서만 디스크 데이터에 접근한다. 백그라운드 프로세스가 그 사이를 중계한다.</p>
+      </div>
+      <aside class="s-aside">
+        <div class="h">부가자료 · 기동 3단계</div>
+        <ul>
+          <li><b>NOMOUNT</b> — 파라미터파일 읽고 인스턴스(SGA·프로세스)만 기동</li>
+          <li><b>MOUNT</b> — 컨트롤 파일을 열어 DB 구조 인식</li>
+          <li><b>OPEN</b> — 데이터·리두 파일 열어 서비스 시작</li>
+          <li>한 인스턴스 = 한 DB(단일). RAC는 <b>여러 인스턴스</b>가 한 DB 공유</li>
+          <li>12c+ <b>멀티테넌트</b>: CDB(컨테이너) 안에 PDB(플러그형 DB)</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">공유 메모리</div>
+    <div class="s-title">SGA — System Global Area</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-grid">
+          <div class="s-card"><h4>Buffer Cache</h4><p>데이터 블록 캐싱. 논리적 읽기의 대상.</p></div>
+          <div class="s-card c"><h4>Redo Log Buffer</h4><p>변경 내용을 디스크 기록 전 임시 저장.</p></div>
+          <div class="s-card y"><h4>Shared Pool</h4><p>파싱된 SQL·실행계획(라이브러리 캐시) 캐싱.</p></div>
+          <div class="s-card g"><h4>Lock / 기타</h4><p>락 정보 등 공유 제어 구조.</p></div>
+        </div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">심화 · 더 들여다보기</div>
+        <ul>
+          <li><b>Shared Pool</b> = Library Cache(SQL/커서) + Data Dictionary Cache(메타)</li>
+          <li><b>Large Pool</b>: 병렬·RMAN·공유서버용 대형 할당</li>
+          <li><b>Buffer Cache</b>는 LRU로 관리, 더티 블록은 DBWn이 기록</li>
+          <li>크기: <code>SGA_TARGET</code>/<code>MEMORY_TARGET</code>로 자동 관리(ASMM/AMM)</li>
+          <li>진단: <code>V$SGASTAT</code>, <code>V$SGA_TARGET_ADVICE</code></li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">묵묵한 일꾼</div>
+    <div class="s-title">백그라운드 프로세스</div>
+    <div class="s-cols">
+      <div class="main">
+        <table class="s-table">
+          <tr><th>프로세스</th><th>역할</th></tr>
+          <tr><td><code>DBWn</code></td><td>더티 버퍼 → 데이터 파일 기록(Database Writer)</td></tr>
+          <tr><td><code>LGWR</code></td><td>리두 버퍼 → 리두 로그 파일 기록(Log Writer)</td></tr>
+          <tr><td><code>CKPT</code></td><td>체크포인트 관리, 파일 헤더 동기화</td></tr>
+          <tr><td><code>ARC0</code></td><td>가득 찬 리두 로그를 아카이브로 백업</td></tr>
+        </table>
+      </div>
+      <aside class="s-aside">
+        <div class="h">부가자료 · 더 알아둘 프로세스</div>
+        <ul>
+          <li><b>PMON</b> — 죽은 프로세스 정리, 락 해제</li>
+          <li><b>SMON</b> — 인스턴스 복구, 임시공간 정리</li>
+          <li><b>MMON/MMNL</b> — AWR 스냅샷·ASH 샘플 수집</li>
+          <li><b>LGWR</b>은 <b>커밋·3초·1/3참</b> 시점에 flush → 그래서 <code>log file sync</code></li>
+          <li><b>ARCn</b>은 <b>ARCHIVELOG 모드</b>에서만 동작(아카이브 공간 주의)</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">영속 저장</div>
+    <div class="s-title">Disk — 4대 핵심 파일</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-grid">
+          <div class="s-card"><h4>Data Files</h4><p>실제 데이터가 담기는 파일.</p></div>
+          <div class="s-card c"><h4>Redo Log Files</h4><p>변경 내역의 물리 기록(복구 근거).</p></div>
+          <div class="s-card y"><h4>Undo Files</h4><p>롤백·읽기 일관성용 변경 전 이미지.</p></div>
+          <div class="s-card g"><h4>Control Files</h4><p>DB 상태·구조 메타데이터.</p></div>
+        </div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">참고 · 운영 포인트</div>
+        <ul>
+          <li><b>SPFILE/PFILE</b> — 인스턴스 파라미터(기동 시 읽음)</li>
+          <li><b>TEMP</b> 테이블스페이스 — 대형 소트·해시 작업공간</li>
+          <li><b>멀티플렉싱</b> — 리두·컨트롤 파일은 다중화로 단일점장애 방지</li>
+          <li>블록 크기 <code>DB_BLOCK_SIZE</code>(보통 8K) — I/O 최소 단위</li>
+          <li>컨트롤 파일 유실 = 치명 → 백업·다중화 필수</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">트랜잭션의 두 기록</div>
+    <div class="s-title">Redo("다시 하기") vs Undo("실행 취소")</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-grid">
+          <div class="s-card c"><h4>REDO</h4><p>장애 복구를 위해 모든 변경을 <b>선기록(WAL)</b>. 커밋은 리두 기록을 보장.</p></div>
+          <div class="s-card y"><h4>UNDO</h4><p>변경 전 데이터 보존 → <b>ROLLBACK</b> + 다중 사용자 <b>읽기 일관성</b>.</p></div>
+        </div>
+        <div class="s-note"><b>읽기 일관성:</b> 내가 커밋 안 한 변경을 남이 못 본다 — 그 "과거 값"의 출처가 <b>Undo</b>.</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">심화 · 핵심 개념</div>
+        <ul>
+          <li><b>WAL</b>(Write-Ahead Logging): 데이터파일보다 리두를 먼저 쓴다</li>
+          <li><b>SCN</b>(System Change Number): 변경의 논리적 시계 — 일관성 기준</li>
+          <li><b>Flashback Query</b>(<code>AS OF</code>)는 <b>Undo</b>를 읽어 과거 조회</li>
+          <li><b>Commit</b> ≠ 데이터파일 기록. 커밋은 <b>리두</b>만 보장(Fast Commit)</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">장애 시나리오 ①</div>
+    <div class="s-title">Redo 100% → DB Hang</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-flow">
+          <span class="step">아카이빙 지연 / 폭증</span><span class="arrow">→</span>
+          <span class="step">덮어쓸 리두 공간 없음</span><span class="arrow">→</span>
+          <span class="step">Log Switch Hang</span>
+        </div>
+        <p class="s-lead">리두 로그는 그룹을 <b>순환(Circular)</b>하며 덮어쓴다. 여분이 없으면 로그 스위치가 멈춘다.</p>
+        <div class="s-err"><b>현상:</b> 시스템 전체 DML 멈춤(Hang). 사용자는 무한 대기(Lock Waiting).</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">진단 · 조치</div>
+        <ul>
+          <li>진단: <code>V$LOG</code>(상태 ACTIVE/CURRENT), <code>V$LOG_HISTORY</code>(스위치 빈도)</li>
+          <li>대기: <code>log file switch (archiving needed)</code></li>
+          <li>조치: 아카이브 <b>목적지 공간 확보</b>가 1순위</li>
+          <li>구조 개선: 리두 그룹·멤버 <b>크기/개수↑</b>, <code>ARCn</code> 병렬</li>
+          <li>예방: 대량 적재 전 아카이브 모니터링</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">장애 시나리오 ②</div>
+    <div class="s-title">Undo 100% → DML 실패 &amp; 조회 에러</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-err"><b>DML 불가:</b> 변경 전 값 기록할 Undo 공간 부족 → INSERT/UPDATE/DELETE 실패<br>ORA-30036: unable to extend segment ... in undo tablespace</div>
+        <div class="s-err"><b>조회 실패:</b> 장시간 SELECT가 참조할 과거 Undo가 덮어써져 유실<br>ORA-01555: snapshot too old</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">조치 · 예방</div>
+        <ul>
+          <li><code>UNDO_RETENTION</code>(초) — 과거 이미지 보존 시간</li>
+          <li>Undo TS <b>자동확장</b> + 충분한 크기</li>
+          <li>장기 배치 SELECT와 고빈도 갱신 <b>시간 분리</b></li>
+          <li><b>건별 커밋 자제</b> — 너무 잦은 커밋도 ORA-01555 유발</li>
+          <li>진단: <code>V$UNDOSTAT</code>, <code>DBA_UNDO_EXTENTS</code></li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">실시간 관측의 창</div>
+    <div class="s-title">V$SESSION 파헤치기</div>
+    <div class="s-cols">
+      <div class="main">
+        <p class="s-lead">디스크 테이블이 아니라 <b>SGA 메모리 구조체(C 배열)를 SQL로 매핑</b>한 동적 성능 뷰.</p>
+        <div class="s-code"><span class="k">SELECT</span> sid, serial#, username, status,
+       machine, program, sql_id,
+       sql_exec_start, prev_sql_id
+<span class="k">FROM</span>   v$session
+<span class="k">WHERE</span>  status=<span class="k">'ACTIVE'</span> <span class="k">AND</span> sql_id <span class="k">IS NOT NULL</span>;</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">관련 뷰 지도</div>
+        <ul>
+          <li><code>V$PROCESS</code> — OS 프로세스 ↔ 세션 매핑</li>
+          <li><code>V$SQL</code> / <code>V$SQLAREA</code> — SQL 통계(buffer_gets 등)</li>
+          <li><code>V$SESSION_WAIT</code> — 현재 대기 상세</li>
+          <li><code>V$ACTIVE_SESSION_HISTORY</code> — 과거 샘플(2회차)</li>
+          <li><b>GV$</b> = RAC 전역(모든 노드), <b>V$</b> = 내 노드만</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">컬럼 해독</div>
+    <div class="s-title">세션을 읽는 4개의 렌즈</div>
+    <div class="s-cols">
+      <div class="main">
+        <table class="s-table">
+          <tr><th>분류</th><th>컬럼</th></tr>
+          <tr><td><b>식별</b></td><td><code>SID</code>, <code>SERIAL#</code>, <code>USERNAME</code>, <code>SCHEMANAME</code></td></tr>
+          <tr><td><b>상태</b></td><td><code>STATUS</code>(ACTIVE/INACTIVE/KILLED), <code>TYPE</code></td></tr>
+          <tr><td><b>클라이언트</b></td><td><code>OSUSER</code>, <code>MACHINE</code>, <code>PROGRAM</code>, <code>MODULE</code></td></tr>
+          <tr><td><b>시간/SQL</b></td><td><code>LOGON_TIME</code>, <code>SQL_ID</code>, <code>PREV_SQL_ID</code></td></tr>
+        </table>
+      </div>
+      <aside class="s-aside">
+        <div class="h">실무 팁 · 범인 추적</div>
+        <ul>
+          <li><code>MODULE</code>/<code>ACTION</code>은 <b>앱이 태깅</b>(DBMS_APPLICATION_INFO) → 어느 화면/배치인지</li>
+          <li><code>CLIENT_IDENTIFIER</code>로 <b>커넥션 풀 뒤의 실사용자</b> 추적</li>
+          <li><code>LAST_CALL_ET</code> — 현재 상태 지속 시간(유휴 점유 탐지)</li>
+          <li>백그라운드는 <code>USERNAME</code>이 NULL — <code>TYPE='USER'</code>로 필터</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">부하 지표</div>
+    <div class="s-title">AAS — 평균 활성 세션</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-formula">AAS = <span class="hl">DB Time / Elapsed Time</span><small>예) 60초 동안 DB Time 240초 → 240 / 60 = <b>4</b></small></div>
+        <p class="s-lead">그 60초 동안 <b>평균 4개 세션이 1초도 쉬지 않고</b> 부하를 줬다는 뜻 — 부하의 <b>강도</b>를 한 숫자로.</p>
+      </div>
+      <aside class="s-aside">
+        <div class="h">관련 개념</div>
+        <ul>
+          <li><b>DB Time = CPU Time + Wait Time</b>(non-idle)</li>
+          <li><b>AAS 1.0</b> ≈ "CPU 코어 1개를 꽉 채운 만큼"의 부하</li>
+          <li>출처: <code>V$SYS_TIME_MODEL</code>, ASH 샘플 집계</li>
+          <li>AWR 리포트 상단 <b>"Average Active Sessions"</b>가 바로 이 값</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">Queueing 관점</div>
+    <div class="s-title">AAS vs CPU 코어수(N)</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-grid">
+          <div class="s-card g"><h4>AAS &lt; N — 정상</h4><p>Run Queue 대기 없음. 즉시 CPU 할당.</p></div>
+          <div class="s-card r"><h4>AAS ≫ N — 지연</h4><p>잦은 <b>컨텍스트 스위칭</b>. 연산보다 스레드 교체 오버헤드 급증.</p></div>
+        </div>
+        <div class="s-note"><b>1차 판단:</b> "부하가 서버의 물리적 동시처리 한계(N)를 넘었는가?"</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">참고 · OS 관점</div>
+        <ul>
+          <li>OS의 <b>Run Queue 길이</b>(load average)와 직결</li>
+          <li><code>vmstat</code>의 <b>r</b> 컬럼 = 실행 대기 프로세스 수</li>
+          <li>임계점 <b>AAS ≈ N</b> 부근부터 응답시간 급격히 악화(M/M/c 큐잉)</li>
+          <li>CPU 대기는 ASH의 <b>ON CPU</b> 비중으로 확인</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">Root Cause 집계</div>
+    <div class="s-title">이벤트별 Active 세션 그룹화</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-code"><span class="k">SELECT</span> event, state, <span class="k">COUNT</span>(*) cnt
+<span class="k">FROM</span>   v$session
+<span class="k">WHERE</span>  status=<span class="k">'ACTIVE'</span> <span class="k">AND</span> type=<span class="k">'USER'</span>
+<span class="k">GROUP</span> <span class="k">BY</span> event, state
+<span class="k">ORDER</span> <span class="k">BY</span> cnt <span class="k">DESC</span>;</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">해석법</div>
+        <ul>
+          <li><b>상위 EVENT = 병목의 성격</b>(I/O? 락? 파싱?)</li>
+          <li><code>STATE</code>: <b>WAITING</b>(대기 중) vs <b>ON CPU</b>(연산 중)</li>
+          <li>EVENT가 <code>SQL*Net message from client</code>면 <b>유휴</b> — 제외</li>
+          <li>다음 단계: 상위 이벤트를 <b>6대 분류</b>로 매핑 →</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">대기 이벤트 ①</div>
+    <div class="s-title">db file sequential read</div>
+    <div class="s-cols">
+      <div class="main">
+        <p class="s-lead"><b>단일 블록 I/O</b> — 한 블록을 버퍼 캐시로 올릴 때의 동기 대기.</p>
+        <div class="s-grid">
+          <div class="s-card r"><h4>원인</h4><p>주로 인덱스 Range Scan. 선택도 낮아 과도한 <b>랜덤 I/O</b>.</p></div>
+          <div class="s-card g"><h4>해결</h4><p>추출량 10~15% 초과면 <b>Full Scan(순차)</b>이 유리. 조건 변별력↑.</p></div>
+        </div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">수치 · 판단 기준</div>
+        <ul>
+          <li>손익분기 <b>~10–15%</b>(클러스터링 팩터에 따라 변동)</li>
+          <li>랜덤 I/O 1건 ≈ <b>수 ms</b> — 누적되면 치명</li>
+          <li><code>V$SQL</code>의 <b>BUFFER_GETS</b> vs <b>DISK_READS</b> 비교</li>
+          <li>클러스터링 팩터 나쁘면 적은 행도 많은 블록 접근</li>
+          <li>대상: <code>S.EVENT='db file sequential read'</code> ⋈ <code>V$SQL</code></li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">대기 이벤트 ②</div>
+    <div class="s-title">db file scattered read</div>
+    <div class="s-cols">
+      <div class="main">
+        <p class="s-lead"><b>다중 블록 I/O</b> — 연속 블록을 한 번에 읽어 캐시에 흩어 적재.</p>
+        <div class="s-grid">
+          <div class="s-card r"><h4>원인</h4><p>인덱스 부재 또는 옵티마이저의 FTS 선택(Full Table Scan).</p></div>
+          <div class="s-card g"><h4>해결</h4><p>대용량 무조건 FTS는 I/O 고갈. 악성 세션 식별 + 필수 조건 강제.</p></div>
+        </div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">판단 · 균형감</div>
+        <ul>
+          <li>FTS가 <b>항상 나쁜 건 아님</b> — 대량 추출엔 오히려 유리</li>
+          <li>한 번에 읽는 블록 수: <code>db_file_multiblock_read_count</code></li>
+          <li><b>파티션 프루닝</b>으로 스캔 범위 축소</li>
+          <li><b>병렬 쿼리</b>로 대용량 FTS 분산</li>
+          <li>진행률: <code>V$SESSION_LONGOPS</code>(Table Scan)</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">대기 이벤트 ③</div>
+    <div class="s-title">direct path read / temp</div>
+    <div class="s-cols">
+      <div class="main">
+        <p class="s-lead">SGA 공용 캐시를 <b>건너뛰고 PGA로 직접</b> I/O. 그리고 TEMP 스왑.</p>
+        <div class="s-grid">
+          <div class="s-card r"><h4>원인</h4><p>대규모 정렬·해시가 PGA 초과 → <b>TEMP</b>를 스왑처럼(Out-of-Core).</p></div>
+          <div class="s-card g"><h4>해결</h4><p>배치 단위 분할, <code>PGA_AGGREGATE_TARGET</code> 검토.</p></div>
+        </div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">관련 파라미터 · 뷰</div>
+        <ul>
+          <li><code>PGA_AGGREGATE_TARGET</code> / <code>_LIMIT</code></li>
+          <li><code>V$SQL_WORKAREA</code> — Optimal/OnePass/MultiPass</li>
+          <li>TEMP 사용: <code>V$SORT_USAGE</code>(세션별 MB)</li>
+          <li>TEMP 부족 시 <b>ORA-01652: unable to extend temp</b></li>
+          <li>해시 조인 메모리 &gt; 소트 — 큰 작업은 분할</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">대기 이벤트 ④</div>
+    <div class="s-title">log file sync</div>
+    <div class="s-cols">
+      <div class="main">
+        <p class="s-lead"><b>WAL 동기화 지연</b> — COMMIT마다 리두 버퍼를 디스크에 기록 완료까지 대기.</p>
+        <div class="s-grid">
+          <div class="s-card r"><h4>원인</h4><p>스토리지 쓰기(IOPS) 저하, 또는 반복문 <b>건별 COMMIT</b>.</p></div>
+          <div class="s-card g"><h4>해결</h4><p>JDBC <b>Batch</b>로 묶어 단일 트랜잭션 — I/O 콜 최소화.</p></div>
+        </div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">관련 · 깊게</div>
+        <ul>
+          <li>짝꿍 이벤트 <code>log file parallel write</code>(LGWR의 실제 쓰기) 비교</li>
+          <li>리두 로그를 <b>빠른/분리된 디스크</b>에 배치</li>
+          <li>커밋 폭주 세션: <code>user commits</code>(V$SESSTAT) Top-N</li>
+          <li>비동기 옵션 <code>COMMIT_WAIT=NOWAIT</code>(정합성 트레이드오프, 신중)</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">대기 이벤트 ⑤</div>
+    <div class="s-title">library cache lock / pin</div>
+    <div class="s-cols">
+      <div class="main">
+        <p class="s-lead">공유 풀의 <b>파싱된 SQL·객체 구조(AST)</b>를 보호하는 상호 배제(Mutex) 락.</p>
+        <div class="s-grid">
+          <div class="s-card r"><h4>원인</h4><p>운영 중 <b>DDL(ALTER)</b>·프로시저 재컴파일 → 참조 세션 전부 차단.</p></div>
+          <div class="s-card g"><h4>해결</h4><p>유발 세션 식별·종료. 스키마 변경은 <b>점검 시간</b>에만.</p></div>
+        </div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">관련 · 파싱 경합</div>
+        <ul>
+          <li>유사: <code>cursor: pin S wait on X</code>(커서 뮤텍스 경합)</li>
+          <li>DDL은 객체 커서를 <b>무효화(invalidation)</b> → 재파싱 폭발</li>
+          <li>하드 파싱 과다 → <b>바인드 변수</b>로 커서 공유</li>
+          <li>운영 중 <code>GRANT</code>/통계수집도 무효화 유발 가능</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">대기 이벤트 ⑥</div>
+    <div class="s-title">enq: TX - row lock contention</div>
+    <div class="s-cols">
+      <div class="main">
+        <p class="s-lead">같은 레코드에 다수 세션이 동시 쓰기 → 무결성 보호 락.</p>
+        <div class="s-grid">
+          <div class="s-card r"><h4>원인</h4><p>갱신 집중, 또는 예외 누락으로 락 점유 방치(<b>Connection Leak</b>).</p></div>
+          <div class="s-card g"><h4>해결</h4><p>락 트리 순회로 <b>Root Blocker</b> 식별.</p></div>
+        </div>
+        <div class="s-code"><span class="c">-- Wait-For Graph (LEVEL 1 = 임계구역 점유)</span>
+<span class="k">START WITH</span> blocking_session <span class="k">IS NULL</span>
+<span class="k">CONNECT BY PRIOR</span> sid = blocking_session</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">관련 · 락 진단</div>
+        <ul>
+          <li><code>V$LOCK</code>, <code>V$SESSION.BLOCKING_SESSION</code></li>
+          <li>TX 락 외 <b>ITL 부족</b>(<code>enq: TX - allocate ITL</code>)도 행 락처럼 보임</li>
+          <li>데드락 → <b>ORA-00060</b>(자동 희생자 롤백 + trace)</li>
+          <li>대기 회피: <code>SELECT ... FOR UPDATE NOWAIT / SKIP LOCKED</code></li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">함부로 손대지 마라</div>
+    <div class="s-title">장애 조치 3대 제약</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-grid">
+          <div class="s-card r"><h4>① 무작정 Kill 금지</h4><p>DML 세션 Kill → <b>Undo 롤백</b>. 대량이면 롤백이 더 오래, 그동안 락 유지.</p></div>
+          <div class="s-card y"><h4>② 부하 중 딕셔너리 조인 금지</h4><p><code>DBA_OBJECTS</code> 등 복잡 조인은 붕괴 유발. <b>가벼운 V$</b>만.</p></div>
+          <div class="s-card c"><h4>③ Connection Storm 방지</h4><p>재요청 폭주 → 풀 고갈. <b>서킷 브레이커</b>·재시도 제한.</p></div>
+        </div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">추가 원칙</div>
+        <ul>
+          <li>조치 전 <b>스냅샷</b>(현재 세션·SQL·락 상태 보존)</li>
+          <li><code>ALTER SYSTEM KILL SESSION</code> vs <code>DISCONNECT ... IMMEDIATE</code></li>
+          <li>롤백 진행률: <code>V$TRANSACTION.USED_UREC</code> 감소 추세 확인</li>
+          <li><b>단계적</b> 조치 — 가장 상위 Root Blocker 하나부터</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">심화 — 인스턴스 유형별</div>
+    <div class="s-title">RAC &amp; Exadata 대기 이벤트</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-sub">RAC — Cache Fusion</div>
+        <table class="s-table">
+          <tr><td><code>gc cr block</code></td><td>읽기 시 타 노드 CR 블록 전송</td></tr>
+          <tr><td><code>gc current block</code></td><td>DML 위해 최신 블록·변경권한 획득</td></tr>
+          <tr><td><code>gc buffer busy</code></td><td>전송 중 블록 동시 요청</td></tr>
+        </table>
+        <div class="s-sub">Exadata — Smart Scan</div>
+        <table class="s-table">
+          <tr><td><code>cell smart table scan</code></td><td>스토리지에서 필터 후 결과만 전송</td></tr>
+          <tr><td><code>cell multiblock physical read</code></td><td>Smart Scan 미작동(일반 읽기)</td></tr>
+        </table>
+      </div>
+      <aside class="s-aside">
+        <div class="h">한 줄 개념</div>
+        <ul>
+          <li><b>Cache Fusion</b>: 디스크 대신 <b>인터커넥트</b>로 노드 간 블록 직송</li>
+          <li>RAC 튜닝: Application Partitioning, 시퀀스 캐시↑, 해시 파티셔닝</li>
+          <li><b>Smart Scan</b>: 연산을 <b>스토리지 셀로 오프로딩</b>(필터·프로젝션)</li>
+          <li><b>Storage Index</b>: 셀이 불필요 영역을 건너뜀</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">한 장 정리</div>
+    <div class="s-title">1회차 핵심</div>
+    <div class="s-cols">
+      <div class="main">
+        <ul class="s-keys">
+          <li>인스턴스 = <b>SGA + 백그라운드 프로세스</b>, DB = Disk 4대 파일</li>
+          <li>Redo=복구·Undo=롤백/읽기일관성 — <b>Hang·ORA-01555</b>로 체감</li>
+          <li><code>V$SESSION</code> 실시간 진단, <b>AAS vs N</b>으로 부하 한계 판단</li>
+          <li>병목은 <b>6대 대기 이벤트</b> → 원인·해결·탐지 SQL</li>
+          <li>조치 원칙: <b>Kill 신중 · V$만 · 서킷 브레이커</b></li>
+        </ul>
+      </div>
+      <aside class="s-aside">
+        <div class="h">다음 회차 예고</div>
+        <ul>
+          <li><b>2회차</b> — DB Time 분해, 대기 이벤트 심화</li>
+          <li><b>ASH</b>(1초 샘플) ↔ <b>AWR</b>(스냅샷) 분석</li>
+          <li>하드/소프트 파싱과 바인드 변수</li>
+          <li>핵심 지표: Buffer Hit% · Soft Parse% · AAS</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
