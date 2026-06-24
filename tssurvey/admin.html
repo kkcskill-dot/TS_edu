@@ -112,6 +112,7 @@
                         <td>
                             <button class="sph-btn sph-btn--ghost" onclick="viewResponses('${t.ID}', '${t.TITLE.replace(/'/g, "\\'")}')">결과 보기</button>
                             <a href="index.html?topic_id=${t.ID}" target="_blank" class="sph-btn sph-btn--accent" style="margin-left: 8px;">설문 열기</a>
+                            <button class="sph-btn sph-btn--ghost" style="margin-left: 8px; color: #d32f2f; border-color: #d32f2f;" onclick="deleteTopic('${t.ID}')">삭제</button>
                         </td>
                     `;
                     tbody.appendChild(tr);
@@ -157,6 +158,18 @@
                 });
             } catch (e) {
                 tbody.innerHTML = `<tr><td colspan="3" style="color:red;">조회 실패: ${e.message}</td></tr>`;
+            }
+        }
+
+        async function deleteTopic(topicId) {
+            if (!confirm('정말 이 설문 주제와 모든 응답 내역을 삭제하시겠습니까?')) return;
+            try {
+                await suvApi.deleteTopic(topicId);
+                alert('삭제되었습니다.');
+                loadTopics();
+                document.getElementById('responseView').style.display = 'none';
+            } catch (e) {
+                alert('삭제 실패: ' + e.message);
             }
         }
 

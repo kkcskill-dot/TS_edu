@@ -35,5 +35,13 @@ const suvApi = {
         });
         if (!res.ok) throw new Error('Failed to submit response');
         return res.json();
+    },
+
+    async deleteTopic(topicId) {
+        const res = await fetch(`${API_BASE}/topics?id=${encodeURIComponent(topicId)}`, {
+            method: 'DELETE'
+        });
+        if (!res.ok) throw new Error('Failed to delete topic');
+        return res.json();
     }
 };

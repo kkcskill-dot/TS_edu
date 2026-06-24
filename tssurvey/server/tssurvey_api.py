@@ -204,6 +204,30 @@ class TSSurveyRequestHandler(BaseHTTPRequestHandler):
                 finally:
                     conn.close()
 
+    def do_DELETE(self):
+        parsed = urlparse(self.path)
+        path = parsed.path
+        qs = parse_qs(parsed.query)
+
+        if path == "/topics":
+            topic_id = qs.get("id", [None])[0]
+            if not topic_id:
+                return self._respond_json(400, {"error": "id is required"})
+            
+            with _write_lock:
+                conn = _connect()
+                try:
+                    conn.execute("DELETE FROM TB_SURVEY_RESPONSE WHERE TOPIC_ID = ?", (topic_id,))
+                    conn.execute("DELETE FROM TB_TOPIC WHERE ID = ?", (topic_id,))
+                    conn.commit()
+                    return self._respond_json(200, {"ok": True})
+                except Exception as e:
+                    return self._respond_json(500, {"error": str(e)})
+                finally:
+                    conn.close()
+        
+        return self._respond_json(404, {"error": "Not Found"})
+
 if __name__ == "__main__":
     init_db()
     server = ThreadingHTTPServer((HOST, PORT), TSSurveyRequestHandler)
