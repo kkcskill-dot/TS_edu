@@ -314,9 +314,10 @@
       return;
     }
 
-    if (chapter === "sql") {
-      // 브라우저 내장 SQLite(sql.js) 실습 환경 — sqld-playground.js
-      if (window.SqldPlayground) SqldPlayground.mount(viewer);
+    if (chapter === "sql" || chapter === "sql-basic" || chapter === "sql-mid" || chapter === "sql-adv") {
+      // 브라우저 내장 SQLite(sql.js) 실습 환경 — sqld-playground.js (기초/중급/고급)
+      const lv = chapter === "sql-mid" ? "mid" : chapter === "sql-adv" ? "adv" : "basic";
+      if (window.SqldPlayground) SqldPlayground.mount(viewer, lv);
       else viewer.innerHTML = '<div style="padding:20px;color:var(--accent-crimson);">SQL 실습 모듈을 불러오지 못했습니다.</div>';
       return;
     }
