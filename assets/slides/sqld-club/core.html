@@ -208,6 +208,40 @@
 </section>
 
 
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">2과목 · 성능 모델링</div>
+    <div class="s-title">보이스-코드 정규형 (BCNF)</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-arch" style="margin-bottom:15px;">
+          <div class="box navy"><b>BCNF (Boyce-Codd Normal Form)</b><span>모든 결정자가 후보키(Candidate Key)가 되도록 테이블을 분리한다.</span></div>
+        </div>
+        <table class="s-table" style="font-size:0.85rem; margin-bottom:20px;">
+          <tr><th>학생(PK)</th><th>과목(PK)</th><th style="color:red;">강사명 (결정자)</th></tr>
+          <tr><td>S001</td><td>DB</td><td style="color:red;">김교수</td></tr>
+          <tr><td>S002</td><td>DB</td><td style="color:red;">이교수</td></tr>
+          <tr><td>S001</td><td>OS</td><td style="color:red;">박교수</td></tr>
+        </table>
+        
+        <div class="s-note">
+          <b>BCNF 위배 상황이란?</b><br>
+          위 테이블에서 (학생, 과목)이 복합 PK입니다. 만약 한 강사가 오직 하나의 과목만 강의한다면, <b>'강사명'이 '과목'을 결정</b>하게 됩니다.<br>
+          즉, 일반 속성(강사명)이 PK의 일부(과목)를 결정하는 <b>결정자 함수 종속성</b>이 발생하므로 강사 테이블을 따로 분리해야 합니다.
+        </div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">BCNF 핵심 요약</div>
+        <ul>
+          <li>3NF를 만족하면서, 모든 결정자가 후보키인 상태.</li>
+          <li><b>"강한 제3정규형"</b> 이라고도 불립니다.</li>
+          <li>일반 속성이 주식별자의 일부를 결정하는 <b>역종속 현상</b>을 해소합니다.</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
 <!-- ==========================================
      챕터 3: SQL 기본
      ========================================== -->
