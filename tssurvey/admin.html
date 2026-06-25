@@ -7,11 +7,23 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="sph-slide-container">
+    <div id="loginOverlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:var(--sph-bg); z-index:9999; display:flex; align-items:center; justify-content:center; flex-direction:column;">
+        <h2 class="sph-h2" style="margin-bottom: 24px;">관리자 인증</h2>
+        <input type="password" id="adminPassword" class="sph-input" placeholder="비밀번호" style="margin-bottom: 16px; width: 250px;">
+        <button id="btnLogin" class="sph-btn sph-btn--primary" style="width: 250px;">입장하기</button>
+    </div>
+
+    <div class="sph-slide-container" id="adminMain" style="display:none;">
         <header class="sph-header">
             <p class="sph-kicker">기술서비스팀 설문</p>
-            <h1 class="sph-title">설문 관리 대시보드</h1>
-            <div class="sph-keymsg">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h1 class="sph-title" style="margin:0;">설문 관리 대시보드</h1>
+                <div>
+                    <button class="sph-btn sph-btn--ghost" onclick="loadTopics()">🔄 새로고침</button>
+                    <button class="sph-btn sph-btn--ghost" onclick="logout()" style="margin-left:8px;">로그아웃</button>
+                </div>
+            </div>
+            <div class="sph-keymsg" style="margin-top:24px;">
                 <span class="label">안내</span>
                 새로운 설문 주제를 생성하고, 등록된 익명 응답 결과(별점, 한줄의견)를 조회할 수 있습니다.
             </div>
@@ -71,8 +83,36 @@
 
     <script src="app.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            loadTopics();
+        document.addEventListener('DOMContentLoaded', async () => {
+            const token = localStorage.getItem('tssurvey_admin_token');
+            if (token) {
+                try {
+                    await suvApi.checkAuth(token);
+                    document.getElementById('loginOverlay').style.display = 'none';
+                    document.getElementById('adminMain').style.display = 'block';
+                    loadTopics();
+                } catch (e) {
+                    // Invalid token
+                }
+            }
+
+            document.getElementById('btnLogin').addEventListener('click', async () => {
+                const pwd = document.getElementById('adminPassword').value;
+                if (!pwd) return;
+                try {
+                    await suvApi.checkAuth(pwd);
+                    suvApi.setToken(pwd);
+                    document.getElementById('loginOverlay').style.display = 'none';
+                    document.getElementById('adminMain').style.display = 'block';
+                    loadTopics();
+                } catch (e) {
+                    alert('비밀번호가 올바르지 않습니다.');
+                }
+            });
+
+            document.getElementById('adminPassword').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') document.getElementById('btnLogin').click();
+            });
 
             document.getElementById('btnCreateTopic').addEventListener('click', async () => {
                 const titleInput = document.getElementById('topicTitleInput');
@@ -191,6 +231,11 @@
                     tbody.appendChild(tr);
                 });
             } catch (e) {
+                if (e.message.includes('401')) {
+                    alert('인증이 만료되었습니다. 다시 로그인해주세요.');
+                    logout();
+                    return;
+                }
                 tbody.innerHTML = `<tr><td colspan="${topicType === 'apply' ? 4 : 3}" style="color:red;">조회 실패: ${e.message}</td></tr>`;
             }
         }
@@ -203,8 +248,19 @@
                 loadTopics();
                 document.getElementById('responseView').style.display = 'none';
             } catch (e) {
+                if (e.message.includes('401')) {
+                    alert('권한이 없습니다.');
+                    return;
+                }
                 alert('삭제 실패: ' + e.message);
             }
+        }
+
+        function logout() {
+            suvApi.logout();
+            document.getElementById('loginOverlay').style.display = 'flex';
+            document.getElementById('adminMain').style.display = 'none';
+            document.getElementById('adminPassword').value = '';
         }
 
         function formatKST(dateString) {

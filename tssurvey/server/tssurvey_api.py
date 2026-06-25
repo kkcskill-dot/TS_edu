@@ -79,11 +79,13 @@ def init_db():
     finally:
         conn.close()
 
+ADMIN_PASSWORD = "qhdkscjfwj!!"
+
 class TSSurveyRequestHandler(BaseHTTPRequestHandler):
     def _send_cors_headers(self):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
     def _respond_json(self, status_code, data):
         body = json.dumps(data, ensure_ascii=False).encode("utf-8")
@@ -93,6 +95,13 @@ class TSSurveyRequestHandler(BaseHTTPRequestHandler):
         self._send_cors_headers()
         self.end_headers()
         self.wfile.write(body)
+
+    def check_auth(self):
+        auth_header = self.headers.get("Authorization", "")
+        if auth_header != f"Bearer {ADMIN_PASSWORD}":
+            self._respond_json(401, {"error": "Unauthorized"})
+            return False
+        return True
 
     def do_OPTIONS(self):
         self.send_response(204)
@@ -104,8 +113,13 @@ class TSSurveyRequestHandler(BaseHTTPRequestHandler):
         path = parsed.path
         qs = parse_qs(parsed.query)
 
-        if path == "/health" or path == "/":
+        if path == "/health":
             return self._respond_json(200, {"ok": True, "service": "tssurvey-api"})
+
+        if path == "/auth":
+            if self.check_auth():
+                return self._respond_json(200, {"ok": True})
+            return
 
         if path == "/topics":
             conn = _connect()
@@ -138,6 +152,9 @@ class TSSurveyRequestHandler(BaseHTTPRequestHandler):
             topic_id = qs.get("topic_id", [None])[0]
             if not topic_id:
                 return self._respond_json(400, {"error": "topic_id is required"})
+            
+            if not self.check_auth():
+                return
             
             conn = _connect()
             try:
@@ -186,6 +203,9 @@ class TSSurveyRequestHandler(BaseHTTPRequestHandler):
             return self._respond_json(400, {"error": "Invalid JSON"})
 
         if path == "/topics":
+            if not self.check_auth():
+                return
+
             title = data.get("title")
             topic_type = data.get("type", "survey")
             if not title:
@@ -269,6 +289,9 @@ class TSSurveyRequestHandler(BaseHTTPRequestHandler):
         qs = parse_qs(parsed.query)
 
         if path == "/topics":
+            if not self.check_auth():
+                return
+
             topic_id = qs.get("id", [None])[0]
             if not topic_id:
                 return self._respond_json(400, {"error": "id is required"})

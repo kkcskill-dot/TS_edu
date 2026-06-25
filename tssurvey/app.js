@@ -1,10 +1,26 @@
-let API_BASE = '/tssurvey/api';
-// 로컬 파일 열기(file://)이거나 로컬호스트 접근 시 127.0.0.1:8091 백엔드 직접 호출
-if (window.location.protocol === 'file:' || window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
-    API_BASE = 'http://127.0.0.1:8091';
-}
+const API_BASE = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost' || window.location.protocol === 'file:' 
+    ? 'http://127.0.0.1:8091' 
+    : '/tssurvey/api';
+
+let adminToken = localStorage.getItem('tssurvey_admin_token') || '';
 
 const suvApi = {
+    setToken(token) {
+        adminToken = token;
+        localStorage.setItem('tssurvey_admin_token', token);
+    },
+    logout() {
+        adminToken = '';
+        localStorage.removeItem('tssurvey_admin_token');
+    },
+    async checkAuth(token) {
+        const res = await fetch(`${API_BASE}/auth`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('401');
+        return true;
+    },
+
     async getTopics() {
         const res = await fetch(`${API_BASE}/topics`);
         if (!res.ok) throw new Error('Failed to fetch topics');
@@ -14,16 +30,21 @@ const suvApi = {
     async createTopic(title, type = 'survey') {
         const res = await fetch(`${API_BASE}/topics`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${adminToken}`
+            },
             body: JSON.stringify({ title, type })
         });
-        if (!res.ok) throw new Error('Failed to create topic');
+        if (!res.ok) throw new Error(res.status === 401 ? '401' : 'Failed to create topic');
         return res.json();
     },
 
     async getResponses(topicId) {
-        const res = await fetch(`${API_BASE}/responses?topic_id=${encodeURIComponent(topicId)}`);
-        if (!res.ok) throw new Error('Failed to fetch responses');
+        const res = await fetch(`${API_BASE}/responses?topic_id=${encodeURIComponent(topicId)}`, {
+            headers: { 'Authorization': `Bearer ${adminToken}` }
+        });
+        if (!res.ok) throw new Error(res.status === 401 ? '401' : 'Failed to fetch responses');
         return res.json();
     },
 
@@ -49,9 +70,10 @@ const suvApi = {
 
     async deleteTopic(topicId) {
         const res = await fetch(`${API_BASE}/topics?id=${encodeURIComponent(topicId)}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${adminToken}` }
         });
-        if (!res.ok) throw new Error('Failed to delete topic');
+        if (!res.ok) throw new Error(res.status === 401 ? '401' : 'Failed to delete topic');
         return res.json();
     }
 };
