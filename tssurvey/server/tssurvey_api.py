@@ -311,6 +311,43 @@ class TSSurveyRequestHandler(BaseHTTPRequestHandler):
         
         return self._respond_json(404, {"error": "Not Found"})
 
+    def do_PUT(self):
+        parsed = urlparse(self.path)
+        path = parsed.path
+        qs = parse_qs(parsed.query)
+
+        content_length = int(self.headers.get("Content-Length", 0))
+        post_data = self.rfile.read(content_length)
+        try:
+            data = json.loads(post_data) if post_data else {}
+        except json.JSONDecodeError:
+            return self._respond_json(400, {"error": "Invalid JSON"})
+
+        if path == "/topics":
+            if not self.check_auth():
+                return
+            
+            topic_id = qs.get("id", [None])[0]
+            if not topic_id:
+                return self._respond_json(400, {"error": "id is required"})
+            
+            is_active = data.get("is_active")
+            if is_active is None:
+                return self._respond_json(400, {"error": "is_active is required"})
+            
+            with _write_lock:
+                conn = _connect()
+                try:
+                    conn.execute("UPDATE TB_TOPIC SET IS_ACTIVE = ? WHERE ID = ?", (int(is_active), topic_id))
+                    conn.commit()
+                    return self._respond_json(200, {"ok": True, "is_active": int(is_active)})
+                except Exception as e:
+                    return self._respond_json(500, {"error": str(e)})
+                finally:
+                    conn.close()
+
+        return self._respond_json(404, {"error": "Not Found"})
+
 if __name__ == "__main__":
     init_db()
     server = ThreadingHTTPServer((HOST, PORT), TSSurveyRequestHandler)

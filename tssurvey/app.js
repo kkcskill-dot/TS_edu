@@ -40,6 +40,19 @@ const suvApi = {
         return res.json();
     },
 
+    async toggleTopicStatus(topicId, isActive) {
+        const res = await fetch(`${API_BASE}/topics?id=${encodeURIComponent(topicId)}`, {
+            method: 'PUT',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${adminToken}`
+            },
+            body: JSON.stringify({ is_active: isActive })
+        });
+        if (!res.ok) throw new Error(res.status === 401 ? '401' : 'Failed to update topic status');
+        return res.json();
+    },
+
     async getResponses(topicId) {
         const res = await fetch(`${API_BASE}/responses?topic_id=${encodeURIComponent(topicId)}`, {
             headers: { 'Authorization': `Bearer ${adminToken}` }

@@ -93,17 +93,32 @@
             // For now, we'll just let the user fill out the form.
             try {
                 // Fetch topics to verify topic_id exists and get its title
-                const topics = await suvApi.getTopics();
-                const currentTopic = topics.find(t => t.ID === topicId);
-                if (currentTopic) {
-                    document.getElementById('displayTopicTitle').textContent = currentTopic.TITLE;
-                } else {
-                    document.getElementById('surveyForm').style.display = 'none';
-                    const err = document.getElementById('errorContainer');
-                    err.style.display = 'block';
-                    err.textContent = '존재하지 않거나 비활성화된 설문입니다.';
-                    return;
-                }
+                suvApi.getTopics().then(topics => {
+                    const topic = topics.find(t => t.ID === topicId);
+                    if (topic) {
+                        document.getElementById('displayTopicTitle').textContent = topic.TITLE;
+                        if (!topic.IS_ACTIVE) {
+                            document.getElementById('surveyForm').style.display = 'none';
+                            const closedMsg = document.createElement('div');
+                            closedMsg.innerHTML = `
+                                <div style="padding: 60px 20px; text-align:center;">
+                                    <div style="font-size: 48px; margin-bottom: 16px;">🔒</div>
+                                    <h2 class="sph-h2">이 설문조사는 마감되었습니다.</h2>
+                                    <p style="color: var(--sph-slate); margin-top: 12px; line-height: 1.6;">
+                                        더 이상 응답을 제출할 수 없습니다.
+                                    </p>
+                                </div>
+                            `;
+                            document.getElementById('surveyForm').parentNode.appendChild(closedMsg);
+                        }
+                    } else {
+                        document.getElementById('surveyForm').style.display = 'none';
+                        const err = document.getElementById('errorContainer');
+                        err.style.display = 'block';
+                        err.textContent = '존재하지 않거나 비활성화된 설문입니다.';
+                        return;
+                    }
+                }).catch(e => console.error(e));
             } catch (e) {
                 console.error('Failed to fetch topics:', e);
             }

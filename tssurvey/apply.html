@@ -110,6 +110,20 @@
                 const topic = topics.find(t => t.ID === topicId);
                 if (topic) {
                     document.getElementById('displayTopicTitle').textContent = topic.TITLE;
+                    if (!topic.IS_ACTIVE) {
+                        document.getElementById('surveyForm').style.display = 'none';
+                        const closedMsg = document.createElement('div');
+                        closedMsg.innerHTML = `
+                            <div style="padding: 60px 20px; text-align:center;">
+                                <div style="font-size: 48px; margin-bottom: 16px;">🔒</div>
+                                <h2 class="sph-h2">이 양식은 마감되었습니다.</h2>
+                                <p style="color: var(--sph-slate); margin-top: 12px; line-height: 1.6;">
+                                    더 이상 지원서 제출이 불가합니다.
+                                </p>
+                            </div>
+                        `;
+                        document.getElementById('surveyForm').parentNode.appendChild(closedMsg);
+                    }
                 }
             }).catch(e => console.error(e));
         });

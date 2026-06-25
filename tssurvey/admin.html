@@ -153,27 +153,39 @@
                 topics.forEach(t => {
                     const tr = document.createElement('tr');
                     
-                    const dateStr = formatKST(t.CREATED_AT);
-                    const isApply = t.TOPIC_TYPE === 'apply';
-                    const targetHtml = isApply ? 'apply.html' : 'index.html';
-                    const typeBadge = isApply 
-                        ? '<span class="sph-tag sph-tag--gray">지원서</span>' 
-                        : '<span class="sph-tag sph-tag--navy">설문</span>';
+                    const typeBadge = t.TOPIC_TYPE === 'apply' 
+                        ? `<span class="badge badge-apply">지원서</span>`
+                        : `<span class="badge badge-survey">설문</span>`;
                     
-                    const ratingHtml = isApply 
-                        ? '<span class="sph-caption">-</span>' 
-                        : `<span style="color:var(--sph-yellow); font-weight:bold;">★ ${t.AVG_RATING}</span>`;
-                        
+                    const activeBadge = t.IS_ACTIVE 
+                        ? `<span style="background:var(--sph-tint-blue); color:var(--sph-navy); font-size:12px; padding:2px 6px; border-radius:4px; margin-left:8px; vertical-align:middle;">🟢 진행 중</span>`
+                        : `<span style="background:#FEE2E2; color:#991B1B; font-size:12px; padding:2px 6px; border-radius:4px; margin-left:8px; vertical-align:middle;">🔴 마감됨</span>`;
+                    
+                    let starAvgHtml = '';
+                    if (t.TOPIC_TYPE === 'apply') {
+                        starAvgHtml = '-';
+                    } else {
+                        const avg = t.AVG_STARS ? Number(t.AVG_STARS).toFixed(1) : '0.0';
+                        starAvgHtml = `<span style="color:var(--sph-yellow); font-weight:bold;">★ ${avg}</span>`;
+                    }
+
+                    const toggleBtnLabel = t.IS_ACTIVE ? '마감' : '오픈';
+                    const toggleBtnStyle = t.IS_ACTIVE 
+                        ? 'border:1px solid #991B1B; color:#991B1B; margin-left:4px;' 
+                        : 'border:1px solid var(--sph-navy); color:var(--sph-navy); margin-left:4px;';
+                    const targetIsActive = t.IS_ACTIVE ? 0 : 1;
+
                     tr.innerHTML = `
                         <td>${typeBadge}</td>
-                        <td><strong>${t.TITLE}</strong></td>
-                        <td>${dateStr}</td>
-                        <td><span class="sph-tag sph-tag--navy">${t.RESPONSE_COUNT}</span></td>
-                        <td>${ratingHtml}</td>
+                        <td style="font-weight:700;">${t.TITLE}${activeBadge}</td>
+                        <td>${formatKST(t.CREATED_AT)}</td>
+                        <td style="font-weight:bold; color:var(--sph-navy);"><span style="background:var(--sph-ink); color:#fff; border-radius:50%; width:24px; height:24px; display:inline-flex; align-items:center; justify-content:center; font-size:12px;">${t.RESPONSE_COUNT}</span></td>
+                        <td>${starAvgHtml}</td>
                         <td>
                             <button class="sph-btn sph-btn--ghost" onclick="viewResponses('${t.ID}', '${t.TITLE.replace(/'/g, "\\'")}', '${t.TOPIC_TYPE}')">결과 보기</button>
-                            <a href="${targetHtml}?topic_id=${t.ID}" target="_blank" class="sph-btn sph-btn--accent" style="margin-left: 8px;">오픈</a>
-                            <button class="sph-btn sph-btn--ghost" style="margin-left: 8px; color: #d32f2f; border-color: #d32f2f;" onclick="deleteTopic('${t.ID}')">삭제</button>
+                            <a href="${t.TOPIC_TYPE === 'apply' ? 'apply.html' : 'index.html'}?topic_id=${t.ID}" target="_blank" class="sph-btn sph-btn--primary" style="margin-left: 4px; text-decoration:none;">입장</a>
+                            <button class="sph-btn sph-btn--ghost" style="${toggleBtnStyle}" onclick="toggleTopicStatus('${t.ID}', ${targetIsActive})">${toggleBtnLabel}</button>
+                            <button class="sph-btn sph-btn--ghost" style="border: 1px solid #dc3545; color:#dc3545; margin-left: 4px;" onclick="deleteTopic('${t.ID}')">삭제</button>
                         </td>
                     `;
                     tbody.appendChild(tr);
@@ -256,6 +268,21 @@
                     return;
                 }
                 alert('삭제 실패: ' + e.message);
+            }
+        }
+
+        async function toggleTopicStatus(topicId, isActive) {
+            const msg = isActive ? '이 항목을 다시 진행 상태로 오픈하시겠습니까?' : '이 항목의 접수를 마감하시겠습니까?';
+            if (!confirm(msg)) return;
+            try {
+                await suvApi.toggleTopicStatus(topicId, isActive);
+                loadTopics();
+            } catch (e) {
+                if (e.message.includes('401')) {
+                    alert('권한이 없습니다.');
+                    return;
+                }
+                alert('상태 변경 실패: ' + e.message);
             }
         }
 
