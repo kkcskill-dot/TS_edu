@@ -17,22 +17,19 @@
     </div>
 
     <div class="sph-slide-container" id="adminMain" style="display:none;">
-        <header class="sph-header" style="position: relative;">
-            <div style="position: relative; z-index: 1;">
-                <p class="sph-kicker">기술서비스팀 설문</p>
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <h1 class="sph-title" style="margin:0;">설문 관리 대시보드</h1>
-                    <div>
-                        <button class="sph-btn sph-btn--ghost" onclick="loadTopics()">🔄 새로고침</button>
-                        <button class="sph-btn sph-btn--ghost" onclick="logout()" style="margin-left:8px;">로그아웃</button>
-                    </div>
-                </div>
-                <div class="sph-keymsg" style="margin-top:24px;">
-                    <span class="label">안내</span>
-                    새로운 설문 주제를 생성하고, 등록된 익명 응답 결과(별점, 한줄의견)를 조회할 수 있습니다.
+        <header class="sph-header">
+            <p class="sph-kicker">기술서비스팀 설문</p>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h1 class="sph-title" style="margin:0;">설문 관리 대시보드</h1>
+                <div>
+                    <button class="sph-btn sph-btn--ghost" onclick="loadTopics()">🔄 새로고침</button>
+                    <button class="sph-btn sph-btn--ghost" onclick="logout()" style="margin-left:8px;">로그아웃</button>
                 </div>
             </div>
-            <img src="dba.png" alt="DBA 캐릭터" style="position: absolute; right: 60px; bottom: 20px; height: 140px; z-index: 0; opacity: 0.85; pointer-events: none;" onerror="this.style.display='none'">
+            <div class="sph-keymsg" style="margin-top:24px;">
+                <span class="label">안내</span>
+                새로운 설문 주제를 생성하고, 등록된 익명 응답 결과(별점, 한줄의견)를 조회할 수 있습니다.
+            </div>
         </header>
 
         <main class="sph-main">
