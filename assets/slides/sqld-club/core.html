@@ -1,6 +1,12 @@
+<style>
+  .ts-slide > .inner::after {
+    content: "TS Academy · SQLD취득!";
+  }
+</style>
+
 <!--
-  SQLD 핵심 개념 강의자료 (전면 확장판)
-  총 5개의 챕터를 아우르는 상세한 슬라이드 덱
+  SQLD 핵심 개념 강의자료 (밀도 강화판)
+  빈 공간을 꽉 채우는 상세 텍스트와 풍부한 예시 코드 탑재
 -->
 
 <!-- ==========================================
@@ -8,30 +14,49 @@
      ========================================== -->
 <section class="ts-slide title-slide">
   <div class="inner" style="text-align:center; padding-top: 15vh;">
-    <h1 style="font-size:3rem; margin-bottom:20px; color:var(--accent-cyan);">SQLD 완벽 대비반</h1>
-    <h2 style="font-size:2rem; color:var(--color-text-main);">제 1과목. 데이터 모델링의 이해</h2>
-    <p style="margin-top:40px; color:var(--color-text-muted);">건물을 짓기 전 설계도가 필요하듯, DB를 구축하기 전 모델링이 필요합니다.</p>
+    <h1 style="font-size:3.5rem; margin-bottom:20px; color:var(--accent-cyan);">SQLD 완벽 대비반</h1>
+    <h2 style="font-size:2.2rem; color:var(--color-text-main);">제 1과목. 데이터 모델링의 이해</h2>
+    <p style="margin-top:40px; font-size:1.2rem; color:var(--color-text-muted);">
+      건물을 짓기 전 설계도가 필요하듯, 데이터베이스를 구축하기 전 모델링이 필요합니다.<br>
+      시스템의 뼈대를 잡는 데이터 모델링의 근본 개념을 다룹니다.
+    </p>
   </div>
 </section>
 
 <section class="ts-slide">
   <div class="inner">
     <div class="s-kicker">1과목 · 데이터 모델링</div>
-    <div class="s-title">데이터 모델링의 3단계</div>
+    <div class="s-title">데이터 모델링의 3단계 🏆</div>
     <div class="s-cols">
       <div class="main">
+        <div class="s-note" style="margin-top:0; margin-bottom:15px;">
+          데이터 모델링은 밑그림을 그리는 것부터 실제 건물을 올리는 것까지 <b>추상화 수준(포괄성)</b>에 따라 3단계로 점진적으로 진행됩니다.
+        </div>
         <table class="s-table">
-          <tr><th>단계</th><th>특징</th><th>설명</th></tr>
-          <tr><td><b>1. 개념적 모델링</b></td><td>추상화 수준 최고<br>업무 중심적</td><td>전사적 아키텍처(EA) 수립.<br>핵심 엔터티와 관계 도출.</td></tr>
-          <tr><td><b>2. 논리적 모델링</b></td><td>재사용성 최고<br>정규화 수행</td><td>데이터 모델링의 꽃.<br>테이블, 식별자, 관계 정의.</td></tr>
-          <tr><td><b>3. 물리적 모델링</b></td><td>구체화 수준 최고<br>성능 고려</td><td>실제 DB에 이식 (오라클 등).<br>파티셔닝, 인덱스 등 설계.</td></tr>
+          <tr><th style="width:25%;">단계</th><th style="width:30%;">특징</th><th>설명 및 산출물</th></tr>
+          <tr>
+            <td><b>1. 개념적 모델링</b><br>(Conceptual)</td>
+            <td>추상화 수준 최고<br>업무 중심적 포괄성</td>
+            <td>전사적 아키텍처(EA) 수립 시 주로 사용합니다.<br>핵심 엔터티와 그들 간의 관계를 도출하는 최초 단계입니다.<br><b style="color:var(--accent-cyan);">산출물: 개략적인 ERD</b></td>
+          </tr>
+          <tr>
+            <td><b>2. 논리적 모델링</b><br>(Logical)</td>
+            <td><b>재사용성 최고</b><br>정규화 수행 완료</td>
+            <td>데이터 모델링의 꽃이자 핵심입니다.<br>테이블, 식별자, 일반속성 및 릴레이션을 정의합니다.<br><b style="color:var(--accent-cyan);">특징: 특정 DBMS에 종속되지 않습니다.</b></td>
+          </tr>
+          <tr>
+            <td><b>3. 물리적 모델링</b><br>(Physical)</td>
+            <td>구체화 수준 최고<br>성능 고려 (HW)</td>
+            <td>실제 데이터베이스(Oracle, MySQL 등)에 이식하는 단계입니다.<br>테이블스페이스, 인덱스, 파티셔닝 등 성능을 직접 고려합니다.</td>
+          </tr>
         </table>
       </div>
       <aside class="s-aside">
-        <div class="h">강의 포인트</div>
+        <div class="h">핵심 포인트</div>
         <ul>
-          <li><b>시험 출제 1순위!</b> 3단계의 순서와 특징을 명확히 비교해 줍니다.</li>
-          <li>개념적 -> 논리적 -> 물리적으로 갈수록 <b>구체화</b>됨을 강조.</li>
+          <li><b>시험 출제 1순위!</b> 3단계의 순서와 특징을 명확히 기억해 두세요.</li>
+          <li>개념적 -> 논리적 -> 물리적으로 갈수록 <b>구체화</b>됨을 강조합니다.</li>
+          <li><b>정규화</b>는 논리적 단계에서 수행합니다.</li>
           <li>특정 DBMS 종속은 오직 <b>물리적 모델링</b>뿐입니다.</li>
         </ul>
       </aside>
@@ -42,121 +67,55 @@
 <section class="ts-slide">
   <div class="inner">
     <div class="s-kicker">1과목 · 데이터 모델링</div>
-    <div class="s-title">데이터 독립성 (3단계 스키마)</div>
+    <div class="s-title">엔터티 (Entity)의 6가지 특징</div>
     <div class="s-cols">
       <div class="main">
-        <div class="s-grid">
-          <div class="s-card"><h4>외부 스키마</h4><p>사용자, 응용 프로그래머가 접근하는 각각의 뷰(View)</p></div>
-          <div class="s-card c"><h4>개념 스키마</h4><p>조직 전체의 통합된 데이터 구조 (DB 설계의 중심)</p></div>
-          <div class="s-card y"><h4>내부 스키마</h4><p>물리적 저장 장치에 데이터가 저장되는 방법</p></div>
+        <p class="s-lead">엔터티는 엑셀의 '시트(Sheet)', DB의 '테이블(Table)'에 해당합니다.<br>엔터티로 도출되기 위해서는 다음 6가지 조건을 <b>반드시</b> 만족해야 합니다.</p>
+        <ul class="s-keys" style="font-size:1.05rem;">
+          <li><b>1. 업무에서 필요로 하는 정보</b>: 시스템 구축 영역에서 반드시 관리되어야 하는 정보 (예: 병원의 '환자', '의사')</li>
+          <li><b>2. 유일한 식별자로 구별 가능</b>: 각 인스턴스(행)를 고유하게 식별할 주식별자(PK)가 필수입니다.</li>
+          <li><b>3. 2개 이상의 인스턴스 집합</b>: 한 명의 고객만을 위해 '고객' 엔터티를 만들지 않습니다. 집합을 이뤄야 합니다.</li>
+          <li><b>4. 반드시 속성(Attribute)을 가짐</b>: 속성이 없는 엔터티는 빈 껍데기입니다. (최소 2개 이상)</li>
+          <li><b>5. 업무 프로세스에 의해 이용됨</b>: 만들어 놓고 안 쓰는 엔터티는 필요 없습니다. (CRUD 발생)</li>
+          <li><b>6. 최소 1개 이상의 관계</b>: <b>고립된 엔터티는 잘못 설계된 것</b>입니다. (단, 공통코드/통계성 예외)</li>
+        </ul>
+      </div>
+      <aside class="s-aside">
+        <div class="h">시험 단골 오답 노트</div>
+        <ul>
+          <li>"고립된 엔터티는 좋은 설계다?" ➔ <b>NO!</b> 반드시 다른 엔터티와 관계를 맺어야 의미가 생깁니다.</li>
+          <li>"속성이 없는 엔터티도 존재할 수 있다?" ➔ <b>NO!</b> 아무 정보도 담지 못하는 테이블은 존재할 수 없습니다.</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">1과목 · 데이터 모델링</div>
+    <div class="s-title">속성(Attribute)과 식별자(Identifier)</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-grid" style="margin-bottom:20px;">
+          <div class="s-card"><h4>기본 속성</h4><p>업무에서 처음부터 도출됨.<br>(이름, 가입일, 주소 등)</p></div>
+          <div class="s-card c"><h4>설계 속성</h4><p>시스템 관리를 위해 새로 만듦.<br>(고객번호, 일련번호 등)</p></div>
+          <div class="s-card y"><h4>파생 속성</h4><p>다른 속성에서 계산되어 파생됨.<br>(총주문금액, 평균점수 등)</p></div>
         </div>
-      </div>
-      <aside class="s-aside">
-        <div class="h">독립성의 핵심</div>
-        <ul>
-          <li><b>논리적 독립성</b>: 개념 스키마 변경 ➔ 외부 스키마 영향 無</li>
-          <li><b>물리적 독립성</b>: 내부 스키마 변경 ➔ 개념 스키마 영향 無</li>
-          <li>"DB 서버 디스크를 바꿔도, 사용자는 똑같이 쓴다" (물리적 독립성)</li>
-        </ul>
-      </aside>
-    </div>
-  </div>
-</section>
-
-<section class="ts-slide">
-  <div class="inner">
-    <div class="s-kicker">1과목 · 데이터 모델링</div>
-    <div class="s-title">엔터티 (Entity)의 특징</div>
-    <div class="s-cols">
-      <div class="main">
-        <ul class="s-keys">
-          <li>1. 업무에서 필요로 하는 정보여야 함</li>
-          <li>2. 유일한 식별자로 구별 가능해야 함</li>
-          <li>3. <b>2개 이상</b>의 인스턴스의 집합</li>
-          <li>4. 반드시 속성(Attribute)을 가짐</li>
-          <li>5. 업무 프로세스에 의해 이용되어야 함</li>
-          <li>6. <b>최소 1개 이상</b>의 관계를 가짐</li>
-        </ul>
-      </div>
-      <aside class="s-aside">
-        <div class="h">오답 노트</div>
-        <ul>
-          <li>"고립된 엔터티는 좋은 설계다?" ➔ <b>NO (관계 필수)</b></li>
-          <li>"속성이 없는 엔터티도 있다?" ➔ <b>NO (속성 필수)</b></li>
-          <li>공통코드, 통계성 엔터티는 예외적으로 관계 생략 가능.</li>
-        </ul>
-      </aside>
-    </div>
-  </div>
-</section>
-
-<section class="ts-slide">
-  <div class="inner">
-    <div class="s-kicker">1과목 · 데이터 모델링</div>
-    <div class="s-title">발생 시점에 따른 엔터티 분류</div>
-    <div class="s-cols">
-      <div class="main">
-        <table class="s-table">
-          <tr><th>분류</th><th>특징</th><th>예시</th></tr>
-          <tr><td><b>기본 (Fundamental)</b></td><td>독립적 생성, 부모 없음</td><td>사원, 부서, 고객, 상품</td></tr>
-          <tr><td><b>중심 (Main)</b></td><td>기본 엔터티에서 파생, 업무의 중심</td><td>계약, 주문, 청구, 매출</td></tr>
-          <tr><td><b>행위 (Active)</b></td><td>2개 이상 부모에서 파생, 데이터 수시 변경</td><td>주문이력, 접속로그</td></tr>
-        </table>
-      </div>
-      <aside class="s-aside">
-        <div class="h">이해하기</div>
-        <ul>
-          <li>기본 ➔ 중심 ➔ 행위 순으로 도출됩니다.</li>
-          <li>로그(Log)나 이력(History) 테이블은 대부분 <b>행위 엔터티</b>입니다.</li>
-        </ul>
-      </aside>
-    </div>
-  </div>
-</section>
-
-<section class="ts-slide">
-  <div class="inner">
-    <div class="s-kicker">1과목 · 데이터 모델링</div>
-    <div class="s-title">속성 (Attribute)</div>
-    <div class="s-cols">
-      <div class="main">
-        <div class="s-grid">
-          <div class="s-card"><h4>기본 속성</h4><p>업무에서 처음부터 도출됨.<br>(이름, 가입일)</p></div>
-          <div class="s-card c"><h4>설계 속성</h4><p>시스템 설계를 위해 새로 만듦.<br>(고객번호, 지점코드)</p></div>
-          <div class="s-card y"><h4>파생 속성</h4><p>다른 속성에서 계산/파생됨.<br>(총주문금액, 평균점수)</p></div>
+        <div class="s-note">
+          <b>주식별자(Primary Key)의 4대 특징 (시험 매우 단골)</b><br>
+          1. <b>유일성</b>: 인스턴스를 서로 고유하게 구별 (주민번호, 사번)<br>
+          2. <b>최소성</b>: 유일성을 보장하는 최소한의 속성 조합<br>
+          3. <b>불변성</b>: 한 번 지정된 값은 변하지 않아야 함<br>
+          4. <b>존재성</b>: 절대 NULL 값이 들어올 수 없음 (NOT NULL)
         </div>
       </div>
       <aside class="s-aside">
         <div class="h">원자성의 원칙</div>
         <ul>
           <li>속성은 반드시 <b>하나의 값(원자값)</b>만 가져야 합니다.</li>
-          <li>하나의 속성에 여러 값이 들어가면 1차 정규화 대상입니다.</li>
-          <li>파생 속성은 데이터 정합성 유지를 위해 가급적 적게 정의.</li>
-        </ul>
-      </aside>
-    </div>
-  </div>
-</section>
-
-<section class="ts-slide">
-  <div class="inner">
-    <div class="s-kicker">1과목 · 데이터 모델링</div>
-    <div class="s-title">식별자 (Identifier)의 4대 특징</div>
-    <div class="s-cols">
-      <div class="main">
-        <ul class="s-keys">
-          <li><b>유일성</b> : 인스턴스를 유일하게 구별 (사번, 주민번호)</li>
-          <li><b>최소성</b> : 유일성을 보장하는 최소한의 속성 조합</li>
-          <li><b>불변성</b> : 한 번 지정되면 값이 변하지 않아야 함</li>
-          <li><b>존재성</b> : NOT NULL (반드시 데이터가 있어야 함)</li>
-        </ul>
-      </div>
-      <aside class="s-aside">
-        <div class="h">식별자 vs 비식별자 관계</div>
-        <ul>
-          <li><b>식별자 관계(실선)</b>: 부모 FK를 자식의 PK로 씀. (강한 종속)</li>
-          <li><b>비식별자 관계(점선)</b>: 부모 FK를 자식의 일반 속성으로 씀. (약한 종속)</li>
-          <li>실무에선 유연성을 위해 비식별자 관계를 많이 씁니다.</li>
+          <li>하나의 속성에 취미가 '독서, 수영'처럼 콤마로 들어가면 1차 정규화 대상입니다.</li>
+          <li>파생 속성은 데이터 정합성 유지를 위해 가급적 <b>적게 정의</b>해야 성능에 유리합니다.</li>
         </ul>
       </aside>
     </div>
@@ -169,63 +128,43 @@
      ========================================== -->
 <section class="ts-slide title-slide">
   <div class="inner" style="text-align:center; padding-top: 15vh;">
-    <h2 style="font-size:2rem; color:var(--color-text-main);">제 2과목. SQL 기본 및 활용</h2>
-    <h1 style="font-size:2.5rem; margin-bottom:20px; color:var(--accent-cyan);">정규화와 성능 데이터 모델링</h1>
-    <p style="margin-top:40px; color:var(--color-text-muted);">잘못된 설계가 부르는 재앙을 막는 '정규화'의 3단계를 시각적으로 파헤칩니다.</p>
+    <h2 style="font-size:2.2rem; color:var(--color-text-main);">제 2과목. SQL 기본 및 활용</h2>
+    <h1 style="font-size:3.5rem; margin-bottom:20px; color:var(--accent-cyan);">정규화와 성능 최적화</h1>
+    <p style="margin-top:40px; font-size:1.2rem; color:var(--color-text-muted);">
+      잘못된 테이블 설계가 부르는 데이터 꼬임(이상 현상)을 막는 '정규화' 과정과<br>반대로 조회 속도를 위해 룰을 깨는 '반정규화'를 다룹니다.
+    </p>
   </div>
 </section>
 
 <section class="ts-slide">
   <div class="inner">
     <div class="s-kicker">2과목 · 성능 모델링</div>
-    <div class="s-title">제1정규형 (1NF) : 원자성 확보</div>
+    <div class="s-title">제1·2정규형 (1NF, 2NF) 분해 과정</div>
     <div class="s-cols">
       <div class="main">
-        <h4>[문제 테이블: 취미가 2개]</h4>
-        <table class="s-table" style="margin-bottom:20px;">
-          <tr><th>회원ID (PK)</th><th>이름</th><th style="color:red;">취미</th></tr>
+        <div class="s-arch" style="margin-bottom:15px;">
+          <div class="box navy"><b>제1정규형 (1NF)</b><span>모든 속성은 원자값을 가져야 한다.</span></div>
+        </div>
+        <table class="s-table" style="font-size:0.85rem; margin-bottom:20px;">
+          <tr><th>회원ID (PK)</th><th>이름</th><th style="color:red;">취미 (원자성 위배)</th></tr>
           <tr><td>U001</td><td>김철수</td><td style="color:red;">독서, 등산</td></tr>
         </table>
         
-        <h4>[1차 정규화 완료: 1:M 분리]</h4>
-        <table class="s-table">
-          <tr><th>회원ID (FK)</th><th>취미</th></tr>
-          <tr><td>U001</td><td>독서</td></tr>
-          <tr><td>U001</td><td>등산</td></tr>
-        </table>
-      </div>
-      <aside class="s-aside">
-        <div class="h">원자성 위배</div>
-        <ul>
-          <li>하나의 컬럼에 콤마(,)로 여러 값이 들어가면 절대 안 됩니다.</li>
-          <li>이 경우, 자식 테이블을 새로 만들어 1:M 관계로 풀어냅니다.</li>
-        </ul>
-      </aside>
-    </div>
-  </div>
-</section>
-
-<section class="ts-slide">
-  <div class="inner">
-    <div class="s-kicker">2과목 · 성능 모델링</div>
-    <div class="s-title">제2정규형 (2NF) : 부분 함수 종속성 제거</div>
-    <div class="s-cols">
-      <div class="main">
-        <h4>[문제 테이블: 복합키의 일부에만 종속]</h4>
-        <table class="s-table" style="font-size:0.9rem;">
-          <tr><th style="background:var(--accent-cyan);color:#000;">주문번호(PK)</th><th style="background:var(--accent-cyan);color:#000;">상품코드(PK)</th><th>수량</th><th style="color:red;">상품명</th></tr>
+        <div class="s-arch" style="margin-bottom:15px;">
+          <div class="box navy"><b>제2정규형 (2NF)</b><span>복합키의 일부에만 종속되는 일반 속성(부분 종속)을 분리한다.</span></div>
+        </div>
+        <table class="s-table" style="font-size:0.85rem;">
+          <tr><th >주문번호(PK)</th><th >상품코드(PK)</th><th>수량</th><th style="color:red;">상품명 (부분 종속)</th></tr>
           <tr><td>O001</td><td>P01</td><td>2</td><td style="color:red;">노트북</td></tr>
           <tr><td>O001</td><td>P02</td><td>1</td><td style="color:red;">마우스</td></tr>
           <tr><td>O002</td><td>P01</td><td>5</td><td style="color:red;">노트북</td></tr>
         </table>
       </div>
       <aside class="s-aside">
-        <div class="h">부분 종속의 위험성</div>
+        <div class="h">분해(정규화)의 이유</div>
         <ul>
-          <li>PK가 [주문번호+상품코드]입니다.</li>
-          <li>그런데 `상품명`은 `주문번호`와 무관하게 `상품코드` 하나에만 종속됩니다!</li>
-          <li>노트북 이름이 바뀌면 두 군데를 수정해야 하는 이상현상 발생.</li>
-          <li><b>상품 테이블</b>을 분리하여 해결합니다.</li>
+          <li><b>1NF 분해</b>: 취미가 2개면 콤마 대신 데이터 행(Row)을 2개로 늘리거나, 별도 취미 테이블로 1:M 분리합니다.</li>
+          <li><b>2NF 분해</b>: `상품명`은 `주문번호`와 무관하게 `상품코드` 하나에만 종속됩니다. 노트북 이름이 바뀌면 여러 주문 건을 다 찾아 수정해야 하므로 <b>상품 테이블</b>을 분리해야 합니다.</li>
         </ul>
       </aside>
     </div>
@@ -235,48 +174,33 @@
 <section class="ts-slide">
   <div class="inner">
     <div class="s-kicker">2과목 · 성능 모델링</div>
-    <div class="s-title">제3정규형 (3NF) : 이행적 함수 종속 제거</div>
+    <div class="s-title">제3정규형 (3NF) 과 반정규화</div>
     <div class="s-cols">
       <div class="main">
-        <h4>[문제 테이블: 일반 속성끼리 종속]</h4>
-        <table class="s-table" style="font-size:0.9rem;">
-          <tr><th style="background:var(--accent-cyan);color:#000;">사번(PK)</th><th>이름</th><th>부서코드</th><th style="color:red;">부서명</th></tr>
+        <div class="s-arch" style="margin-bottom:15px;">
+          <div class="box navy"><b>제3정규형 (3NF)</b><span>일반 속성끼리 서로 종속(이행적 종속)되는 것을 분리한다.</span></div>
+        </div>
+        <table class="s-table" style="font-size:0.85rem; margin-bottom:20px;">
+          <tr><th >사번(PK)</th><th>이름</th><th>부서코드</th><th style="color:red;">부서명 (이행적 종속)</th></tr>
           <tr><td>1001</td><td>김철수</td><td>D01</td><td style="color:red;">개발팀</td></tr>
           <tr><td>1002</td><td>이영희</td><td>D01</td><td style="color:red;">개발팀</td></tr>
         </table>
-      </div>
-      <aside class="s-aside">
-        <div class="h">이행적 종속</div>
-        <ul>
-          <li>사번 ➔ 부서코드 ➔ 부서명</li>
-          <li>즉, `부서명`은 PK가 아닌 일반속성 `부서코드`에 종속되어 있습니다.</li>
-          <li><b>부서 테이블</b>을 별도로 떼어내어 조인(JOIN) 구조로 바꿉니다.</li>
-        </ul>
-      </aside>
-    </div>
-  </div>
-</section>
-
-<section class="ts-slide">
-  <div class="inner">
-    <div class="s-kicker">2과목 · 성능 모델링</div>
-    <div class="s-title">반정규화 (De-normalization)</div>
-    <div class="s-cols">
-      <div class="main">
-        <div class="s-note" style="margin-bottom:20px;">
-          <b>반정규화란?</b> 시스템 성능 향상을 위해 의도적으로 정규화 원칙을 위배하고, 데이터 중복을 허용하는 기법.
+        
+        <div class="s-note">
+          <b>반정규화 (De-normalization) 란?</b><br>
+          정규화를 잘 해두면 조회 시 <b>조인(JOIN)</b>이 빈번하게 발생하여 성능이 느려질 수 있습니다. 조회 성능을 극대화하기 위해 데이터 무결성이 깨질 위험을 감수하고 <b>데이터의 중복을 허용(테이블 병합, 컬럼 중복 등)</b>하여 모델을 의도적으로 망가뜨리는 기법입니다.
         </div>
-        <ul class="s-keys">
-          <li><b>컬럼 중복</b>: 조인(Join) 횟수를 줄이기 위해 부모 컬럼을 자식에 복사.</li>
-          <li><b>파생 컬럼 추가</b>: SUM, AVG 등 계산된 결과를 미리 테이블에 저장.</li>
-          <li><b>테이블 병합/분할</b>: 수직 분할, 수평 분할(파티셔닝).</li>
-        </ul>
       </div>
       <aside class="s-aside">
-        <div class="h">Trade-off</div>
+        <div class="h">이행적 종속 해소</div>
         <ul>
-          <li>반정규화는 조회(SELECT) 속도를 올리지만, 데이터 무결성을 훼손할 위험이 큽니다.</li>
-          <li>수정/삭제 시 중복 데이터를 모두 찾아 바꿔야 하므로 DML 성능은 오히려 떨어집니다.</li>
+          <li>사번 ➔ 부서코드 ➔ 부서명 (A➔B➔C 종속)</li>
+          <li>`부서명`은 PK가 아닌 `부서코드`에 종속되므로 <b>부서 테이블</b>로 떼어냅니다.</li>
+        </ul>
+        <div class="h" style="margin-top:15px;">반정규화 Trade-off</div>
+        <ul>
+          <li>SELECT 조회 성능 <b>상승</b></li>
+          <li>UPDATE, DELETE 성능 <b>하락</b> (중복 데이터를 다 찾아야 함)</li>
         </ul>
       </aside>
     </div>
@@ -289,9 +213,11 @@
      ========================================== -->
 <section class="ts-slide title-slide">
   <div class="inner" style="text-align:center; padding-top: 15vh;">
-    <h2 style="font-size:2rem; color:var(--color-text-main);">제 2과목. SQL 기본 및 활용</h2>
-    <h1 style="font-size:2.5rem; margin-bottom:20px; color:var(--accent-cyan);">SQL 기본 (SELECT와 함수)</h1>
-    <p style="margin-top:40px; color:var(--color-text-muted);">개발자가 매일 쓰는 SQL. 그 안에 숨겨진 치명적인 함정들을 피하는 법.</p>
+    <h2 style="font-size:2.2rem; color:var(--color-text-main);">제 2과목. SQL 기본 및 활용</h2>
+    <h1 style="font-size:3.5rem; margin-bottom:20px; color:var(--accent-cyan);">SQL 기본 (SELECT의 모든 것)</h1>
+    <p style="margin-top:40px; font-size:1.2rem; color:var(--color-text-muted);">
+      개발자가 매일 치는 SELECT 쿼리. 그 뒤에 숨겨진 진짜 실행 순서와<br>수많은 버그를 양산하는 NULL 데이터의 끔찍한 진실을 파헤칩니다.
+    </p>
   </div>
 </section>
 
@@ -301,21 +227,19 @@
     <div class="s-title">SELECT 구문의 논리적 실행 순서 🏆</div>
     <div class="s-cols">
       <div class="main">
-        <ol style="font-size:1.4rem; line-height:2.2; margin-left:20px; font-weight:600;">
-          <li><span style="color:var(--accent-cyan);">FROM</span> (테이블을 읽는다)</li>
-          <li><span style="color:var(--accent-cyan);">WHERE</span> (조건에 맞는 행 필터링)</li>
-          <li><span style="color:var(--accent-cyan);">GROUP BY</span> (그룹화)</li>
-          <li><span style="color:var(--accent-cyan);">HAVING</span> (그룹화된 결과 필터링)</li>
-          <li><span style="color:var(--accent-cyan);">SELECT</span> (출력할 컬럼 추출)</li>
-          <li><span style="color:var(--accent-cyan);">ORDER BY</span> (정렬)</li>
-        </ol>
+        <div class="s-code" style="font-size:1.1rem; padding: 30px;"><span class="k">1. FROM</span>     <span class="c">-- 대상 테이블을 디스크에서 읽어온다</span>
+<span class="k">2. WHERE</span>    <span class="c">-- 조건에 맞는 행(Row)만 필터링한다</span>
+<span class="k">3. GROUP BY</span> <span class="c">-- 남은 데이터를 그룹화하여 묶는다</span>
+<span class="k">4. HAVING</span>   <span class="c">-- 그룹화된 결과(집계)에서 필터링한다</span>
+<span class="k">5. SELECT</span>   <span class="c">-- 최종 화면에 출력할 컬럼을 추출한다</span>
+<span class="k">6. ORDER BY</span> <span class="c">-- 화면에 뿌리기 직전, 결과를 정렬한다</span></div>
       </div>
       <aside class="s-aside">
         <div class="h">실무·시험 최다 출제</div>
         <ul>
-          <li><b>"SELECT 절에서 만든 별칭(Alias)을 WHERE 절에서 쓸 수 없는 이유?"</b></li>
-          <li>➔ 실행 순서상 WHERE가 SELECT보다 <b>먼저</b> 실행되기 때문!</li>
-          <li>단, ORDER BY는 가장 마지막이므로 별칭 사용 가능.</li>
+          <li><b>Q: SELECT 절에서 만든 별칭(Alias)을 WHERE 절에서 쓸 수 없는 이유는?</b></li>
+          <li>A: 실행 순서상 <code>WHERE</code>(2번)가 <code>SELECT</code>(5번)보다 <b>먼저</b> 실행되기 때문에 별칭이 존재하는지조차 모릅니다!</li>
+          <li>단, <code>ORDER BY</code>(6번)는 가장 마지막이므로 SELECT에서 만든 별칭을 쓸 수 있습니다.</li>
         </ul>
       </aside>
     </div>
@@ -325,48 +249,29 @@
 <section class="ts-slide">
   <div class="inner">
     <div class="s-kicker">2과목 · SQL 기본</div>
-    <div class="s-title">NULL 데이터의 끔찍한 진실 🏆</div>
+    <div class="s-title">NULL 데이터의 치명적 함정 🚨</div>
     <div class="s-cols">
       <div class="main">
-        <div class="s-note" style="margin-bottom:15px; border-left-color:var(--accent-crimson);">
-          <b>NULL</b>은 '0'이나 '빈칸'이 아닙니다. <b>아직 모르는 미지의 값(Unknown)</b>입니다!
+        <div class="s-err" style="margin-top:0; margin-bottom:15px;">
+          <b>명심하세요!</b> NULL은 '0'이나 '빈칸'이 아닙니다. <b>아직 모르는 미지의 값(Unknown)</b>입니다!
         </div>
-        <ul class="s-keys">
-          <li><b>사칙 연산</b>: <code>100 + NULL = NULL</code>. 연산 결과는 무조건 NULL!</li>
-          <li><b>비교 연산</b>: <code>NULL = NULL</code> 은 UNKNOWN(거짓). <code>IS NULL</code>을 써야 함.</li>
-          <li><b>집계 함수</b>: <code>SUM</code>, <code>AVG</code>는 <b>NULL이 포함된 행을 무시(제외)</b>하고 계산합니다.</li>
-        </ul>
+        <table class="s-table" style="font-size:0.9rem; margin-bottom:20px;">
+          <tr><th>상황</th><th>쿼리 예시 및 결과</th></tr>
+          <tr><td>사칙 연산</td><td><code>100 + NULL = NULL</code> <br><span style="color:#666;">(연산 결과는 무조건 NULL로 오염됨)</span></td></tr>
+          <tr><td>비교 연산</td><td><code>NULL = NULL</code> ➔ <b>UNKNOWN (거짓)</b><br><span style="color:#666;">(반드시 <code>IS NULL</code>을 사용해야 함)</span></td></tr>
+          <tr><td>집계 함수</td><td><code>SUM</code>, <code>AVG</code>는 <b>NULL이 포함된 행을 무시(제외)</b>하고 계산함.</td></tr>
+        </table>
+        <div class="s-code"><span class="k">SELECT</span> <span class="k">AVG</span>(COMM) <span class="k">FROM</span> EMP; 
+<span class="c">-- 3명 중 1명만 50원이고 2명이 NULL이라면? </span>
+<span class="c">-- 50 / 3명이 아니라, 50 / 1명 = 50 이 나옵니다!</span></div>
       </div>
       <aside class="s-aside">
-        <div class="h">집계 함수 함정</div>
+        <div class="h">해결책 (단일행 함수)</div>
         <ul>
-          <li>A(100), B(200), C(NULL) 일 때,</li>
-          <li><code>AVG(점수)</code>의 분모는 3명이 아니라 <b>2명</b>이 됩니다! (150 반환)</li>
-          <li>이걸 막으려면 <code>AVG(NVL(점수, 0))</code>를 써야 합니다.</li>
-        </ul>
-      </aside>
-    </div>
-  </div>
-</section>
-
-<section class="ts-slide">
-  <div class="inner">
-    <div class="s-kicker">2과목 · SQL 기본</div>
-    <div class="s-title">WHERE vs HAVING</div>
-    <div class="s-cols">
-      <div class="main">
-        <div class="s-code"><span class="k">SELECT</span> 부서, <span class="k">SUM</span>(급여)
-<span class="k">FROM</span>   사원
-<span class="k">WHERE</span>  직급 = <span class="s">'과장'</span>     <span class="c">-- 1. 과장만 추림 (행 필터링)</span>
-<span class="k">GROUP</span> <span class="k">BY</span> 부서           <span class="c">-- 2. 부서별로 묶음</span>
-<span class="k">HAVING</span> <span class="k">SUM</span>(급여) &gt; 5000; <span class="c">-- 3. 총합이 5천 넘는 부서만 (그룹 필터링)</span></div>
-      </div>
-      <aside class="s-aside">
-        <div class="h">결정적 차이</div>
-        <ul>
-          <li><b>WHERE</b>: GROUP BY로 묶기 <b>전</b>에 개별 행을 필터링. (인덱스 사용 가능)</li>
-          <li><b>HAVING</b>: GROUP BY로 묶은 <b>후</b>에 집계 함수 결과값으로 필터링.</li>
-          <li>HAVING 절에는 가급적 집계함수(SUM, COUNT 등) 조건만 넣는 것이 권장됩니다.</li>
+          <li>연산 전에 반드시 NULL을 치환해야 합니다.</li>
+          <li><code>NVL(컬럼, 0)</code>: NULL이면 0 반환 (오라클)</li>
+          <li><code>ISNULL(컬럼, 0)</code>: SQL Server</li>
+          <li><code>COALESCE(e1, e2...)</code>: NULL이 아닌 첫 번째 값 반환 (표준)</li>
         </ul>
       </aside>
     </div>
@@ -379,9 +284,11 @@
      ========================================== -->
 <section class="ts-slide title-slide">
   <div class="inner" style="text-align:center; padding-top: 15vh;">
-    <h2 style="font-size:2rem; color:var(--color-text-main);">제 2과목. SQL 기본 및 활용</h2>
-    <h1 style="font-size:2.5rem; margin-bottom:20px; color:var(--accent-cyan);">SQL 활용 (고급 기법)</h1>
-    <p style="margin-top:40px; color:var(--color-text-muted);">조인(JOIN), 서브쿼리, 집합 연산자, 윈도우 함수 등 SQL 실력을 판가름하는 핵심 구역.</p>
+    <h2 style="font-size:2.2rem; color:var(--color-text-main);">제 2과목. SQL 기본 및 활용</h2>
+    <h1 style="font-size:3.5rem; margin-bottom:20px; color:var(--accent-cyan);">SQL 활용 (고급 쿼리 기법)</h1>
+    <p style="margin-top:40px; font-size:1.2rem; color:var(--color-text-muted);">
+      조인(JOIN), 서브쿼리, 윈도우 순위 함수 등 오답률이 가장 높은 심화 영역입니다.<br>진정한 쿼리 마스터로 거듭나는 구간입니다.
+    </p>
   </div>
 </section>
 
@@ -391,18 +298,23 @@
     <div class="s-title">조인 (JOIN)의 집합적 이해</div>
     <div class="s-cols">
       <div class="main">
+        <div class="s-code" style="margin-bottom:15px; font-size:0.85rem;"><span class="c">-- 부서 테이블: (D1:영업, D2:인사, D3:재무)</span>
+<span class="c">-- 사원 테이블: (김:D1, 이:D1)</span>
+<span class="k">SELECT</span> * <span class="k">FROM</span> 부서 <span class="k">LEFT OUTER JOIN</span> 사원 
+<span class="k">ON</span> 부서.부서코드 = 사원.부서코드;</div>
+        
         <div class="s-grid">
-          <div class="s-card"><h4>INNER JOIN</h4><p>양쪽 테이블에 공통으로 매칭되는 데이터만 (교집합).</p></div>
-          <div class="s-card c"><h4>LEFT OUTER JOIN</h4><p>왼쪽 테이블 데이터는 무조건 살리고, 오른쪽은 없으면 NULL로 채움.</p></div>
-          <div class="s-card y"><h4>FULL OUTER JOIN</h4><p>매칭 안 되는 양쪽 데이터 모두 살림 (합집합).</p></div>
-          <div class="s-card g"><h4>CROSS JOIN</h4><p>조건 없이 M × N 카티션 곱 생성. (12행)</p></div>
+          <div class="s-card"><h4>INNER JOIN</h4><p>양쪽 매칭 데이터만 <b>(교집합)</b><br><span style="color:#666;">결과: 영업(김), 영업(이)</span></p></div>
+          <div class="s-card c"><h4>LEFT OUTER JOIN</h4><p>왼쪽(부서) 데이터 무조건 보존 <b>(왼쪽 100%)</b><br><span style="color:#666;">결과: 영업(김), 영업(이), 인사(NULL), 재무(NULL)</span></p></div>
+          <div class="s-card y"><h4>FULL OUTER JOIN</h4><p>매칭 안 되는 양쪽 모두 살림 <b>(합집합)</b></p></div>
+          <div class="s-card g"><h4>CROSS JOIN</h4><p>조건 없이 M × N 곱하기 <b>(카티션 곱)</b></p></div>
         </div>
       </div>
       <aside class="s-aside">
-        <div class="h">강의 팁</div>
+        <div class="h">실무 적용 팁</div>
         <ul>
-          <li>초보자들은 OUTER JOIN을 두려워합니다.</li>
-          <li>"고객이 한 번도 주문하지 않았더라도, 전체 고객 명단을 봐야 할 때" LEFT OUTER JOIN을 쓴다고 예시를 들어주세요.</li>
+          <li>초보자들은 OUTER JOIN을 두려워하지만, 실무에선 가장 중요합니다.</li>
+          <li>"고객이 한 번도 주문하지 않았더라도, 전체 고객 명단을 조회해야 할 때" <b>LEFT OUTER JOIN</b>을 씁니다. 빈 자리는 NULL로 채워집니다.</li>
         </ul>
       </aside>
     </div>
@@ -412,46 +324,29 @@
 <section class="ts-slide">
   <div class="inner">
     <div class="s-kicker">2과목 · SQL 활용</div>
-    <div class="s-title">서브쿼리 (Subquery) 위치별 명칭</div>
+    <div class="s-title">서브쿼리와 집합 연산자</div>
     <div class="s-cols">
       <div class="main">
-        <table class="s-table">
-          <tr><th>위치</th><th>명칭</th><th>특징</th></tr>
-          <tr><td><b>SELECT 절</b></td><td>스칼라 서브쿼리</td><td>반드시 단일 행, 단일 컬럼만 반환해야 함. 결과가 2개 이상이면 에러.</td></tr>
-          <tr><td><b>FROM 절</b></td><td>인라인 뷰</td><td>실행 시점에 동적으로 생성되는 가상 테이블 역할.</td></tr>
-          <tr><td><b>WHERE 절</b></td><td>중첩 서브쿼리</td><td>IN, ANY, ALL, EXISTS 등과 함께 다중 행 비교에 주로 사용.</td></tr>
+        <table class="s-table" style="font-size:0.85rem; margin-bottom:20px;">
+          <tr><th  colspan="3">위치별 서브쿼리 명칭</th></tr>
+          <tr><td><b>SELECT 절</b></td><td>스칼라 서브쿼리</td><td>반드시 단일 행, 단일 열 반환</td></tr>
+          <tr><td><b>FROM 절</b></td><td>인라인 뷰</td><td>실행 시 동적 생성되는 가상 테이블</td></tr>
+          <tr><td><b>WHERE 절</b></td><td>중첩 서브쿼리</td><td>다중 행 비교(IN, EXISTS) 등에 사용</td></tr>
+        </table>
+        <table class="s-table" style="font-size:0.85rem;">
+          <tr><th  colspan="3">집합 연산자 (결과 합치기)</th></tr>
+          <tr><td><b>UNION</b></td><td>합집합 (중복 제거)</td><td style="color:red;"><b>정렬 O (느림)</b></td></tr>
+          <tr><td><b>UNION ALL</b></td><td>합집합 (중복 유지)</td><td style="color:var(--accent-cyan);"><b>정렬 X (빠름)</b></td></tr>
+          <tr><td><b>INTERSECT</b></td><td>교집합</td><td style="color:red;"><b>정렬 O</b></td></tr>
+          <tr><td><b>MINUS</b></td><td>차집합 (A - B)</td><td style="color:red;"><b>정렬 O</b></td></tr>
         </table>
       </div>
       <aside class="s-aside">
-        <div class="h">주의사항</div>
+        <div class="h">성능 튜닝 핵심</div>
         <ul>
-          <li>메인 쿼리는 서브쿼리의 컬럼을 쓸 수 없습니다! (단, 인라인 뷰 제외)</li>
-          <li>서브쿼리는 괄호 `()` 로 감싸야 합니다.</li>
-        </ul>
-      </aside>
-    </div>
-  </div>
-</section>
-
-<section class="ts-slide">
-  <div class="inner">
-    <div class="s-kicker">2과목 · SQL 활용</div>
-    <div class="s-title">집합 연산자</div>
-    <div class="s-cols">
-      <div class="main">
-        <table class="s-table">
-          <tr><th>연산자</th><th>의미</th><th>정렬 작업 여부</th></tr>
-          <tr><td><b>UNION</b></td><td>합집합 (중복 1개로 제거)</td><td style="color:red;"><b>O (느림)</b></td></tr>
-          <tr><td><b>UNION ALL</b></td><td>합집합 (중복 모두 출력)</td><td style="color:var(--accent-cyan);"><b>X (매우 빠름)</b></td></tr>
-          <tr><td><b>INTERSECT</b></td><td>교집합</td><td style="color:red;"><b>O</b></td></tr>
-          <tr><td><b>MINUS</b></td><td>차집합 (A에서 B 뺌)</td><td style="color:red;"><b>O</b></td></tr>
-        </table>
-      </div>
-      <aside class="s-aside">
-        <div class="h">핵심 포인트</div>
-        <ul>
-          <li>UNION ALL을 제외한 연산자들은 내부적으로 중복 제거를 위해 <b>정렬(SORT)</b> 작업을 동반합니다.</li>
-          <li>개발 시 중복이 없거나 상관없다면 <b>무조건 UNION ALL</b>을 쓰는 것이 성능에 탁월합니다!</li>
+          <li>메인 쿼리는 서브쿼리의 컬럼을 쓸 수 없습니다! (인라인 뷰 제외)</li>
+          <li><b>UNION ALL</b>을 제외한 모든 집합 연산자는 내부적으로 정렬(SORT) 작업을 동반하여 무겁습니다.</li>
+          <li>중복이 상관없다면 <b>무조건 UNION ALL</b>을 쓰세요!</li>
         </ul>
       </aside>
     </div>
@@ -464,19 +359,34 @@
     <div class="s-title">윈도우 순위 함수 비교 🏆</div>
     <div class="s-cols">
       <div class="main">
-        <p style="margin-bottom:10px;">점수: 100, 90, 90, 80점 순서일 때</p>
+        <div class="s-note" style="margin-top:0; margin-bottom:15px;">
+          윈도우 함수는 `GROUP BY`와 달리 행 수가 줄어들지 않고 <b>원본 데이터를 유지</b>하면서 순위를 매깁니다.<br>
+          <span style="color:#666;">예시 점수: <b>100, 90, 90, 80점</b> 일 때</span>
+        </div>
         <table class="s-table">
-          <tr><th>함수명</th><th>출력 순위</th><th>특징</th></tr>
-          <tr><td><b>RANK()</b></td><td>1, <b>2, 2, 4</b></td><td>동점자는 묶고, 다음 순위를 건너뜁니다.</td></tr>
-          <tr><td><b>DENSE_RANK()</b></td><td>1, <b>2, 2, 3</b></td><td>빽빽하게(Dense)! 순위를 건너뛰지 않습니다.</td></tr>
-          <tr><td><b>ROW_NUMBER()</b></td><td>1, <b>2, 3, 4</b></td><td>무조건 고유한 일련번호를 매깁니다.</td></tr>
+          <tr><th style="width:25%;">함수명</th><th style="width:25%;">출력 순위</th><th>특징 (동점자 처리 방식)</th></tr>
+          <tr>
+            <td><b>RANK()</b></td>
+            <td>1, <b style="color:red;">2, 2, 4</b></td>
+            <td>동점자는 같은 순위로 묶고, <b>그만큼 다음 순위를 건너뜁니다.</b> (일반적 방식)</td>
+          </tr>
+          <tr>
+            <td><b>DENSE_RANK()</b></td>
+            <td>1, <b style="color:red;">2, 2, 3</b></td>
+            <td>동점자를 같은 순위로 묶되, <b>순위를 건너뛰지 않고 빽빽하게(Dense)</b> 채웁니다.</td>
+          </tr>
+          <tr>
+            <td><b>ROW_NUMBER()</b></td>
+            <td>1, <b style="color:red;">2, 3, 4</b></td>
+            <td>동점자 여부와 <b>전혀 상관없이 무조건 고유한 일련번호</b>를 매깁니다.</td>
+          </tr>
         </table>
       </div>
       <aside class="s-aside">
-        <div class="h">무조건 출제</div>
+        <div class="h">무조건 출제 보장</div>
         <ul>
           <li>SQLD 윈도우 함수 문제의 80%는 이 3가지 순위 함수의 차이점을 묻습니다.</li>
-          <li>`OVER (PARTITION BY 부서 ORDER BY 급여 DESC)` 형태로 그룹별 순위를 구하는 구문 구조를 눈에 익혀두세요.</li>
+          <li><code>OVER (PARTITION BY 부서 ORDER BY 급여 DESC)</code> 구문 형태를 통째로 외워두세요. (부서별 급여 순위)</li>
         </ul>
       </aside>
     </div>
@@ -489,9 +399,11 @@
      ========================================== -->
 <section class="ts-slide title-slide">
   <div class="inner" style="text-align:center; padding-top: 15vh;">
-    <h2 style="font-size:2rem; color:var(--color-text-main);">제 2과목. SQL 기본 및 활용</h2>
-    <h1 style="font-size:2.5rem; margin-bottom:20px; color:var(--accent-cyan);">관리 구문 & 성능 최적화 원리</h1>
-    <p style="margin-top:40px; color:var(--color-text-muted);">DDL과 DML의 차이, 그리고 옵티마이저가 쿼리를 실행하는 내부 알고리즘.</p>
+    <h2 style="font-size:2.2rem; color:var(--color-text-main);">제 2과목. SQL 기본 및 활용</h2>
+    <h1 style="font-size:3.5rem; margin-bottom:20px; color:var(--accent-cyan);">관리 구문 & 성능 튜닝 기초</h1>
+    <p style="margin-top:40px; font-size:1.2rem; color:var(--color-text-muted);">
+      단순 쿼리를 넘어 DB의 구조를 변경하는 구문들과,<br>DB 내비게이션인 '옵티마이저'의 조인 알고리즘을 파헤칩니다.
+    </p>
   </div>
 </section>
 
@@ -502,44 +414,38 @@
     <div class="s-cols">
       <div class="main">
         <table class="s-table">
-          <tr><th>명령어</th><th>분류</th><th>대상</th><th>Auto Commit</th><th>Rollback</th></tr>
-          <tr><td><b>DELETE</b></td><td>DML</td><td>행 단위 데이터</td><td>X</td><td style="color:var(--accent-cyan);"><b>O (가능)</b></td></tr>
-          <tr><td><b>TRUNCATE</b></td><td>DDL</td><td>데이터 전체</td><td style="color:red;">O</td><td style="color:red;"><b>X (불가)</b></td></tr>
-          <tr><td><b>DROP</b></td><td>DDL</td><td>테이블 구조</td><td style="color:red;">O</td><td style="color:red;"><b>X (불가)</b></td></tr>
+          <tr><th>명령어</th><th>언어 분류</th><th>대상</th><th>Auto Commit</th><th>Rollback 여부</th></tr>
+          <tr>
+            <td><b>DELETE</b></td>
+            <td><b>DML</b> (조작어)</td>
+            <td>데이터 (행 단위)</td>
+            <td>X (수동)</td>
+            <td style="color:var(--accent-cyan);"><b>O (복구 가능)</b></td>
+          </tr>
+          <tr>
+            <td><b>TRUNCATE</b></td>
+            <td><b>DDL</b> (정의어)</td>
+            <td>데이터 (전체)</td>
+            <td style="color:red;">O (자동)</td>
+            <td style="color:red;"><b>X (복구 불가)</b></td>
+          </tr>
+          <tr>
+            <td><b>DROP</b></td>
+            <td><b>DDL</b> (정의어)</td>
+            <td>테이블 구조 자체</td>
+            <td style="color:red;">O (자동)</td>
+            <td style="color:red;"><b>X (복구 불가)</b></td>
+          </tr>
         </table>
-      </div>
-      <aside class="s-aside">
-        <div class="h">실무 대참사 주의</div>
-        <ul>
-          <li>TRUNCATE는 Undo 로그를 남기지 않아 압도적으로 빠르지만, <b>절대 복구할 수 없습니다.</b></li>
-          <li>오라클에서 DDL은 실행 즉시 <b>자동 커밋</b>됩니다. 이전의 DML 작업들도 함께 커밋되어 버리니 주의!</li>
-        </ul>
-      </aside>
-    </div>
-  </div>
-</section>
-
-<section class="ts-slide">
-  <div class="inner">
-    <div class="s-kicker">2과목 · 관리구문 & 튜닝</div>
-    <div class="s-title">옵티마이저 (Optimizer)란?</div>
-    <div class="s-cols">
-      <div class="main">
-        <div class="s-note">
-          우리가 던진 SQL을 어떻게 실행할지 가장 빠르고 저렴한 <b>실행 계획(Execution Plan)</b>을 세워주는 DB 내부 엔진입니다. (자동차 내비게이션 역할)
+        <div class="s-err">
+          <b>실무 대참사 경고:</b> 오라클에서 DDL 구문은 실행되는 순간 내부적으로 즉시 <code>COMMIT</code>을 날려버립니다. 만약 <code>INSERT</code> 등 DML 작업을 하다가 DDL을 실행하면, 이전 작업도 강제로 커밋되어 버립니다!
         </div>
-        <ul class="s-keys">
-          <li><b>규칙 기반 (RBO)</b>: 옛날 방식. 인덱스가 있으면 무조건 타는 등 미리 정해진 15개 규칙 준수.</li>
-          <li><b>비용 기반 (CBO)</b>: 현대 방식. 테이블의 통계 정보(건수, 분포도 등)를 분석하여 CPU와 I/O <b>비용(Cost)이 가장 낮은 길</b>을 계산해 선택.</li>
-        </ul>
       </div>
       <aside class="s-aside">
-        <div class="h">인덱스를 못 타는 쿼리</div>
+        <div class="h">차이점 이해하기</div>
         <ul>
-          <li><b>좌변 가공</b>: `WHERE SUBSTR(사번,1,2) = '10'`</li>
-          <li><b>부정형</b>: `WHERE 사번 != '1001'`</li>
-          <li><b>NULL 검색</b>: `IS NULL` (인덱스는 보통 NULL을 저장 안 함)</li>
-          <li>위 경우 비싼 인덱스를 놔두고 Full Table Scan을 합니다.</li>
+          <li><b>DELETE</b>는 지우는 기록(Undo 로그)을 일일이 남기기 때문에 느리지만 롤백이 가능합니다.</li>
+          <li><b>TRUNCATE</b>는 기록 없이 데이터만 통째로 날리므로 압도적으로 빠르지만, 절대 복구할 수 없습니다.</li>
         </ul>
       </aside>
     </div>
@@ -549,20 +455,37 @@
 <section class="ts-slide">
   <div class="inner">
     <div class="s-kicker">2과목 · 관리구문 & 튜닝</div>
-    <div class="s-title">조인 수행 알고리즘 🏆</div>
+    <div class="s-title">조인 수행 메커니즘 (옵티마이저 원리) 🏆</div>
     <div class="s-cols">
       <div class="main">
         <div class="s-grid">
-          <div class="s-card"><h4>NL Join (중첩 루프)</h4><p>이중 For문 방식.<br>선행 데이터 1건마다 후행 테이블의 <b>인덱스</b>를 찾아감.<br>소량 데이터 처리에 유리.</p></div>
-          <div class="s-card y"><h4>Sort Merge Join</h4><p>두 테이블을 각각 <b>정렬(Sort)</b>한 뒤 병합.<br>인덱스 없어도 가능. 비동등 조인 가능.<br>대용량 시 정렬 부하 큼.</p></div>
-          <div class="s-card c"><h4>Hash Join</h4><p>선행 테이블로 <b>해시 맵</b>을 메모리에 만듦.<br>대용량 데이터 조인에 <b>압도적 속도</b>.<br>오직 동등(=) 조인만 가능.</p></div>
+          <div class="s-card">
+            <h4>NL Join (중첩 루프)</h4>
+            <p>이중 For문과 같은 구식 방식.<br>선행 데이터 1건마다 후행 테이블을 찔러봄.<br><b style="color:red;">후행 테이블 인덱스 필수!</b></p>
+          </div>
+          <div class="s-card y">
+            <h4>Sort Merge Join</h4>
+            <p>두 테이블을 <b>정렬(Sort)</b>한 뒤 쭉 병합.<br>인덱스가 없거나, 비동등 크기 비교 조인일 때 쓰지만 대용량엔 메모리 부하 큼.</p>
+          </div>
+          <div class="s-card c">
+            <h4>Hash Join</h4>
+            <p>선행 테이블로 메모리에 <b>해시 맵</b> 생성.<br>랜덤 I/O를 극복하여 대용량 데이터 조인에 <b>가장 압도적인 속도!</b> (= 조인만 가능)</p>
+          </div>
+        </div>
+        <div class="s-note">
+          옵티마이저(CBO)는 통계 정보를 바탕으로 위 3가지 알고리즘 중 가장 <b>비용(Cost)이 저렴한 길</b>을 스스로 계산하여 실행 계획을 수립합니다.
         </div>
       </div>
       <aside class="s-aside">
-        <div class="h">튜닝의 기본</div>
+        <div class="h">실무·시험 핵심 소양</div>
         <ul>
-          <li>NL 조인은 무조건 <b>후행 테이블에 인덱스</b>가 필수입니다. 없으면 매번 Full Scan ➔ DB 마비!</li>
-          <li>데이터 웨어하우스(DW) 대용량 집계는 대부분 <b>Hash Join</b>이 주름잡습니다.</li>
+          <li>인덱스를 안 타는 경우 (Full Scan 발생):<br>
+            1. 인덱스 컬럼 가공 <code>SUBSTR()</code><br>
+            2. 암시적 형변환<br>
+            3. 부정형 비교 <code>!=</code><br>
+            4. <code>IS NULL</code>
+          </li>
+          <li>데이터 웨어하우스(DW) 대용량 집계는 무조건 <b>Hash Join</b>이 주름잡습니다.</li>
         </ul>
       </aside>
     </div>
@@ -571,8 +494,11 @@
 
 <section class="ts-slide title-slide">
   <div class="inner" style="text-align:center; padding-top: 15vh;">
-    <h1 style="font-size:3rem; margin-bottom:20px; color:var(--accent-cyan);">수고하셨습니다!</h1>
+    <h1 style="font-size:4rem; margin-bottom:20px; color:var(--accent-cyan);">수고하셨습니다!</h1>
     <h2 style="font-size:2rem; color:var(--color-text-main);">SQLD 완벽 대비반</h2>
-    <p style="margin-top:40px; color:var(--color-text-muted);">실전 문제 1~5장과 인터랙티브 랩을 통해 실전 감각을 키워보세요.</p>
+    <p style="margin-top:40px; font-size:1.2rem; color:var(--color-text-muted);">
+      이제 좌측 메뉴의 실전 문제 1~5장과 인터랙티브 랩을 통해 실전 감각을 키워보세요.<br>
+      합격을 기원합니다!
+    </p>
   </div>
 </section>
