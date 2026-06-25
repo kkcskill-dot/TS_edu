@@ -54,6 +54,27 @@ def init_db():
                 SUBMITTED_AT TEXT
             )"""
         )
+        
+        conn.execute(
+            """CREATE TABLE IF NOT EXISTS TB_APPLY_RESPONSE (
+                ID TEXT PRIMARY KEY,
+                TOPIC_ID TEXT,
+                DEPARTMENT TEXT,
+                CANDIDATE_NAME TEXT,
+                COMMENT TEXT,
+                SUBMITTED_AT TEXT
+            )"""
+        )
+        
+        cursor = conn.cursor()
+        
+        # TB_TOPIC 에 TOPIC_TYPE 추가
+        cursor.execute("PRAGMA table_info(TB_TOPIC)")
+        columns = [col['name'] for col in cursor.fetchall()]
+        if 'TOPIC_TYPE' not in columns:
+            conn.execute("ALTER TABLE TB_TOPIC ADD COLUMN TOPIC_TYPE TEXT DEFAULT 'survey'")
+
+            
         conn.commit()
     finally:
         conn.close()
@@ -89,15 +110,18 @@ class TSSurveyRequestHandler(BaseHTTPRequestHandler):
         if path == "/topics":
             conn = _connect()
             try:
-                # LEFT JOIN으로 응답 수와 평균 별점 계산
                 cur = conn.execute('''
                     SELECT 
-                        t.ID, t.TITLE, t.CREATED_AT, t.IS_ACTIVE,
-                        COUNT(r.ID) as RESPONSE_COUNT,
-                        AVG(r.STAR_RATING) as AVG_RATING
+                        t.ID, t.TITLE, t.CREATED_AT, t.IS_ACTIVE, t.TOPIC_TYPE,
+                        CASE 
+                            WHEN t.TOPIC_TYPE = 'apply' THEN (SELECT COUNT(*) FROM TB_APPLY_RESPONSE a WHERE a.TOPIC_ID = t.ID)
+                            ELSE (SELECT COUNT(*) FROM TB_SURVEY_RESPONSE r WHERE r.TOPIC_ID = t.ID)
+                        END as RESPONSE_COUNT,
+                        CASE 
+                            WHEN t.TOPIC_TYPE = 'apply' THEN 0.0
+                            ELSE (SELECT AVG(NULLIF(r.STAR_RATING, 0)) FROM TB_SURVEY_RESPONSE r WHERE r.TOPIC_ID = t.ID)
+                        END as AVG_RATING
                     FROM TB_TOPIC t
-                    LEFT JOIN TB_SURVEY_RESPONSE r ON t.ID = r.TOPIC_ID
-                    GROUP BY t.ID
                     ORDER BY t.CREATED_AT DESC
                 ''')
                 rows = [dict(r) for r in cur.fetchall()]
@@ -117,10 +141,24 @@ class TSSurveyRequestHandler(BaseHTTPRequestHandler):
             
             conn = _connect()
             try:
-                cur = conn.execute(
-                    "SELECT ID, TOPIC_ID, STAR_RATING, COMMENT, SUBMITTED_AT FROM TB_SURVEY_RESPONSE WHERE TOPIC_ID = ? ORDER BY SUBMITTED_AT DESC",
-                    (topic_id,)
-                )
+                # Find topic type first
+                t_cur = conn.execute("SELECT TOPIC_TYPE FROM TB_TOPIC WHERE ID = ?", (topic_id,))
+                t_row = t_cur.fetchone()
+                if not t_row:
+                    return self._respond_json(404, {"error": "Topic not found"})
+                
+                topic_type = dict(t_row).get("TOPIC_TYPE", "survey")
+
+                if topic_type == 'apply':
+                    cur = conn.execute(
+                        "SELECT ID, TOPIC_ID, DEPARTMENT, CANDIDATE_NAME as NAME, COMMENT, SUBMITTED_AT FROM TB_APPLY_RESPONSE WHERE TOPIC_ID = ? ORDER BY SUBMITTED_AT DESC",
+                        (topic_id,)
+                    )
+                else:
+                    cur = conn.execute(
+                        "SELECT ID, TOPIC_ID, STAR_RATING, COMMENT, SUBMITTED_AT FROM TB_SURVEY_RESPONSE WHERE TOPIC_ID = ? ORDER BY SUBMITTED_AT DESC",
+                        (topic_id,)
+                    )
                 rows = [dict(r) for r in cur.fetchall()]
                 return self._respond_json(200, rows)
             except Exception as e:
@@ -149,6 +187,7 @@ class TSSurveyRequestHandler(BaseHTTPRequestHandler):
 
         if path == "/topics":
             title = data.get("title")
+            topic_type = data.get("type", "survey")
             if not title:
                 return self._respond_json(400, {"error": "title is required"})
             
@@ -159,11 +198,11 @@ class TSSurveyRequestHandler(BaseHTTPRequestHandler):
                 conn = _connect()
                 try:
                     conn.execute(
-                        "INSERT INTO TB_TOPIC (ID, TITLE, CREATED_AT, IS_ACTIVE) VALUES (?, ?, ?, 1)",
-                        (topic_id, title, created_at)
+                        "INSERT INTO TB_TOPIC (ID, TITLE, CREATED_AT, IS_ACTIVE, TOPIC_TYPE) VALUES (?, ?, ?, 1, ?)",
+                        (topic_id, title, created_at, topic_type)
                     )
                     conn.commit()
-                    return self._respond_json(200, {"id": topic_id, "title": title, "created_at": created_at})
+                    return self._respond_json(200, {"id": topic_id, "title": title, "type": topic_type, "created_at": created_at})
                 except Exception as e:
                     return self._respond_json(500, {"error": str(e)})
                 finally:
@@ -173,30 +212,50 @@ class TSSurveyRequestHandler(BaseHTTPRequestHandler):
             topic_id = data.get("topic_id")
             star_rating = data.get("star_rating")
             comment = data.get("comment", "")
+            department = data.get("department", "")
+            candidate_name = data.get("name", "")
             
-            if not topic_id or not star_rating:
-                return self._respond_json(400, {"error": "topic_id and star_rating are required"})
-            
-            try:
-                star_rating = int(star_rating)
-                if star_rating < 1 or star_rating > 5:
-                    raise ValueError("star_rating must be between 1 and 5")
-            except ValueError as e:
-                return self._respond_json(400, {"error": str(e)})
-                
-            # Limit comment to 400 chars just to be safe, but DB will store whatever.
-            comment = comment[:400]
-            
-            response_id = f"resp_{uuid.uuid4().hex[:12]}"
-            submitted_at = datetime.now().isoformat()
-            
+            if not topic_id:
+                return self._respond_json(400, {"error": "topic_id is required"})
+
             with _write_lock:
                 conn = _connect()
                 try:
-                    conn.execute(
-                        "INSERT INTO TB_SURVEY_RESPONSE (ID, TOPIC_ID, STAR_RATING, COMMENT, SUBMITTED_AT) VALUES (?, ?, ?, ?, ?)",
-                        (response_id, topic_id, star_rating, comment, submitted_at)
-                    )
+                    # Determine topic type
+                    t_cur = conn.execute("SELECT TOPIC_TYPE FROM TB_TOPIC WHERE ID = ?", (topic_id,))
+                    t_row = t_cur.fetchone()
+                    if not t_row:
+                        return self._respond_json(404, {"error": "Topic not found"})
+                    
+                    topic_type = dict(t_row).get("TOPIC_TYPE", "survey")
+
+                    response_id = f"resp_{uuid.uuid4().hex[:12]}"
+                    submitted_at = datetime.now().isoformat()
+                    comment = comment[:400]
+
+                    if topic_type == 'apply':
+                        department = department[:100]
+                        candidate_name = candidate_name[:100]
+                        conn.execute(
+                            "INSERT INTO TB_APPLY_RESPONSE (ID, TOPIC_ID, DEPARTMENT, CANDIDATE_NAME, COMMENT, SUBMITTED_AT) VALUES (?, ?, ?, ?, ?, ?)",
+                            (response_id, topic_id, department, candidate_name, comment, submitted_at)
+                        )
+                    else:
+                        if star_rating is not None:
+                            try:
+                                star_rating = int(star_rating)
+                                if star_rating < 1 or star_rating > 5:
+                                    raise ValueError("star_rating must be between 1 and 5")
+                            except ValueError as e:
+                                return self._respond_json(400, {"error": str(e)})
+                        else:
+                            star_rating = 0
+                            
+                        conn.execute(
+                            "INSERT INTO TB_SURVEY_RESPONSE (ID, TOPIC_ID, STAR_RATING, COMMENT, SUBMITTED_AT) VALUES (?, ?, ?, ?, ?)",
+                            (response_id, topic_id, star_rating, comment, submitted_at)
+                        )
+                    
                     conn.commit()
                     return self._respond_json(200, {"id": response_id, "submitted_at": submitted_at})
                 except Exception as e:
@@ -218,6 +277,7 @@ class TSSurveyRequestHandler(BaseHTTPRequestHandler):
                 conn = _connect()
                 try:
                     conn.execute("DELETE FROM TB_SURVEY_RESPONSE WHERE TOPIC_ID = ?", (topic_id,))
+                    conn.execute("DELETE FROM TB_APPLY_RESPONSE WHERE TOPIC_ID = ?", (topic_id,))
                     conn.execute("DELETE FROM TB_TOPIC WHERE ID = ?", (topic_id,))
                     conn.commit()
                     return self._respond_json(200, {"ok": True})

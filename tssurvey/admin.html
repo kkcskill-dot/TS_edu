@@ -19,17 +19,22 @@
 
         <main class="sph-main">
             <div class="sph-card sph-card--accent">
-                <h3 class="sph-h3" style="margin-top:0;">신규 설문 주제 생성</h3>
-                <div style="display:flex; gap:12px; margin-top:16px;">
+                <h3 class="sph-h3" style="margin-top:0;">신규 주제 생성</h3>
+                <div style="margin-top: 16px; margin-bottom: 8px;">
+                    <label style="margin-right: 16px; cursor: pointer;"><input type="radio" name="topicType" value="survey" checked> 설문조사</label>
+                    <label style="cursor: pointer;"><input type="radio" name="topicType" value="apply"> 지원서 양식</label>
+                </div>
+                <div style="display:flex; gap:12px;">
                     <input type="text" id="topicTitleInput" class="sph-input" placeholder="예: 7월 DB 성능진단 교육 만족도 조사" style="flex:1;">
                     <button id="btnCreateTopic" class="sph-btn sph-btn--primary">주제 생성</button>
                 </div>
             </div>
 
-            <h2 class="sph-h2" style="margin-top: 32px; margin-bottom: 16px;">설문 주제 목록</h2>
+            <h2 class="sph-h2" style="margin-top: 32px; margin-bottom: 16px;">주제 목록</h2>
             <table class="sph-table" id="topicsTable">
                 <thead>
                     <tr>
+                        <th>유형</th>
                         <th>주제명</th>
                         <th>생성일</th>
                         <th>응답수</th>
@@ -72,13 +77,16 @@
             document.getElementById('btnCreateTopic').addEventListener('click', async () => {
                 const titleInput = document.getElementById('topicTitleInput');
                 const title = titleInput.value.trim();
+                const typeInput = document.querySelector('input[name="topicType"]:checked');
+                const type = typeInput ? typeInput.value : 'survey';
+                
                 if (!title) {
                     alert('주제를 입력하세요.');
                     return;
                 }
 
                 try {
-                    await suvApi.createTopic(title);
+                    await suvApi.createTopic(title, type);
                     titleInput.value = '';
                     alert('주제가 생성되었습니다.');
                     loadTopics();
@@ -95,7 +103,7 @@
                 tbody.innerHTML = '';
                 
                 if (topics.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">등록된 주제가 없습니다.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">등록된 주제가 없습니다.</td></tr>';
                     return;
                 }
 
@@ -103,15 +111,25 @@
                     const tr = document.createElement('tr');
                     
                     const dateStr = formatKST(t.CREATED_AT);
+                    const isApply = t.TOPIC_TYPE === 'apply';
+                    const targetHtml = isApply ? 'apply.html' : 'index.html';
+                    const typeBadge = isApply 
+                        ? '<span class="sph-tag sph-tag--gray">지원서</span>' 
+                        : '<span class="sph-tag sph-tag--navy">설문</span>';
                     
+                    const ratingHtml = isApply 
+                        ? '<span class="sph-caption">-</span>' 
+                        : `<span style="color:var(--sph-yellow); font-weight:bold;">★ ${t.AVG_RATING}</span>`;
+                        
                     tr.innerHTML = `
+                        <td>${typeBadge}</td>
                         <td><strong>${t.TITLE}</strong></td>
                         <td>${dateStr}</td>
                         <td><span class="sph-tag sph-tag--navy">${t.RESPONSE_COUNT}</span></td>
-                        <td><span style="color:var(--sph-yellow); font-weight:bold;">★ ${t.AVG_RATING}</span></td>
+                        <td>${ratingHtml}</td>
                         <td>
-                            <button class="sph-btn sph-btn--ghost" onclick="viewResponses('${t.ID}', '${t.TITLE.replace(/'/g, "\\'")}')">결과 보기</button>
-                            <a href="index.html?topic_id=${t.ID}" target="_blank" class="sph-btn sph-btn--accent" style="margin-left: 8px;">설문 열기</a>
+                            <button class="sph-btn sph-btn--ghost" onclick="viewResponses('${t.ID}', '${t.TITLE.replace(/'/g, "\\'")}', '${t.TOPIC_TYPE}')">결과 보기</button>
+                            <a href="${targetHtml}?topic_id=${t.ID}" target="_blank" class="sph-btn sph-btn--accent" style="margin-left: 8px;">오픈</a>
                             <button class="sph-btn sph-btn--ghost" style="margin-left: 8px; color: #d32f2f; border-color: #d32f2f;" onclick="deleteTopic('${t.ID}')">삭제</button>
                         </td>
                     `;
@@ -122,14 +140,22 @@
             }
         }
 
-        async function viewResponses(topicId, title) {
+        async function viewResponses(topicId, title, topicType) {
             const resView = document.getElementById('responseView');
             const resTitle = document.getElementById('responseTitle');
             const tbody = document.querySelector('#responsesTable tbody');
+            const thead = document.querySelector('#responsesTable thead');
             
             resTitle.textContent = `[${title}] 응답 내역`;
             resView.style.display = 'block';
-            tbody.innerHTML = '<tr><td colspan="3">로딩 중...</td></tr>';
+            
+            if (topicType === 'apply') {
+                thead.innerHTML = `<tr><th style="width: 150px;">부서</th><th style="width: 120px;">성명</th><th>의견</th><th style="width: 180px;">제출일시</th></tr>`;
+            } else {
+                thead.innerHTML = `<tr><th style="width: 120px;">별점</th><th>한줄의견</th><th style="width: 180px;">제출일시</th></tr>`;
+            }
+            
+            tbody.innerHTML = `<tr><td colspan="${topicType === 'apply' ? 4 : 3}">로딩 중...</td></tr>`;
             
             // Scroll to view
             resView.scrollIntoView({ behavior: 'smooth' });
@@ -139,7 +165,7 @@
                 tbody.innerHTML = '';
                 
                 if (responses.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">응답 내역이 없습니다.</td></tr>';
+                    tbody.innerHTML = `<tr><td colspan="${topicType === 'apply' ? 4 : 3}" style="text-align:center;">응답 내역이 없습니다.</td></tr>`;
                     return;
                 }
 
@@ -147,17 +173,25 @@
                     const tr = document.createElement('tr');
                     const dateStr = formatKST(r.SUBMITTED_AT);
                     
-                    const stars = '★'.repeat(r.STAR_RATING) + '☆'.repeat(5 - r.STAR_RATING);
-                    
-                    tr.innerHTML = `
-                        <td style="color:var(--sph-yellow); font-size:16px;">${stars}</td>
-                        <td>${r.COMMENT ? escapeHtml(r.COMMENT) : '<span class="sph-caption">(의견 없음)</span>'}</td>
-                        <td class="sph-caption">${dateStr}</td>
-                    `;
+                    if (topicType === 'apply') {
+                        tr.innerHTML = `
+                            <td><strong>${escapeHtml(r.DEPARTMENT || '')}</strong></td>
+                            <td>${escapeHtml(r.NAME || '')}</td>
+                            <td>${r.COMMENT ? escapeHtml(r.COMMENT) : '<span class="sph-caption">(의견 없음)</span>'}</td>
+                            <td class="sph-caption">${dateStr}</td>
+                        `;
+                    } else {
+                        const stars = '★'.repeat(r.STAR_RATING) + '☆'.repeat(5 - r.STAR_RATING);
+                        tr.innerHTML = `
+                            <td style="color:var(--sph-yellow); font-size:16px;">${stars}</td>
+                            <td>${r.COMMENT ? escapeHtml(r.COMMENT) : '<span class="sph-caption">(의견 없음)</span>'}</td>
+                            <td class="sph-caption">${dateStr}</td>
+                        `;
+                    }
                     tbody.appendChild(tr);
                 });
             } catch (e) {
-                tbody.innerHTML = `<tr><td colspan="3" style="color:red;">조회 실패: ${e.message}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="${topicType === 'apply' ? 4 : 3}" style="color:red;">조회 실패: ${e.message}</td></tr>`;
             }
         }
 

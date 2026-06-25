@@ -11,11 +11,11 @@ const suvApi = {
         return res.json();
     },
 
-    async createTopic(title) {
+    async createTopic(title, type = 'survey') {
         const res = await fetch(`${API_BASE}/topics`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title })
+            body: JSON.stringify({ title, type })
         });
         if (!res.ok) throw new Error('Failed to create topic');
         return res.json();
@@ -34,6 +34,16 @@ const suvApi = {
             body: JSON.stringify({ topic_id: topicId, star_rating: starRating, comment })
         });
         if (!res.ok) throw new Error('Failed to submit response');
+        return res.json();
+    },
+
+    async submitApply(topicId, department, name, comment) {
+        const res = await fetch(`${API_BASE}/responses`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ topic_id: topicId, department, name, comment })
+        });
+        if (!res.ok) throw new Error('Failed to submit application');
         return res.json();
     },
 

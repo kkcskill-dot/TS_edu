@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>지원서 양식</title>
+    <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .input-group {
+            margin-bottom: 24px;
+        }
+        .input-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--sph-gray);
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="sph-slide-container">
+        <header class="sph-header">
+            <p class="sph-kicker">기술서비스팀 설문</p>
+            <h1 class="sph-title" id="displayTopicTitle">지원서 양식</h1>
+            <div class="sph-keymsg">
+                <span class="label">안내</span>
+                본 지원서에 작성하신 내용은 담당자에게 안전하게 전달됩니다.
+            </div>
+        </header>
+
+        <main class="sph-main" id="surveyForm">
+            <div class="sph-card">
+                <div class="input-group">
+                    <label class="input-label" for="inputDept">부서</label>
+                    <input type="text" id="inputDept" class="sph-input" placeholder="소속 부서를 입력하세요 (예: 기술서비스팀)" maxlength="100">
+                </div>
+                
+                <div class="input-group">
+                    <label class="input-label" for="inputName">성명</label>
+                    <input type="text" id="inputName" class="sph-input" placeholder="성명을 입력하세요" maxlength="100">
+                </div>
+
+                <h3 class="sph-h3" style="margin-top: 0;">의견 및 기타사항</h3>
+                <textarea class="sph-textarea" id="comment" placeholder="자유롭게 작성해주세요. (최대 400자)" maxlength="400"></textarea>
+                <div class="sph-char-count" id="charCount">0 / 400</div>
+            </div>
+
+            <button class="sph-btn sph-btn--primary sph-btn--lg" id="btnSubmit" style="width:100%; margin-top:24px;">제출하기</button>
+        </main>
+
+        <main class="sph-main" id="successMsg" style="display:none; text-align:center;">
+            <div style="padding: 60px 20px;">
+                <div style="font-size: 48px; margin-bottom: 16px;">🎉</div>
+                <h2 class="sph-h2">제출이 완료되었습니다!</h2>
+                <p style="color: var(--sph-gray); margin-top: 12px; line-height: 1.6;">
+                    소중한 지원 및 의견 감사드립니다.<br>
+                    창을 닫으셔도 좋습니다.
+                </p>
+            </div>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const topicId = urlParams.get('topic_id');
+
+            if (!topicId) {
+                alert('잘못된 접근입니다. (topic_id 누락)');
+                return;
+            }
+
+            // Textarea character count
+            const commentArea = document.getElementById('comment');
+            const charCount = document.getElementById('charCount');
+            commentArea.addEventListener('input', () => {
+                charCount.textContent = `${commentArea.value.length} / 400`;
+            });
+
+            document.getElementById('btnSubmit').addEventListener('click', async () => {
+                const dept = document.getElementById('inputDept').value.trim();
+                const name = document.getElementById('inputName').value.trim();
+                const comment = commentArea.value.trim();
+
+                if (!dept) {
+                    alert('부서를 입력해주세요.');
+                    document.getElementById('inputDept').focus();
+                    return;
+                }
+                if (!name) {
+                    alert('성명을 입력해주세요.');
+                    document.getElementById('inputName').focus();
+                    return;
+                }
+
+                try {
+                    await suvApi.submitApply(topicId, dept, name, comment);
+                    document.getElementById('surveyForm').style.display = 'none';
+                    document.getElementById('successMsg').style.display = 'block';
+                } catch (e) {
+                    alert('제출 실패: ' + e.message);
+                }
+            });
+
+            // Load topics to show the title
+            suvApi.getTopics().then(topics => {
+                const topic = topics.find(t => t.ID === topicId);
+                if (topic) {
+                    document.getElementById('displayTopicTitle').textContent = topic.TITLE;
+                }
+            }).catch(e => console.error(e));
+        });
+    </script>
+</body>
+</html>
