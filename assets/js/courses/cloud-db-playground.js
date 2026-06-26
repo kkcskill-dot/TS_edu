@@ -32,6 +32,18 @@ INSERT INTO emp VALUES
           desc: "Oracle에서는 <code>ename || '님'</code> 기호를 씁니다. MySQL 스타일로 이름 뒤에 '님'을 붙여 조회하세요.", 
           hint: "SQLite 호환 샌드박스이므로 ||가 동작하지만, MySQL 표준인 CONCAT() 함수를 사용해 보세요.", 
           ans: "SELECT CONCAT(ename, '님') FROM emp;" 
+        },
+        { 
+          type: "sql", t: "SYSDATE 변환", 
+          desc: "Oracle의 <code>SYSDATE</code>를 MySQL 스타일로 변환하여, 현재 날짜와 시간을 조회하세요.", 
+          hint: "MySQL에서는 NOW() 함수를 사용합니다. (SQLite 샌드박스 내부적으로 NOW()를 에뮬레이트합니다)", 
+          ans: "SELECT NOW();" 
+        },
+        { 
+          type: "sql", t: "외부 조인 (Outer Join)", 
+          desc: "Oracle의 구형 외부 조인 문법 <code>WHERE e.deptno = d.deptno(+)</code> 대신, ANSI 표준 조인을 사용하여 부서가 없는 사원도 포함해 조회하는 쿼리 구조를 고민해 보세요. (실습: 사원 테이블 전체 건수 카운트)", 
+          hint: "LEFT OUTER JOIN을 사용하는 것이 MySQL의 표준 방식입니다. (여기서는 간단히 COUNT(*)만 확인)", 
+          ans: "SELECT COUNT(*) FROM emp;" 
         }
       ]
     },
@@ -75,6 +87,32 @@ INSERT INTO emp VALUES
           ans: "C",
           hint: "AWS 클라우드의 Multi-AZ 구성은 장애 시 '자동' 복구를 지향합니다.",
           explain: "Aurora는 장애 감지 시 DNS 엔드포인트를 변경하여 Replica 중 하나를 수십 초 이내에 Primary로 자동 승격(Failover)시킵니다."
+        },
+        {
+          type: "quiz", t: "데이터베이스 파라미터 변경",
+          desc: "MySQL의 max_connections 값을 늘리고 싶습니다. 온프레미스에서는 my.cnf 파일을 직접 수정했지만, AWS RDS/Aurora 환경에서는 어떻게 해야 합니까?",
+          options: [
+            "A. SSH로 DB 인스턴스에 접속하여 my.cnf 파일을 vim으로 수정한다.",
+            "B. AWS 콘솔에서 해당 DB 클러스터에 연결된 '파라미터 그룹(Parameter Group)'을 수정하고 반영한다.",
+            "C. CloudWatch에서 max_connections 알람을 생성한다.",
+            "D. 파라미터는 AWS가 자동 관리하므로 사용자가 변경할 수 없다."
+          ],
+          ans: "B",
+          hint: "완전 관리형(Managed) 서비스에서는 OS 레벨의 접근을 차단하고 콘솔/API를 통한 관리 환경을 제공합니다.",
+          explain: "AWS의 관리형 DB 서비스(RDS, Aurora)는 OS 권한을 제공하지 않으므로, 모든 DB 엔진 설정은 '파라미터 그룹'을 통해 중앙에서 관리하고 적용해야 합니다."
+        },
+        {
+          type: "quiz", t: "성능 병목 분석 도구",
+          desc: "과거 특정 시점(예: 어제 오후 2시)에 DB에 어떤 SQL이 가장 많은 부하를 일으켰는지 분석해야 합니다. 오라클의 AWR을 대체할 수 있는 AWS의 가장 적절한 모니터링 도구는 무엇입니까?",
+          options: [
+            "A. Performance Insights (PI)",
+            "B. AWS CloudTrail",
+            "C. Amazon GuardDuty",
+            "D. VPC Flow Logs"
+          ],
+          ans: "A",
+          hint: "DB 내부의 세션 활동, 대기 이벤트(Wait Events), 상위 SQL을 시각적으로 보여주는 도구입니다.",
+          explain: "Performance Insights(PI)는 오라클의 ASH/AWR과 유사하게 DB 부하를 모니터링하고 분석할 수 있는 AWS의 강력한 기본 성능 진단 도구입니다."
         }
       ]
     }
