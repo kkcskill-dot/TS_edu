@@ -407,7 +407,7 @@
 /* ── 홈: 로드맵(좌) + 운영 스터디(우) 분리 레이아웃 ── */
 .ts-home {
   display: grid;
-  grid-template-columns: 1fr 300px;
+  grid-template-columns: 1fr 1.2fr; /* 300px에서 확장 */
   gap: 26px;
   align-items: start;
   font-family: var(--sph-font);
@@ -420,16 +420,24 @@
   padding-bottom: 8px;
   border-bottom: 1px solid var(--sph-line);
 }
+.ts-study-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* 2x2 등 배열 지원 */
+  gap: 12px;
+}
 /* 우측 스터디 카드: 세로 배치 */
 .ts-home-side .ts-study {
   flex-direction: column;
   align-items: stretch;
+  justify-content: flex-start;
   gap: 6px;
   padding: 16px 18px;
   margin-bottom: 0;
+  height: 100%;
 }
-.ts-home-side .ts-study-cta { margin-top: 6px; }
+.ts-home-side .ts-study-cta { margin-top: auto; padding-top: 6px; }
 
 @media (max-width: 860px) {
   .ts-home { grid-template-columns: 1fr; }
+  .ts-study-grid { grid-template-columns: 1fr; }
 }

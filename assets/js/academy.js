@@ -48,6 +48,13 @@
         desc: "SQLD 자격증 취득을 목표로 핵심 개념과 기출문제를 분석하는 소모임입니다.",
         enter: "nav-btn-sqld-textbook",
         course: "sqld-club"
+      },
+      {
+        name: "클라우드 DB 전환",
+        sub: "Aurora MySQL",
+        desc: "온프레미스 Oracle DBA를 위한 클라우드 환경의 아키텍처와 성능진단 기초 교육입니다.",
+        enter: "nav-btn-cloud-textbook",
+        course: "cloud-db"
       }
     ]
   };
@@ -166,21 +173,22 @@
           </div>
         </div>
         <aside class="ts-home-side">
-          <div class="ts-side-title">운영 스터디</div>
-          ${ACADEMY.studies.map(s => `
-          <div class="ts-study" data-name="${s.name}" data-enter="${s.enter}" data-course="${s.course}">
-            <div class="ts-study-name">${s.name}</div>
-            <div class="ts-study-sub">${s.sub}</div>
-            <div class="ts-study-desc">${s.desc}</div>
-            <div class="ts-study-cta">스터디 입장 ➔</div>
-          </div>`).join("")}
+          <div class="ts-side-title">운영 스터디 &amp; 평가</div>
+          <div class="ts-study-grid">
+            ${ACADEMY.studies.map(s => `
+            <div class="ts-study" data-name="${s.name}" data-enter="${s.enter}" data-course="${s.course}">
+              <div class="ts-study-name">${s.name}</div>
+              <div class="ts-study-sub">${s.sub}</div>
+              <div class="ts-study-desc">${s.desc}</div>
+              <div class="ts-study-cta">스터디 입장 ➔</div>
+            </div>`).join("")}
 
-          <div class="ts-side-title" style="margin-top:24px;">평가 시스템</div>
-          <div class="ts-study" style="border: 1px dashed var(--accent-yellow); background: rgba(251, 192, 45, 0.02);" data-name="CBT 평가 센터" data-enter="nav-btn-cbt-week3" data-course="cbt">
-            <div class="ts-study-name" style="color: var(--accent-yellow);">CBT 평가 센터</div>
-            <div class="ts-study-sub">TS CBT System</div>
-            <div class="ts-study-desc">과정별 핵심 이론 및 실전 SQL 튜닝 지식을 테스트하고 결과를 관리자 페이지에서 실시간 조회·모니터링합니다.</div>
-            <div class="ts-study-cta" style="color: var(--accent-yellow);">평가 응시 ➔</div>
+            <div class="ts-study" style="border: 1px dashed var(--accent-yellow); background: rgba(251, 192, 45, 0.02);" data-name="CBT 평가 센터" data-enter="nav-btn-cbt-week3" data-course="cbt">
+              <div class="ts-study-name" style="color: var(--accent-yellow);">CBT 평가 센터</div>
+              <div class="ts-study-sub">TS CBT System</div>
+              <div class="ts-study-desc">과정별 핵심 이론 및 실전 SQL 튜닝 지식을 테스트하고 결과를 실시간 조회·모니터링합니다.</div>
+              <div class="ts-study-cta" style="color: var(--accent-yellow);">평가 응시 ➔</div>
+            </div>
           </div>
         </aside>
       </div>`;
