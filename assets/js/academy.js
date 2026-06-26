@@ -27,7 +27,7 @@
         goalSub: "안정적인 DB 운영 역량",
         levels: [
           { name: "데이터 모델링", sub: "개념→논리→물리 + 정규화", status: "live", enter: "nav-btn-dm-textbook", course: "data-modeling" },
-          { name: "고성능 DB 설계", sub: "DBA 설계 · 운영", status: "ready" },
+          { name: "고성능 DB 설계", sub: "DBA 설계 · 운영", status: "plan" },
           { name: "DB 운영 전문가", sub: "DBA", status: "plan" }
         ]
       }
