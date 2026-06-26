@@ -407,7 +407,7 @@
 /* ── 홈: 로드맵(좌) + 운영 스터디(우) 분리 레이아웃 ── */
 .ts-home {
   display: grid;
-  grid-template-columns: 1fr 1.2fr; /* 300px에서 확장 */
+  grid-template-columns: 1fr 360px; /* 로드맵을 메인으로 강조 */
   gap: 26px;
   align-items: start;
   font-family: var(--sph-font);
