@@ -134,14 +134,14 @@ class TSSurveyRequestHandler(BaseHTTPRequestHandler):
                         CASE 
                             WHEN t.TOPIC_TYPE = 'apply' THEN 0.0
                             ELSE (SELECT AVG(NULLIF(r.STAR_RATING, 0)) FROM TB_SURVEY_RESPONSE r WHERE r.TOPIC_ID = t.ID)
-                        END as AVG_RATING
+                        END as AVG_STARS
                     FROM TB_TOPIC t
                     ORDER BY t.CREATED_AT DESC
                 ''')
                 rows = [dict(r) for r in cur.fetchall()]
-                # AVG_RATING 이 None 이면 0.0 으로 변환, 아니면 반올림
+                # AVG_STARS 이 None 이면 0.0 으로 변환, 아니면 반올림
                 for row in rows:
-                    row['AVG_RATING'] = round(row['AVG_RATING'], 1) if row['AVG_RATING'] else 0.0
+                    row['AVG_STARS'] = round(row['AVG_STARS'], 1) if row['AVG_STARS'] else 0.0
                 return self._respond_json(200, rows)
             except Exception as e:
                 return self._respond_json(500, {"error": str(e)})
