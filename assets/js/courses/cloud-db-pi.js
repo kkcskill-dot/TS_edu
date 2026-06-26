@@ -13,7 +13,7 @@
     container.innerHTML = `
       <div style="padding: 24px; display: flex; flex-direction: column; gap: 20px; height: 100%;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <h3 style="margin:0; color: #002A5B; font-size: 1.2rem;">📈 Performance Insights (AAS)</h3>
+          <h3 style="margin:0; color: #002A5B; font-size: 1.2rem;">Performance Insights (AAS)</h3>
           <button id="pi-spike-btn" style="padding: 8px 16px; border: none; border-radius: 6px; background: #E91E63; color: white; font-weight: bold; cursor: pointer;">🚨 부하 발생 시뮬레이션</button>
         </div>
         

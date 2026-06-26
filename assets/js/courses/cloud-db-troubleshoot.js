@@ -32,7 +32,7 @@
 
     let html = `
       <div style="padding: 24px; height: 100%; display: flex; flex-direction: column;">
-        <h3 style="margin-top: 0; color: #002A5B; margin-bottom: 8px;">🚑 장애 트러블슈팅 케이스 스터디</h3>
+        <h3 style="margin-top: 0; color: #002A5B; margin-bottom: 8px;">장애 트러블슈팅 케이스 스터디</h3>
         <p style="color: var(--color-text-muted); margin-bottom: 24px;">클라우드 전환 후 초기 운영 단계에서 자주 마주치는 장애 사례들입니다. 제목을 클릭하여 상세 내용을 확인하세요.</p>
         
         <div style="flex: 1; display: flex; flex-direction: column; gap: 12px;" id="troubleshoot-list">

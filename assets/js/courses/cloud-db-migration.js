@@ -36,7 +36,7 @@
 
     let html = `
       <div style="padding: 24px;">
-        <h3 style="margin-top: 0; color: #002A5B;">🛠 이관 전 필수 진단 체크리스트</h3>
+        <h3 style="margin-top: 0; color: #002A5B;">이관 전 필수 진단 체크리스트</h3>
         <p style="color: var(--color-text-muted); margin-bottom: 24px;">모든 항목을 꼼꼼히 점검하고 체크박스를 클릭하여 진행 상황을 확인하세요.</p>
         
         <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px;" id="mig-list">

@@ -174,7 +174,7 @@ INSERT INTO emp VALUES
 
     viewer.innerHTML = `
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
-        <h2 style="margin:0;font-size:1.3rem;color:var(--color-text-main);">☁️ 클라우드 DB 훈련장</h2>
+        <h2 style="margin:0;font-size:1.3rem;color:var(--color-text-main);">클라우드 DB 훈련장</h2>
         <div style="display:flex;gap:6px;margin-left:6px;">${levelTabs}</div>
       </div>
       <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;">
