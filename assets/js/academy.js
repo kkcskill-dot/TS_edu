@@ -50,7 +50,7 @@
         course: "sqld-club"
       },
       {
-        name: "클라우드 DB 전환",
+        name: "클라우드 DB (MySQL)",
         sub: "Aurora MySQL",
         desc: "온프레미스 Oracle DBA를 위한 클라우드 환경의 아키텍처와 성능진단 기초 교육입니다.",
         enter: "nav-btn-cloud-textbook",
