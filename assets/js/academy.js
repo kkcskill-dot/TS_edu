@@ -218,9 +218,104 @@
     if (brand) brand.addEventListener("click", goHome);
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", render);
-  } else {
+  function renderMinimap() {
+    const mount = document.getElementById("academy-minimap");
+    if (!mount) return;
+    
+    // Background Grid
+    let html = `<div class="minimap-bg-grid"></div><svg class="mm-svg-layer">`;
+    
+    html += `
+      <path class="mm-line" d="M 50% 85% Q 30% 72.5% 30% 60%" />
+      <path class="mm-line" d="M 30% 60% L 30% 40%" />
+      <path class="mm-line" d="M 30% 40% L 30% 20%" />
+      
+      <path class="mm-line" d="M 50% 85% Q 70% 72.5% 70% 60%" />
+      <path class="mm-line" d="M 70% 60% L 70% 40%" />
+      <path class="mm-line" d="M 70% 40% L 70% 20%" />
+    </svg>`;
+    
+    const f = ACADEMY.foundation;
+    html += `
+      <div class="mm-node foundation ${f.status}" style="left:50%; top:85%;" data-status="${f.status}" data-name="${f.name}"${f.enter ? ` data-enter="${f.enter}"` : ""}${f.course ? ` data-course="${f.course}"` : ""}>
+        <div class="mm-circle">SQL</div>
+        <div class="mm-title">${f.name}</div>
+        <div class="mm-sub">${f.sub}</div>
+      </div>
+    `;
+    
+    const yLevels = ["60%", "40%", "20%"];
+    ACADEMY.tracks[0].levels.forEach((lv, i) => {
+      html += `
+        <div class="mm-node ${lv.status}" style="left:30%; top:${yLevels[i]};" data-status="${lv.status}" data-name="${lv.name}"${lv.enter ? ` data-enter="${lv.enter}"` : ""}${lv.course ? ` data-course="${lv.course}"` : ""}>
+          <div class="mm-circle">L${i+2}</div>
+          <div class="mm-title">${lv.name}</div>
+          <div class="mm-sub">${lv.sub}</div>
+        </div>
+      `;
+    });
+    
+    ACADEMY.tracks[1].levels.forEach((lv, i) => {
+      html += `
+        <div class="mm-node ${lv.status}" style="left:70%; top:${yLevels[i]};" data-status="${lv.status}" data-name="${lv.name}"${lv.enter ? ` data-enter="${lv.enter}"` : ""}${lv.course ? ` data-course="${lv.course}"` : ""}>
+          <div class="mm-circle">L${i+2}</div>
+          <div class="mm-title">${lv.name}</div>
+          <div class="mm-sub">${lv.sub}</div>
+        </div>
+      `;
+    });
+    
+    mount.innerHTML = html;
+    
+    mount.querySelectorAll(".mm-node").forEach(node => {
+      node.addEventListener("click", () => {
+        const status = node.dataset.status;
+        const name = node.dataset.name;
+        const enterId = node.dataset.enter;
+        const courseId = node.dataset.course;
+
+        if (status === "plan") {
+          toast(name, "준비 중");
+        } else if (status === "ready" || status === "live") {
+          enterCourse(name, enterId, courseId);
+        }
+      });
+    });
+  }
+
+  function setupViewToggle() {
+    const btnClassic = document.getElementById("btn-view-classic");
+    const btnMinimap = document.getElementById("btn-view-minimap");
+    const classicView = document.getElementById("academy-roadmap");
+    const minimapView = document.getElementById("academy-minimap");
+    
+    if (!btnClassic || !btnMinimap) return;
+    
+    btnClassic.addEventListener("click", () => {
+      btnClassic.classList.add("active");
+      btnMinimap.classList.remove("active");
+      classicView.style.display = "block";
+      minimapView.style.display = "none";
+    });
+    
+    btnMinimap.addEventListener("click", () => {
+      btnMinimap.classList.add("active");
+      btnClassic.classList.remove("active");
+      classicView.style.display = "none";
+      minimapView.style.display = "flex";
+      renderMinimap();
+    });
+  }
+
+  function init() {
     render();
+    renderMinimap();
+    setupViewToggle();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
   }
 })();

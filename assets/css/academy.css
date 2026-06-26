@@ -442,3 +442,144 @@
   .ts-home { grid-template-columns: 1fr; }
   .ts-study-grid { grid-template-columns: 1fr; }
 }
+
+/* =========================================
+   View Toggle & Minimap
+   ========================================= */
+.view-toggle {
+  display: inline-flex;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 4px;
+}
+.view-toggle button {
+  background: transparent;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.view-toggle button.active {
+  background: #002A5B;
+  color: #fff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+#academy-minimap {
+  position: relative;
+  width: 100%;
+  min-height: 600px;
+  background: #0F172A; /* Dark Cyberpunk/Space Background */
+  border-radius: 12px;
+  border: 1px solid #1E293B;
+  overflow: hidden;
+  box-shadow: inset 0 0 50px rgba(0,0,0,0.5);
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.minimap-bg-grid {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+
+.mm-svg-layer {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+.mm-line {
+  stroke: rgba(255, 255, 255, 0.2);
+  stroke-width: 2;
+  stroke-dasharray: 6 6;
+  animation: mm-dash 20s linear infinite;
+  fill: none;
+}
+@keyframes mm-dash {
+  to { stroke-dashoffset: -1000; }
+}
+
+.mm-node {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 160px;
+  text-align: center;
+}
+
+.mm-circle {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.1rem;
+  background: #1E293B;
+  border: 3px solid #334155;
+  color: #94A3B8;
+  box-shadow: 0 0 15px rgba(0,0,0,0.5);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.mm-node.live .mm-circle {
+  background: rgba(14, 122, 83, 0.2);
+  border-color: #10B981;
+  color: #10B981;
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.4), inset 0 0 10px rgba(16, 185, 129, 0.4);
+  cursor: pointer;
+}
+.mm-node.live:hover .mm-circle {
+  transform: scale(1.15);
+  box-shadow: 0 0 30px rgba(16, 185, 129, 0.6), inset 0 0 15px rgba(16, 185, 129, 0.6);
+}
+
+.mm-node.ready .mm-circle {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: #F59E0B;
+  color: #F59E0B;
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.3);
+}
+
+.mm-title {
+  color: #F8FAFC;
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+}
+.mm-sub {
+  color: #94A3B8;
+  font-size: 0.8rem;
+}
+
+.mm-node.plan .mm-title { color: #64748B; }
+.mm-node.plan .mm-sub { color: #475569; }
+
+/* Foundation Node (Root) */
+.mm-node.foundation .mm-circle {
+  width: 60px;
+  height: 60px;
+  border-color: #0EA5E9;
+  background: rgba(14, 165, 233, 0.2);
+  color: #0EA5E9;
+  box-shadow: 0 0 25px rgba(14, 165, 233, 0.5), inset 0 0 10px rgba(14, 165, 233, 0.5);
+}
+
