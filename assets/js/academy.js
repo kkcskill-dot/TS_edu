@@ -38,21 +38,21 @@
       {
         name: "성능진단 소모임",
         sub: "기술서비스팀 사내 스터디",
-        desc: "현재 운영 중인 성능진단·튜닝 실습(기초~심화)을 모아둔 사내 스터디입니다.",
+        desc: "성능진단 및 튜닝 실습(기초~심화) 사내 스터디",
         enter: "nav-btn-textbook",
         course: "perf-club"
       },
       {
         name: "SQLD 취득!",
         sub: "자격증 취득 스터디",
-        desc: "SQLD 자격증 취득을 목표로 핵심 개념과 기출문제를 분석하는 소모임입니다.",
+        desc: "핵심 개념과 기출문제를 분석하는 자격증 대비반",
         enter: "nav-btn-sqld-textbook",
         course: "sqld-club"
       },
       {
         name: "클라우드 DB (MySQL)",
         sub: "Aurora MySQL",
-        desc: "온프레미스 Oracle DBA를 위한 클라우드 환경의 아키텍처와 성능진단 기초 교육입니다.",
+        desc: "온프레미스 DBA를 위한 클라우드 환경 및 성능진단 기초",
         enter: "nav-btn-cloud-textbook",
         course: "cloud-db"
       }
@@ -188,7 +188,7 @@
           <div class="ts-study" style="border: 1px dashed var(--accent-yellow); background: rgba(251, 192, 45, 0.02);" data-name="CBT 평가 센터" data-enter="nav-btn-cbt-week3" data-course="cbt">
             <div class="ts-study-name" style="color: var(--accent-yellow);">CBT 평가 센터</div>
             <div class="ts-study-sub">TS CBT System</div>
-            <div class="ts-study-desc">과정별 핵심 이론 및 실전 SQL 튜닝 지식을 테스트하고 결과를 실시간 조회·모니터링합니다.</div>
+            <div class="ts-study-desc">핵심 이론 및 실전 튜닝 지식을 테스트하고 모니터링합니다.</div>
             <div class="ts-study-cta" style="color: var(--accent-yellow);">평가 응시 ➔</div>
           </div>
         </aside>
