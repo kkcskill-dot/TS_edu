@@ -671,6 +671,36 @@
             </svg>
             클라우드/문법 실습
           </button>
+          <div class="menu-group-title">클라우드 특화 (신규)</div>
+          <button id="nav-btn-cloud-pi" class="menu-item" data-target="panel-cloud-pi">
+            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"
+              stroke-linecap="round" stroke-linejoin="round" class="menu-icon">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="3" y1="9" x2="21" y2="9"></line>
+              <line x1="9" y1="21" x2="9" y2="9"></line>
+            </svg>
+            AWS 모니터링 (PI)
+          </button>
+          <button id="nav-btn-cloud-migration" class="menu-item" data-target="panel-cloud-migration">
+            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"
+              stroke-linecap="round" stroke-linejoin="round" class="menu-icon">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            마이그레이션 진단 체크
+          </button>
+          <button id="nav-btn-cloud-troubleshoot" class="menu-item" data-target="panel-cloud-troubleshoot">
+            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"
+              stroke-linecap="round" stroke-linejoin="round" class="menu-icon">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            장애 트러블슈팅 사례
+          </button>
         </div><!-- /course: cloud-db -->
 
         <!-- 과정: SQL 기초 -->
@@ -904,6 +934,36 @@
           </div>
         </section>
 
+        <!-- AWS 모니터링 시뮬레이터 -->
+        <section id="panel-cloud-pi" class="content-panel">
+          <div class="panel-intro">
+            <p>AWS Performance Insights와 유사한 대시보드 환경에서 실시간 부하를 모니터링하고 병목을 진단합니다.</p>
+          </div>
+          <div class="bg-glass" style="border:1px solid var(--border-light);border-radius:8px;overflow:hidden;min-height:500px;" id="cloud-pi-container">
+            <!-- cloud-db-pi.js 가 동적으로 채움 -->
+          </div>
+        </section>
+
+        <!-- 마이그레이션 진단 체크리스트 -->
+        <section id="panel-cloud-migration" class="content-panel">
+          <div class="panel-intro">
+            <p>Oracle에서 MySQL로 이관 시 점검해야 할 핵심 호환성 이슈들을 점검해 봅니다.</p>
+          </div>
+          <div class="bg-glass" style="border:1px solid var(--border-light);border-radius:8px;overflow:hidden;min-height:500px;" id="cloud-migration-container">
+            <!-- cloud-db-migration.js 가 동적으로 채움 -->
+          </div>
+        </section>
+
+        <!-- 장애 트러블슈팅 케이스 스터디 -->
+        <section id="panel-cloud-troubleshoot" class="content-panel">
+          <div class="panel-intro">
+            <p>실제 AWS 운영 중 발생한 대표적인 장애 사례 3가지를 원인 분석과 함께 짚어봅니다.</p>
+          </div>
+          <div class="bg-glass" style="border:1px solid var(--border-light);border-radius:8px;overflow:hidden;min-height:500px;" id="cloud-troubleshoot-container">
+            <!-- cloud-db-troubleshoot.js 가 동적으로 채움 -->
+          </div>
+        </section>
+
         <!-- ===== 과정: SQL 기초 ===== -->
         <!-- SQL 학습자료 -->
         <section id="panel-sql-textbook" class="content-panel">
@@ -1057,6 +1117,9 @@
   <script src="assets/js/courses/sqld-club.js?v=1.1"></script>
   <script src="assets/js/courses/cloud-db.js?v=1.0"></script>
   <script src="assets/js/courses/cloud-db-playground.js?v=1.0"></script>
+  <script src="assets/js/courses/cloud-db-pi.js?v=1.0"></script>
+  <script src="assets/js/courses/cloud-db-migration.js?v=1.0"></script>
+  <script src="assets/js/courses/cloud-db-troubleshoot.js?v=1.0"></script>
   <script src="assets/js/courses/sqld-practice.js?v=1.3"></script>
   <script src="assets/js/courses/sqld-playground.js?v=1.2"></script>
   <script src="assets/js/courses/sql-foundation.js?v=1.0"></script>
