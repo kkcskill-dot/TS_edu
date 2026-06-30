@@ -74,8 +74,26 @@
       '</div></section>';
   }
 
+  // 덱 안의 D-day 동적 표기: <span data-dday="YYYY-MM-DD" [data-dday-mode="dday|full"]></span>
+  function fillDdays() {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    scrollEl.querySelectorAll("[data-dday]").forEach(function (el) {
+      const d = new Date(el.getAttribute("data-dday") + "T00:00:00");
+      if (isNaN(d.getTime())) return;
+      const days = Math.round((d - today) / 86400000);
+      const mode = el.getAttribute("data-dday-mode") || "full";
+      let txt;
+      if (days > 0) txt = mode === "dday" ? ("D-" + days) : ("약 " + Math.round(days / 7) + "주 (D-" + days + ")");
+      else if (days === 0) txt = mode === "dday" ? "D-DAY" : "오늘이 시험일!";
+      else txt = mode === "dday" ? ("D+" + (-days)) : "시험 종료";
+      el.textContent = txt;
+    });
+  }
+
   function afterInject() {
     slides = Array.prototype.slice.call(scrollEl.querySelectorAll(".ts-slide"));
+    fillDdays();
     overlay.hidden = false;
     document.body.style.overflow = "hidden";
     scrollEl.scrollTop = 0;

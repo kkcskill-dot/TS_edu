@@ -1,0 +1,330 @@
+<style>.ts-slide > .inner::after { content: "TS Academy · SQLD 취득!"; }</style>
+
+<section class="ts-slide cover">
+  <div class="inner">
+    <div class="s-kicker">SQLD 2과목 · SQL 기본</div>
+    <div class="s-title">SQL 기본</div>
+    <p class="s-lead">SQL 분류 · SELECT 실행 순서 · 단일행 함수 · NULL 함수 · CASE,<br>WHERE 연산자 · GROUP BY/HAVING · ORDER BY · 조인 기본.</p>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">SQL 분류</div>
+    <div class="s-title">SQL 문장의 종류</div>
+    <div class="s-cols">
+      <div class="main">
+        <table class="s-table">
+          <tr><th>분류</th><th>명령어</th><th>비고</th></tr>
+          <tr><td>DML</td><td>SELECT · INSERT · UPDATE · DELETE</td><td>데이터 조작</td></tr>
+          <tr><td>DDL</td><td>CREATE · ALTER · DROP · TRUNCATE</td><td><b>Auto Commit</b></td></tr>
+          <tr><td>TCL</td><td>COMMIT · ROLLBACK · SAVEPOINT</td><td>트랜잭션 제어</td></tr>
+          <tr><td>DCL</td><td>GRANT · REVOKE</td><td>권한</td></tr>
+        </table>
+      </div>
+      <aside class="s-aside">
+        <div class="h">시험 함정</div>
+        <ul>
+          <li><b>DDL/DCL은 자동 커밋</b>(롤백 불가)</li>
+          <li>TRUNCATE = DDL → 롤백 불가 / DELETE = DML → 롤백 가능</li>
+          <li>SELECT를 DQL로 따로 부르기도 함</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">SELECT</div>
+    <div class="s-title">SELECT 실행(논리) 순서 🏆</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-formula hl">FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY</div>
+        <table class="s-table" style="margin-top:14px;">
+          <tr><th>작성 순서</th><th>SELECT … FROM … WHERE … GROUP BY … HAVING … ORDER BY</th></tr>
+          <tr><td>실행 순서</td><td>FROM → WHERE → GROUP BY → HAVING → <b>SELECT</b> → ORDER BY</td></tr>
+        </table>
+      </div>
+      <aside class="s-aside">
+        <div class="h">왜 중요한가</div>
+        <ul>
+          <li>SELECT 별칭은 <b>WHERE/GROUP BY/HAVING에서 사용 불가</b>(아직 미생성)</li>
+          <li><b>ORDER BY에서는 별칭 사용 가능</b>(SELECT 이후 실행)</li>
+          <li>WHERE는 그룹 전, HAVING은 그룹 후 필터</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">함수</div>
+    <div class="s-title">단일행 함수 — 문자·숫자·날짜</div>
+    <div class="s-cols">
+      <div class="main">
+        <table class="s-table">
+          <tr><th>구분</th><th>예</th></tr>
+          <tr><td>문자</td><td>SUBSTR, INSTR, LENGTH, LTRIM/RTRIM, REPLACE, CONCAT(||)</td></tr>
+          <tr><td>숫자</td><td>ROUND, TRUNC, MOD, CEIL, FLOOR</td></tr>
+          <tr><td>날짜</td><td>SYSDATE, MONTHS_BETWEEN, ADD_MONTHS, LAST_DAY</td></tr>
+          <tr><td>변환</td><td>TO_CHAR, TO_DATE, TO_NUMBER</td></tr>
+        </table>
+        <div class="s-note">단일행 함수는 <b>행마다 1개</b> 결과. 중첩 가능. SELECT·WHERE·ORDER BY 등 어디서나 사용.</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">함정</div>
+        <ul>
+          <li>SUBSTR 인덱스 <b>1부터</b> 시작</li>
+          <li>ROUND(123.45,1)=123.5 / TRUNC는 버림</li>
+          <li>문자+숫자 연산 시 <b>묵시적 형변환</b> 주의</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">함수</div>
+    <div class="s-title">NULL 관련 함수</div>
+    <div class="s-cols">
+      <div class="main">
+        <table class="s-table">
+          <tr><th>함수</th><th>의미</th></tr>
+          <tr><td><b>NVL(A,B)</b></td><td>A가 NULL이면 B</td></tr>
+          <tr><td><b>NVL2(A,B,C)</b></td><td>A가 NULL 아니면 B, NULL이면 C</td></tr>
+          <tr><td><b>NULLIF(A,B)</b></td><td>A=B면 NULL, 아니면 A</td></tr>
+          <tr><td><b>COALESCE(...)</b></td><td>첫 번째 NULL이 아닌 값</td></tr>
+        </table>
+        <div class="s-code"><span class="c">-- 커미션 없으면 0으로</span>
+SELECT ename, sal + NVL(comm, 0) AS 총액 FROM emp;</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">자주 틀림</div>
+        <ul>
+          <li>NVL2 인자 <b>순서</b>(NotNull→B, NULL→C)</li>
+          <li>NULLIF는 <b>같으면 NULL</b></li>
+          <li>SQLite 실습 시 NVL→IFNULL 로 동작</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">함수</div>
+    <div class="s-title">CASE 식 &amp; DECODE</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-code"><span class="c">-- CASE (표준, 범위 비교 가능)</span>
+SELECT ename,
+  CASE WHEN sal>=3000 THEN 'A'
+       WHEN sal>=2000 THEN 'B'
+       ELSE 'C' END AS 등급
+FROM emp;
+<span class="c">-- DECODE (Oracle, 등가비교만)</span>
+SELECT DECODE(deptno,10,'총무',20,'연구','기타') FROM emp;</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">비교</div>
+        <ul>
+          <li>CASE: 범위/조건 가능, ANSI 표준</li>
+          <li>DECODE: <b>= 비교만</b>, Oracle 전용</li>
+          <li>ELSE/기본값 없으면 <b>NULL</b> 반환</li>
+          <li>위에서부터 <b>먼저 참인 것</b> 채택</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">NULL</div>
+    <div class="s-title">3치 논리 (3VL) — TRUE·FALSE·UNKNOWN</div>
+    <div class="s-cols">
+      <div class="main">
+        <p class="s-lead">NULL 때문에 SQL의 진리값은 2개가 아니라 <b>3개</b>입니다. NULL과 비교하면 참도 거짓도 아닌 <b>UNKNOWN</b>.</p>
+        <table class="s-table">
+          <tr><th>식</th><th>결과</th></tr>
+          <tr><td>1 = 1</td><td>TRUE</td></tr>
+          <tr><td>NULL = 1</td><td><b>UNKNOWN</b></td></tr>
+          <tr><td>NULL = NULL</td><td><b>UNKNOWN</b> (같다고 안 봄)</td></tr>
+        </table>
+        <div class="s-err"><b>WHERE는 TRUE인 행만 통과</b> → <code>WHERE comm = NULL</code>은 전부 UNKNOWN이라 <b>0건</b>. 반드시 <b>IS NULL</b>.</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">AND / OR 진리표</div>
+        <ul>
+          <li>TRUE <b>AND</b> UNKNOWN → UNKNOWN</li>
+          <li>FALSE <b>AND</b> UNKNOWN → FALSE</li>
+          <li>TRUE <b>OR</b> UNKNOWN → TRUE</li>
+          <li>FALSE <b>OR</b> UNKNOWN → UNKNOWN</li>
+        </ul>
+        <div class="h" style="margin-top:10px;">함정</div>
+        <ul>
+          <li>NOT IN(목록에 NULL) → 전부 탈락 → <b>NOT EXISTS</b> 권장</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">WHERE</div>
+    <div class="s-title">WHERE 연산자와 우선순위</div>
+    <div class="s-cols">
+      <div class="main">
+        <table class="s-table">
+          <tr><th>종류</th><th>연산자</th></tr>
+          <tr><td>비교</td><td>= , &gt; , &lt; , &gt;= , &lt;= , &lt;&gt;</td></tr>
+          <tr><td>SQL</td><td>BETWEEN a AND b · IN · LIKE · IS NULL</td></tr>
+          <tr><td>논리</td><td>AND · OR · NOT</td></tr>
+        </table>
+        <div class="s-formula">우선순위: <b>NOT → AND → OR</b> (괄호로 명시 권장)</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">함정</div>
+        <ul>
+          <li>BETWEEN은 <b>양 끝 포함</b></li>
+          <li>LIKE 와일드카드: % (0+), _ (1자)</li>
+          <li>IN (a,b,NULL) + NOT IN 에 NULL → <b>결과 없음</b> 주의</li>
+          <li>AND가 OR보다 먼저 — 괄호 없으면 의도와 달라짐</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">집계</div>
+    <div class="s-title">GROUP BY · HAVING · 집계 함수</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-code">SELECT deptno, AVG(sal)
+FROM emp
+GROUP BY deptno
+HAVING AVG(sal) >= 2000;</div>
+        <table class="s-table" style="margin-top:12px;">
+          <tr><th>함수</th><th>NULL 처리</th></tr>
+          <tr><td>COUNT(*)</td><td>행 수(NULL 포함)</td></tr>
+          <tr><td>COUNT(col)</td><td><b>NULL 제외</b> 개수</td></tr>
+          <tr><td>SUM/AVG/MAX/MIN</td><td>NULL 제외</td></tr>
+        </table>
+      </div>
+      <aside class="s-aside">
+        <div class="h">규칙·함정</div>
+        <ul>
+          <li>SELECT의 비집계 컬럼은 <b>전부 GROUP BY</b>에 있어야 함</li>
+          <li>WHERE에는 <b>집계함수 못 씀</b> → HAVING으로</li>
+          <li>WHERE로 <b>먼저 행을 줄이면</b> 성능↑</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">정렬</div>
+    <div class="s-title">ORDER BY</div>
+    <div class="s-cols">
+      <div class="main">
+        <p class="s-lead">기본 <b>ASC(오름차순)</b>. 컬럼명·별칭·<b>SELECT 순번</b>으로 정렬 가능.</p>
+        <div class="s-code">SELECT ename, sal FROM emp
+ORDER BY sal DESC, ename ASC;   <span class="c">-- 2 DESC 도 가능</span></div>
+        <div class="s-note">Oracle: NULL은 정렬 시 <b>가장 큰 값</b>으로 취급(ASC면 뒤, DESC면 앞). NULLS FIRST/LAST로 제어.</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">포인트</div>
+        <ul>
+          <li>실행 순서상 <b>맨 마지막</b> → 별칭 사용 OK</li>
+          <li>숫자 1,2…는 SELECT 컬럼 위치</li>
+          <li>DBMS마다 NULL 정렬 기본값 다름</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">조인</div>
+    <div class="s-title">조인 기본 — 등가/비등가</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-code"><span class="c">-- 등가 조인 (PK-FK)</span>
+SELECT e.ename, d.dname
+FROM emp e JOIN dept d ON e.deptno = d.deptno;
+<span class="c">-- 비등가 조인 (범위)</span>
+SELECT e.ename, s.grade
+FROM emp e JOIN salgrade s
+  ON e.sal BETWEEN s.losal AND s.hisal;</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">개념</div>
+        <ul>
+          <li>등가 조인: =로 연결(가장 흔함)</li>
+          <li>비등가 조인: BETWEEN 등 범위</li>
+          <li>조인 조건 빠지면 <b>카티션 곱</b>(N×M)</li>
+          <li>N개 테이블 조인 → 조건 최소 <b>N-1</b>개</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">결과 예측</div>
+    <div class="s-title">함정 모음 — "이 SQL의 결과는?"</div>
+    <div class="s-cols">
+      <div class="main">
+        <ul class="s-keys">
+          <li><code>WHERE comm = NULL</code> → 결과 0건 (IS NULL 써야)</li>
+          <li><code>NOT IN (서브쿼리에 NULL 포함)</code> → 전체 0건</li>
+          <li><code>COUNT(comm)</code> ≠ <code>COUNT(*)</code> (NULL 제외)</li>
+          <li><code>sal + comm</code> 에서 comm NULL → 그 행 <b>NULL</b></li>
+          <li>'10'+1 같은 <b>묵시적 형변환</b> → 11</li>
+        </ul>
+      </div>
+      <aside class="s-aside">
+        <div class="h">시험 전략</div>
+        <ul>
+          <li>NULL 보이면 <b>먼저 의심</b></li>
+          <li>집계는 NULL 제외라는 점 항상 체크</li>
+          <li>실습 메뉴에서 직접 돌려 확인</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">한 장 정리</div>
+    <div class="s-title">3강좌 핵심 &amp; 빈출</div>
+    <div class="s-cols">
+      <div class="main">
+        <ul class="s-keys">
+          <li>실행순서 <b>FROM→WHERE→GROUP BY→HAVING→SELECT→ORDER BY</b></li>
+          <li>NULL 함수 NVL·NVL2·NULLIF·COALESCE</li>
+          <li>CASE(범위·표준) vs DECODE(등가·Oracle)</li>
+          <li>WHERE 우선순위 NOT→AND→OR · BETWEEN 양끝 포함</li>
+          <li>COUNT(*) vs COUNT(col) · 조건 N-1개</li>
+        </ul>
+      </div>
+      <aside class="s-aside">
+        <div class="h">다음 강좌</div>
+        <ul>
+          <li><b>2.2 SQL 활용</b> — 표준조인·집합·서브쿼리·계층질의·그룹함수·윈도우함수</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>

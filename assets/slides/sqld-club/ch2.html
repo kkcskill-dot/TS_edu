@@ -1,0 +1,288 @@
+<style>.ts-slide > .inner::after { content: "TS Academy · SQLD 취득!"; }</style>
+
+<section class="ts-slide cover">
+  <div class="inner">
+    <div class="s-kicker">SQLD 1과목 · 2장 데이터 모델과 성능</div>
+    <div class="s-title">데이터 모델과 성능</div>
+    <p class="s-lead">정규화(1NF~BCNF)·반정규화·슈퍼/서브타입·파티셔닝·분산DB<br>— 성능을 고려한 데이터 모델링.</p>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">성능 모델링</div>
+    <div class="s-title">성능 데이터 모델링 — 개요 &amp; 절차</div>
+    <div class="s-cols">
+      <div class="main">
+        <p class="s-lead">성능은 장비 증설·쿼리 튜닝만으로 한계가 있고, 근본 병목은 <b>잘못된 데이터 모델</b>에서 나옵니다. 설계 단계에 성능을 반영해야 후반 재작업을 줄입니다.</p>
+        <ul class="s-keys">
+          <li>① 정규화로 이상현상 제거</li>
+          <li>② 용량 산정 · 트랜잭션 유형 파악</li>
+          <li>③ 반정규화 검토</li>
+          <li>④ 이력 / PK·FK / 슈퍼·서브타입 조정</li>
+          <li>⑤ 성능 관점 모델 검증</li>
+        </ul>
+      </div>
+      <aside class="s-aside">
+        <div class="h">포인트</div>
+        <ul>
+          <li>성능 모델링은 <b>분석/설계 전반</b>에 수행</li>
+          <li>늦게 손대면 <b>구조 전체 재작업</b> 비용</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">정규화</div>
+    <div class="s-title">정규화 — 왜? &amp; 함수 종속</div>
+    <div class="s-cols">
+      <div class="main">
+        <p class="s-lead">중복을 제거해 <b>이상현상(Anomaly)</b>을 없애고 데이터 무결성을 높이는 과정. 기준은 <b>함수 종속</b>(A→B: A가 정해지면 B가 하나로 결정).</p>
+        <div class="s-grid">
+          <div class="s-card r"><h4>삽입 이상</h4><p>불필요 데이터 없이는 입력 불가.</p></div>
+          <div class="s-card r"><h4>갱신 이상</h4><p>중복 일부만 수정→불일치.</p></div>
+          <div class="s-card r"><h4>삭제 이상</h4><p>지우면 필요 정보까지 손실.</p></div>
+        </div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">핵심</div>
+        <ul>
+          <li>정규화 ↑ → 중복 ↓, 무결성 ↑</li>
+          <li>대신 <b>조인 ↑</b> → 조회 성능 ↓ 가능</li>
+          <li>정규화는 <b>논리 모델링</b>에서 수행</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">정규화</div>
+    <div class="s-title">제1정규형 (1NF) — 원자값</div>
+    <div class="s-cols">
+      <div class="main">
+        <p class="s-lead">모든 속성은 <b>하나의 원자값</b>만 가져야 한다. 반복 그룹·다중값 제거.</p>
+        <table class="s-table">
+          <tr><th>회원ID</th><th>이름</th><th style="color:#dc2626;">취미(위배)</th></tr>
+          <tr><td>U01</td><td>김철수</td><td style="color:#dc2626;">독서, 등산</td></tr>
+        </table>
+        <div class="s-note"><b>해소</b>: 취미를 행으로 분리하거나 <b>취미 테이블</b>(1:M)로 분리.</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">판별</div>
+        <ul>
+          <li>한 칸에 콤마로 여러 값? → 1NF 위배</li>
+          <li>유사 컬럼 반복(취미1, 취미2)? → 1NF 위배</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">정규화</div>
+    <div class="s-title">제2정규형 (2NF) — 부분 종속 제거</div>
+    <div class="s-cols">
+      <div class="main">
+        <p class="s-lead"><b>복합키</b>의 일부에만 종속되는 일반 속성(부분 함수 종속)을 분리.</p>
+        <table class="s-table">
+          <tr><th>주문번호(PK)</th><th>상품코드(PK)</th><th>수량</th><th style="color:#dc2626;">상품명</th></tr>
+          <tr><td>O01</td><td>P01</td><td>2</td><td style="color:#dc2626;">노트북</td></tr>
+          <tr><td>O02</td><td>P01</td><td>5</td><td style="color:#dc2626;">노트북</td></tr>
+        </table>
+        <div class="s-note"><code>상품명</code>은 <b>상품코드</b>에만 종속 → <b>상품 테이블</b>로 분리.</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">전제</div>
+        <ul>
+          <li>2NF는 <b>복합키</b>일 때만 의미(단일키면 자동 2NF)</li>
+          <li>부분 종속 = 키 일부 → 비키 속성 결정</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">정규화</div>
+    <div class="s-title">제3정규형 (3NF) — 이행 종속 제거</div>
+    <div class="s-cols">
+      <div class="main">
+        <p class="s-lead"><b>3NF</b>: 키가 아닌 속성 간 종속(<b>이행 종속</b> A→B→C)을 제거.</p>
+        <table class="s-table">
+          <tr><th>사원ID(PK)</th><th style="color:#dc2626;">부서코드</th><th style="color:#dc2626;">부서명</th></tr>
+          <tr><td>E01</td><td>D1</td><td style="color:#dc2626;">영업</td></tr>
+        </table>
+        <div class="s-note"><code>부서명</code>은 사원ID→부서코드→부서명의 <b>이행 종속</b> → <b>부서 테이블</b>로 분리.</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">한 줄 요약</div>
+        <ul>
+          <li>1NF=원자값, 2NF=부분종속, 3NF=이행종속</li>
+          <li>"이행 종속 제거는 몇 정규형?" → <b>3NF</b></li>
+          <li>결정자가 후보키가 아니면 → <b>BCNF</b>로 추가 분해(다음 장)</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">정규화</div>
+    <div class="s-title">BCNF — 모든 결정자는 후보키여야 한다</div>
+    <div class="s-cols">
+      <div class="main">
+        <p class="s-lead"><b>BCNF</b>(보이스-코드 정규형)는 <b>3NF를 더 엄격하게</b> 한 것. 어떤 속성을 결정하는 <b>결정자</b>가 <b>후보키가 아니면</b> 위배.</p>
+        <table class="s-table">
+          <tr><th>학생</th><th>과목</th><th>교수</th></tr>
+          <tr><td>김</td><td>DB</td><td>이교수</td></tr>
+          <tr><td>박</td><td>DB</td><td>이교수</td></tr>
+        </table>
+        <div class="s-note">규칙: <b>교수 → 과목</b>(교수가 과목을 결정). 후보키는 (학생,과목)·(학생,교수)인데 <b>교수는 후보키가 아님</b> → 3NF는 만족해도 <b>BCNF 위배</b>.</div>
+        <div class="s-err">해소: <b>(학생,교수)</b> + <b>(교수,과목)</b> 두 테이블로 분해.</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">핵심</div>
+        <ul>
+          <li>BCNF ⊃ 3NF (더 강한 조건)</li>
+          <li>결정자(determinant)가 모두 <b>후보키</b>면 BCNF</li>
+          <li>후보키가 여럿이고 <b>서로 겹칠 때</b> 주로 발생</li>
+          <li>3.5정규형이라고도 부름</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">반정규화</div>
+    <div class="s-title">반정규화 — 성능을 위한 의도적 중복</div>
+    <div class="s-cols">
+      <div class="main">
+        <table class="s-table">
+          <tr><th>대상</th><th>기법</th></tr>
+          <tr><td>테이블</td><td>병합 · 분할(수평/수직) · 추가(중복·통계·이력)</td></tr>
+          <tr><td>컬럼</td><td>중복 컬럼 · <b>파생 컬럼</b> · 이력 PK 추가</td></tr>
+          <tr><td>관계</td><td>중복 관계 추가</td></tr>
+        </table>
+        <div class="s-note"><b>순서</b>: 먼저 정규화 → <b>측정된 성능 문제</b>에 한해 반정규화(무분별 금지).</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">트레이드오프</div>
+        <ul>
+          <li>조회 성능 ↑ ↔ <b>무결성·갱신 비용 ↑</b>·저장 ↑</li>
+          <li>처리 성능이 <b>떨어지는 경우</b>에 수행</li>
+          <li>중복관계 추가는 <b>무결성 영향 없는</b> 유일한 기법</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">슈퍼/서브타입</div>
+    <div class="s-title">슈퍼/서브타입 물리 변환 3가지</div>
+    <div class="s-cols">
+      <div class="main">
+        <table class="s-table">
+          <tr><th>방식</th><th>내용</th><th>유리한 경우</th></tr>
+          <tr><td><b>One To One</b><br>(서브타입)</td><td>슈퍼+서브 각각 테이블</td><td>서브 속성 많고 개별 처리</td></tr>
+          <tr><td><b>Plus</b><br>(슈퍼+서브)</td><td>슈퍼 1 + 서브별 테이블</td><td>서브별 처리 + 공통 조회</td></tr>
+          <tr><td><b>Single</b><br>(All in One)</td><td>한 테이블로 통합(+구분컬럼)</td><td>전체 일괄 조회 잦음</td></tr>
+        </table>
+      </div>
+      <aside class="s-aside">
+        <div class="h">선택 기준</div>
+        <ul>
+          <li>데이터량·트랜잭션 <b>접근 패턴</b>으로 결정</li>
+          <li>통합 조회 多 → <b>Single</b></li>
+          <li>개별 처리 多 → <b>OneToOne</b></li>
+          <li>Single은 <b>NULL 컬럼</b> 많아질 수 있음</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">대용량 처리</div>
+    <div class="s-title">파티셔닝 (Partitioning)</div>
+    <div class="s-cols">
+      <div class="main">
+        <p class="s-lead">대용량 테이블은 인덱스 트리가 깊어져 성능이 저하됩니다. <b>논리적으로 1개 테이블</b>이지만 물리적으로 여러 테이블스페이스에 분산 저장.</p>
+        <table class="s-table">
+          <tr><th>종류</th><th>기준</th><th>예</th></tr>
+          <tr><td><b>RANGE</b></td><td>연속 값 범위(가장 많이 씀)</td><td>월별(2026-01…)</td></tr>
+          <tr><td><b>LIST</b></td><td>특정 값(코드)</td><td>지점(서울·부산)</td></tr>
+          <tr><td><b>HASH</b></td><td>해시 함수 균등 분할</td><td>치우침 없을 때</td></tr>
+        </table>
+      </div>
+      <aside class="s-aside">
+        <div class="h">암기</div>
+        <ul>
+          <li>RANGE = 날짜·범위(최다)</li>
+          <li>LIST = 코드값</li>
+          <li>HASH = 시스템 균등 분할(관리 어려움)</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">분산 DB</div>
+    <div class="s-title">분산 데이터베이스의 투명성</div>
+    <div class="s-cols">
+      <div class="main">
+        <p class="s-lead">여러 곳에 흩어진 DB를 <b>하나의 논리 DB</b>처럼 사용. 사용자는 분산 사실을 몰라도 됩니다(투명성).</p>
+        <div class="s-grid">
+          <div class="s-card"><h4>분할 / 위치</h4><p>분할 여부·물리적 위치를 몰라도 됨.</p></div>
+          <div class="s-card c"><h4>중복 / 병행</h4><p>복제 여부·동시 실행 몰라도 일관성 유지.</p></div>
+          <div class="s-card y"><h4>장애 / 지역사상</h4><p>일부 장애에도 동작, 지역 DBMS 무관.</p></div>
+        </div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">적용 기법</div>
+        <ul>
+          <li>위치 분산 · 분할 분산(수평/수직)</li>
+          <li><b>복제(Replication)</b> 분산 — 조회 성능 ↑(최다)</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">한 장 정리</div>
+    <div class="s-title">2강좌 핵심 &amp; 빈출</div>
+    <div class="s-cols">
+      <div class="main">
+        <ul class="s-keys">
+          <li>정규화 <b>1·2·3NF·BCNF</b> (이상현상 제거, 무결성 ↑)</li>
+          <li>반정규화 — 조회 성능 위해 중복 허용(트레이드오프)</li>
+          <li>슈퍼/서브타입: OneToOne · Plus · Single</li>
+          <li>파티셔닝 RANGE · LIST · HASH</li>
+          <li>분산 DB 투명성 · 복제(Replication) 분산</li>
+        </ul>
+      </div>
+      <aside class="s-aside">
+        <div class="h">다음 강좌</div>
+        <ul>
+          <li><b>2.1 SQL 기본</b> — SELECT 실행순서·함수·NULL·GROUP BY·조인</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>

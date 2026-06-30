@@ -1,0 +1,398 @@
+<style>.ts-slide > .inner::after { content: "TS Academy · SQLD 취득!"; }</style>
+
+<section class="ts-slide cover">
+  <div class="inner">
+    <div class="s-kicker">SQLD 1과목 · 1장 데이터 모델링의 이해</div>
+    <div class="s-title">데이터 모델링</div>
+    <p class="s-lead">모델링 개념·3단계부터 엔터티·속성·관계·식별자까지<br>— 1과목 1장의 핵심을 한 강좌로. (정규화·성능은 다음 강좌)</p>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">모델링 개요</div>
+    <div class="s-title">데이터 모델링의 3대 특징</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-grid">
+          <div class="s-card"><h4>추상화</h4><p>현실을 일정 형식으로 표현. 공통점을 추출해 표현.</p></div>
+          <div class="s-card c"><h4>단순화</h4><p>누구나 이해하도록 약속된 규칙으로 간단히.</p></div>
+          <div class="s-card y"><h4>명확성(정확성)</h4><p>의미가 명확하게, 한 가지 뜻으로 해석되게.</p></div>
+        </div>
+        <div class="s-note">모델링 관점 3가지: <b>데이터(What)</b> · <b>프로세스(How)</b> · <b>데이터와 프로세스의 상관(CRUD)</b>.</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">유의사항(자주 출제)</div>
+        <ul>
+          <li><b>중복</b> 배제 · <b>비유연성</b> 주의(업무 변화 대응) · <b>비일관성</b> 방지</li>
+          <li>모델링 = 정보시스템 구축의 <b>분석/설계</b> 단계 핵심 작업</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">모델링 개요</div>
+    <div class="s-title">모델링 3단계 — 개념 → 논리 → 물리</div>
+    <div class="s-cols">
+      <div class="main">
+        <table class="s-table">
+          <tr><th>단계</th><th>특징</th><th>산출물</th></tr>
+          <tr><td><b>개념적</b></td><td>추상화 최고, 업무 중심, 전사적(EA)</td><td>핵심 엔터티·관계(개략 ERD)</td></tr>
+          <tr><td><b>논리적</b></td><td><b>정규화 수행</b>, DBMS <b>독립</b>, 재사용성 최고</td><td>속성·식별자·관계 상세 모델</td></tr>
+          <tr><td><b>물리적</b></td><td>구체화 최고, DBMS <b>종속</b>, 성능 고려</td><td>테이블·인덱스·파티션</td></tr>
+        </table>
+      </div>
+      <aside class="s-aside">
+        <div class="h">시험 1순위 함정</div>
+        <ul>
+          <li><b>정규화는 논리적</b> 단계에서 수행</li>
+          <li><b>DBMS 종속은 물리적</b>뿐 (개념·논리는 독립)</li>
+          <li>개념→물리로 갈수록 <b>구체화</b></li>
+          <li>"논리 모델은 특정 DB에 종속된다?" → <b>NO</b></li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">모델링 개요</div>
+    <div class="s-title">3요소 · 3층 스키마 · 데이터 독립성</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-grid">
+          <div class="s-card"><h4>데이터 모델 3요소</h4><p><b>엔터티</b>(What) · <b>속성</b>(Attribute) · <b>관계</b>(Relationship).</p></div>
+          <div class="s-card c"><h4>3층 스키마</h4><p><b>외부</b>(사용자 뷰) · <b>개념</b>(통합 뷰) · <b>내부</b>(물리 저장).</p></div>
+        </div>
+        <div class="s-note"><b>데이터 독립성</b> — 논리적 독립성(외부↔개념: 통합구조 변경에도 뷰 영향 적음) · 물리적 독립성(개념↔내부: 저장구조 변경에도 논리 영향 적음).</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">암기 포인트</div>
+        <ul>
+          <li>외부=View, 개념=통합, 내부=물리</li>
+          <li><b>논리적 독립성</b>: 외부↔개념</li>
+          <li><b>물리적 독립성</b>: 개념↔내부</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">엔터티</div>
+    <div class="s-title">엔터티의 6가지 특징</div>
+    <div class="s-cols">
+      <div class="main">
+        <ul class="s-keys" style="font-size:1.05rem;">
+          <li><b>업무에서 필요</b>로 하는 정보일 것</li>
+          <li><b>유일한 식별자</b>로 식별 가능</li>
+          <li><b>2개 이상</b>의 인스턴스 집합</li>
+          <li>반드시 <b>속성</b>을 가짐(2개 이상)</li>
+          <li><b>업무 프로세스</b>에 의해 이용됨</li>
+          <li>다른 엔터티와 <b>최소 1개 이상의 관계</b></li>
+        </ul>
+      </div>
+      <aside class="s-aside">
+        <div class="h">단골 오답노트</div>
+        <ul>
+          <li>"고립된(관계 없는) 엔터티가 좋다?" → <b>NO</b></li>
+          <li>"속성 없는 엔터티 존재 가능?" → <b>NO</b></li>
+          <li>"인스턴스 1개여도 엔터티?" → <b>NO</b>(집합)</li>
+          <li><b>예외</b>: 통계성·코드성은 관계 생략 가능</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">엔터티</div>
+    <div class="s-title">엔터티의 분류</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-sub">유·무형에 따라</div>
+        <table class="s-table">
+          <tr><td><b>유형</b></td><td>물리적 형태, 안정적 (사원, 물품)</td></tr>
+          <tr><td><b>개념</b></td><td>개념적 정보 (조직, 보험상품)</td></tr>
+          <tr><td><b>사건</b></td><td>업무 수행 중 발생 (주문, 청구, 이벤트)</td></tr>
+        </table>
+        <div class="s-sub">발생 시점에 따라</div>
+        <table class="s-table">
+          <tr><td><b>기본</b></td><td>독립적 생성, 타 엔터티의 부모 (사원·부서·고객)</td></tr>
+          <tr><td><b>중심</b></td><td>기본에서 발생, 행위의 중심 (계약·주문·접수)</td></tr>
+          <tr><td><b>행위</b></td><td>2개 이상에서 발생 (주문목록·이력)</td></tr>
+        </table>
+      </div>
+      <aside class="s-aside">
+        <div class="h">구분 팁</div>
+        <ul>
+          <li><b>기본</b>: 다른 것 없이도 생김(독립)</li>
+          <li><b>중심</b>: 기본들이 만나 발생, 데이터량 많음</li>
+          <li><b>행위</b>: 2개+ 관계로 생기는 결과/이력</li>
+          <li>발생시점 순서: 기본 → 중심 → 행위</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">속성</div>
+    <div class="s-title">속성의 분류 &amp; 도메인</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-grid">
+          <div class="s-card"><h4>기본 속성</h4><p>업무에서 원래 도출 (회원명, 가입일).</p></div>
+          <div class="s-card c"><h4>설계 속성</h4><p>관리 위해 새로 정의 (코드, 일련번호).</p></div>
+          <div class="s-card y"><h4>파생 속성</h4><p>다른 속성에서 계산 (합계, 평균) — <b>최소화</b>.</p></div>
+        </div>
+        <div class="s-note"><b>도메인</b> = 속성이 가질 수 있는 값의 범위(타입·길이·제약). 예) 점수 0~100, 성별 'M'/'F'.</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">분해 정도</div>
+        <ul>
+          <li><b>단일</b>값 · <b>복합</b>(주소=시/구/동)</li>
+          <li><b>다중값</b>은 원자성 위배 → 별도 엔터티로</li>
+          <li>파생 속성은 정합성 비용 → 꼭 필요할 때만</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">관계</div>
+    <div class="s-title">관계 — 차수(Cardinality) &amp; 선택성</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-grid">
+          <div class="s-card"><h4>차수</h4><p>1:1, 1:M, <b>M:N</b>(논리에선 표현, 물리에선 교차 엔터티로 해소).</p></div>
+          <div class="s-card y"><h4>선택성(Optionality)</h4><p><b>필수(●)</b> vs <b>선택(○)</b> 참여.</p></div>
+        </div>
+        <div class="s-note">관계의 3요소: <b>관계명</b>(이름) · <b>관계차수</b>(1:M 등) · <b>관계선택사양</b>(필수/선택).</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">관계 페어링</div>
+        <ul>
+          <li>엔터티 인스턴스끼리 <b>연결된 짝</b>(페어링)의 집합이 관계</li>
+          <li>IE 표기: 까마귀발(M), 선 끝 모양으로 필수/선택</li>
+          <li>M:N은 <b>반드시</b> 교차 엔터티로 분해(물리)</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">관계</div>
+    <div class="s-title">M:N 관계 — 교차 엔터티로 해소</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-flow">
+          <div class="step">학생</div><div class="arrow">M:N</div><div class="step">과목</div>
+        </div>
+        <div class="s-note" style="margin:14px 0;">물리 모델에서는 직접 표현 불가 → <b>수강(교차 엔터티)</b> 추가, 1:M + 1:M으로 분해.</div>
+        <div class="s-code"><span class="c">-- 교차 테이블 수강(학번, 과목코드)</span>
+SELECT st.이름, sb.과목명
+FROM 수강 r
+  JOIN 학생 st ON r.학번 = st.학번
+  JOIN 과목 sb ON r.과목코드 = sb.과목코드;</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">암기</div>
+        <ul>
+          <li>M:N은 <b>반드시</b> 교차 엔터티로</li>
+          <li>교차 엔터티 PK = 양쪽 PK 조합(+@)</li>
+          <li>교차 엔터티는 보통 <b>행위</b> 엔터티</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">관계</div>
+    <div class="s-title">식별 관계 vs 비식별 관계</div>
+    <div class="s-cols">
+      <div class="main">
+        <table class="s-table">
+          <tr><th></th><th>식별 관계</th><th>비식별 관계</th></tr>
+          <tr><td>부모 키</td><td>자식의 <b>주식별자(PK)</b>로</td><td>자식의 <b>일반 속성(FK)</b>로</td></tr>
+          <tr><td>표기</td><td>실선</td><td>점선</td></tr>
+          <tr><td>종속</td><td>강한 종속(부모 없이 불가)</td><td>약한 종속(독립 존재)</td></tr>
+        </table>
+      </div>
+      <aside class="s-aside">
+        <div class="h">선택 기준</div>
+        <ul>
+          <li>자식이 <b>부모 없이 존재 못 함</b> → 식별</li>
+          <li>자식이 <b>독립적으로 존재</b> → 비식별</li>
+          <li>식별 관계 남발 → PK가 계속 늘어 복잡(주의)</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">식별자</div>
+    <div class="s-title">식별자의 분류</div>
+    <div class="s-cols">
+      <div class="main">
+        <table class="s-table">
+          <tr><th>기준</th><th>분류</th></tr>
+          <tr><td>대표성</td><td><b>주</b>식별자 / 보조식별자</td></tr>
+          <tr><td>생성</td><td><b>내부</b>(자체) / <b>외부</b>(다른 엔터티에서, FK)</td></tr>
+          <tr><td>속성 수</td><td>단일 / 복합</td></tr>
+          <tr><td>대체 여부</td><td><b>본질</b>(업무 속성) / <b>인조</b>(대리키)</td></tr>
+        </table>
+      </div>
+      <aside class="s-aside">
+        <div class="h">보조 식별자</div>
+        <ul>
+          <li>유일성은 만족하나 <b>대표성</b> 없어 참조 관계 못 맺음</li>
+          <li>예: 회원ID가 PK일 때 주민번호는 보조식별자</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">식별자</div>
+    <div class="s-title">본질 식별자 vs 인조 식별자</div>
+    <div class="s-cols">
+      <div class="main">
+        <table class="s-table">
+          <tr><th></th><th>본질 식별자</th><th>인조(대리) 식별자</th></tr>
+          <tr><td>출처</td><td>업무에서 도출된 속성</td><td>임의로 부여한 일련번호</td></tr>
+          <tr><td>예</td><td>(주문일+고객+상품)</td><td>주문번호 SEQ</td></tr>
+          <tr><td>장점</td><td>의미 명확</td><td>단순·불변·조인 단순</td></tr>
+        </table>
+        <div class="s-note">복합 본질키가 <b>너무 길거나 변할</b> 때 인조키 도입. 단, 본질의 유일성은 <b>UNIQUE</b>로 별도 보장.</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">도입 시점·함정</div>
+        <ul>
+          <li>본질키 속성 수가 많음(보통 4↑) → 인조키 고려</li>
+          <li>인조키만 믿고 UNIQUE 누락 → <b>중복 입력</b> 위험</li>
+          <li>인조키는 의미가 없어 그 자체로 업무 검증 불가</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">식별자</div>
+    <div class="s-title">주식별자의 4대 특징</div>
+    <div class="s-cols">
+      <div class="main">
+        <ul class="s-keys" style="font-size:1.1rem;">
+          <li><b>유일성</b> — 인스턴스를 유일하게 구분</li>
+          <li><b>최소성</b> — 유일성 보장하는 최소 속성 집합</li>
+          <li><b>불변성</b> — 한 번 지정되면 값이 바뀌지 않음</li>
+          <li><b>존재성</b> — NULL 불가(반드시 값 존재, NOT NULL)</li>
+        </ul>
+      </div>
+      <aside class="s-aside">
+        <div class="h">도출 기준 · 함정</div>
+        <ul>
+          <li>자주 조회·조인되는 속성을 주식별자로</li>
+          <li>"주식별자에 NULL 가능?" → <b>NO</b>(존재성)</li>
+          <li>"주식별자 값이 바뀔 수 있다?" → <b>NO</b>(불변성)</li>
+          <li>최소성: 불필요한 속성 포함 금지</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">관계</div>
+    <div class="s-title">식별자 상속과 조인</div>
+    <div class="s-cols">
+      <div class="main">
+        <p class="s-lead">모델의 <b>관계</b>는 부모 PK가 자식으로 <b>상속(FK)</b> 되며, 이 PK–FK가 곧 <b>조인 조건</b>이 됩니다.</p>
+        <div class="s-grid">
+          <div class="s-card"><h4>식별 관계</h4><p>부모 PK → 자식 <b>PK 일부</b> (실선). 조인 키가 PK에 포함.</p></div>
+          <div class="s-card c"><h4>비식별 관계</h4><p>부모 PK → 자식 <b>일반 FK</b> (점선). 자식 독립 존재.</p></div>
+        </div>
+        <div class="s-code"><span class="c">-- 관계 = 조인</span>
+SELECT * FROM 주문 o JOIN 고객 c
+  ON o.고객번호 = c.고객번호;</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">핵심</div>
+        <ul>
+          <li>PK–FK 조인이 정상 모델의 기본 조인</li>
+          <li>식별관계 연쇄 → 자식 PK가 점점 길어짐</li>
+          <li>FK 없는 조인(카티션 곱) 주의</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">트랜잭션</div>
+    <div class="s-title">모델이 표현하는 트랜잭션</div>
+    <div class="s-cols">
+      <div class="main">
+        <p class="s-lead">하나의 트랜잭션으로 <b>함께 발생</b>하는 업무는 모델에서 <b>필수 관계</b>로 묶여야 합니다.</p>
+        <div class="s-grid">
+          <div class="s-card"><h4>주문 ↔ 주문상세</h4><p>주문은 상세 1건 이상과 동시 발생 → 필수 관계.</p></div>
+          <div class="s-card y"><h4>원자성</h4><p>둘 중 하나만 저장되면 안 됨 → 한 트랜잭션.</p></div>
+        </div>
+        <div class="s-note">관계의 <b>선택성(필수/선택)</b>이 트랜잭션 발생 규칙을 표현한다.</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">포인트</div>
+        <ul>
+          <li>필수 관계 = 동시 발생 트랜잭션</li>
+          <li>선택 관계 = 독립적으로 발생 가능</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">한 장 정리</div>
+    <div class="s-title">1강좌 핵심 &amp; 빈출</div>
+    <div class="s-cols">
+      <div class="main">
+        <ul class="s-keys">
+          <li>모델링 3단계: <b>개념→논리→물리(DBMS 종속)</b></li>
+          <li>엔터티 6특징 · 분류(유무형 / 발생시점)</li>
+          <li>속성(기본·설계·파생) · 관계(차수·선택성·식별/비식별)</li>
+          <li>식별자: 분류 · 본질/인조 · 주식별자 4특징(<b>유일·최소·불변·존재</b>)</li>
+          <li>식별자 상속 = 조인 · M:N → 교차 엔터티</li>
+        </ul>
+      </div>
+      <aside class="s-aside">
+        <div class="h">다음 강좌</div>
+        <ul>
+          <li><b>1.2 데이터 모델과 성능</b> — 정규화·반정규화·파티셔닝·분산DB</li>
+          <li>좌측 <b>강의자료</b> 탭에서 본문도 함께 학습</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>

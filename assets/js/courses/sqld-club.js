@@ -3,13 +3,14 @@
  * ============================================================= */
 (function () {
   const BASE = "assets/lessons/sqld-club/";
-  // TODO: 이후 사용자가 제공하는 목차로 SESSIONS 업데이트
+  const DECK_VER = "8.3";
+  // 강좌별 학습자료(.md) + 강의 슬라이드 덱(.html) 매핑
   const SESSIONS = [
-    { id: "s1", title: "1.1 데이터 모델링", file: "01-data-modeling.md" },
-    { id: "s2", title: "1.2 데이터 모델과 SQL", file: "02-model-and-sql.md" },
-    { id: "s3", title: "2.1 SQL 기본", file: "03-sql-basics.md" },
-    { id: "s4", title: "2.2 SQL 활용", file: "04-sql-utilization.md" },
-    { id: "s5", title: "2.3 관리 구문", file: "05-management-statements.md" }
+    { id: "s1", title: "1.1 데이터 모델링", file: "01-data-modeling.md", deck: "ch1.html", deckTitle: "1과목 · 데이터 모델링" },
+    { id: "s2", title: "1.2 데이터 모델과 성능", file: "02-model-and-sql.md", deck: "ch2.html", deckTitle: "1과목 · 데이터 모델과 성능" },
+    { id: "s3", title: "2.1 SQL 기본", file: "03-sql-basics.md", deck: "ch3.html", deckTitle: "2과목 · SQL 기본" },
+    { id: "s4", title: "2.2 SQL 활용", file: "04-sql-utilization.md", deck: "ch4.html", deckTitle: "2과목 · SQL 활용" },
+    { id: "s5", title: "2.3 관리 구문", file: "05-management-statements.md", deck: "ch5.html", deckTitle: "2과목 · 관리 구문" }
   ];
 
   // ── 학습자료 (탭 + 마크다운 렌더) ──
@@ -30,6 +31,13 @@
 
       // active 클래스만 토글 → CSS(.tbook-tab.active, !important)가 강조 처리(다른 과정과 동일 표준)
       tabbar.querySelectorAll(".tbook-tab").forEach(b => b.classList.toggle("active", b.dataset.id === id));
+
+      // '강의자료 보기' 버튼을 현재 강좌의 슬라이드 덱으로 재타겟(개요 버튼과 구분 위해 id로 선택)
+      const slideBtn = tabbar.querySelector("#sqld-chapter-deck");
+      if (slideBtn && s.deck) {
+        slideBtn.setAttribute("data-deck-file", "assets/slides/sqld-club/" + s.deck + "?v=" + DECK_VER);
+        slideBtn.setAttribute("data-deck-title", s.deckTitle || s.title);
+      }
 
       viewer.innerHTML = `<div style="text-align:center;padding:40px;color:var(--color-text-muted);">
         <div class="loader" style="margin:0 auto 10px;width:24px;height:24px;border:3px solid var(--border-light);border-top-color:var(--accent-cyan);border-radius:50%;animation:spin 1s linear infinite;"></div>
@@ -72,7 +80,8 @@
 
     // 탭바 우측에 '강의자료 보기'(PPT 슬라이드) 버튼 — slides.js가 위임 처리
     tabbar.insertAdjacentHTML("beforeend",
-      '<button class="btn-open-slides" type="button" data-deck-title="SQLD 핵심 개념" data-deck-file="assets/slides/sqld-club/core.html?v=8.2">🖥️ 강의자료 보기</button>');
+      '<button class="btn-open-slides" type="button" data-deck-title="SQLD 시험 안내" data-deck-file="assets/slides/sqld-club/overview.html?v=' + DECK_VER + '">📋 시험 안내</button>' +
+      '<button class="btn-open-slides" id="sqld-chapter-deck" type="button" data-deck-title="1과목 · 데이터 모델링" data-deck-file="assets/slides/sqld-club/ch1.html?v=' + DECK_VER + '">🖥️ 강의자료 보기</button>');
 
     tabbar.addEventListener("click", e => {
       const btn = e.target.closest(".tbook-tab");

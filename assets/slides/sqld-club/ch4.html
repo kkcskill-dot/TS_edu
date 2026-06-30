@@ -1,0 +1,283 @@
+<style>.ts-slide > .inner::after { content: "TS Academy · SQLD 취득!"; }</style>
+
+<section class="ts-slide cover">
+  <div class="inner">
+    <div class="s-kicker">SQLD 2과목 · SQL 활용</div>
+    <div class="s-title">SQL 활용</div>
+    <p class="s-lead">표준 조인 · 집합 연산자 · 서브쿼리 · 계층형 질의 ·<br>그룹 함수(ROLLUP/CUBE) · 윈도우 함수 — 출제 비중 최상위 영역.</p>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">표준 조인</div>
+    <div class="s-title">ANSI 조인의 종류</div>
+    <div class="s-cols">
+      <div class="main">
+        <table class="s-table">
+          <tr><th>조인</th><th>설명</th></tr>
+          <tr><td>INNER JOIN</td><td>양쪽 일치 행만</td></tr>
+          <tr><td>LEFT/RIGHT OUTER</td><td>한쪽 전체 + 반대쪽 일치(없으면 NULL)</td></tr>
+          <tr><td>FULL OUTER</td><td>양쪽 전체</td></tr>
+          <tr><td>CROSS JOIN</td><td>카티션 곱(N×M)</td></tr>
+          <tr><td>NATURAL JOIN</td><td>같은 이름 컬럼 자동 등가</td></tr>
+        </table>
+      </div>
+      <aside class="s-aside">
+        <div class="h">ON vs USING</div>
+        <ul>
+          <li>ON: 조건 직접 명시</li>
+          <li>USING(컬럼): 같은 컬럼명 1개로</li>
+          <li>NATURAL/USING 컬럼엔 <b>별칭(alias) 금지</b></li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">표준 조인</div>
+    <div class="s-title">OUTER JOIN — 결과 예측</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-code"><span class="c">-- 사원 없는 부서까지 모두</span>
+SELECT d.dname, e.ename
+FROM dept d LEFT JOIN emp e
+  ON d.deptno = e.deptno;</div>
+        <div class="s-note" style="margin-top:12px;">OPERATIONS(40번)는 사원이 없어도 출력, ename은 <b>NULL</b>. Oracle 전통 표기 <code>(+)</code>는 <b>없는 쪽</b>에 붙임.</div>
+        <div class="s-code"><span class="c">-- Oracle 전통식 = LEFT OUTER</span>
+WHERE d.deptno = e.deptno(+);</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">함정</div>
+        <ul>
+          <li>OUTER 조인 시 <b>COUNT(e.empno)</b>로 세야 NULL 제외</li>
+          <li><code>(+)</code>는 OR·IN과 함께 못 씀(제약)</li>
+          <li>WHERE에 외부조인 테이블 조건 걸면 INNER처럼 됨</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">집합 연산자</div>
+    <div class="s-title">UNION · INTERSECT · MINUS</div>
+    <div class="s-cols">
+      <div class="main">
+        <table class="s-table">
+          <tr><th>연산자</th><th>의미</th><th>중복·정렬</th></tr>
+          <tr><td>UNION</td><td>합집합</td><td>중복 제거 + <b>정렬</b></td></tr>
+          <tr><td>UNION ALL</td><td>합집합</td><td>중복 허용 + <b>정렬 안 함</b></td></tr>
+          <tr><td>INTERSECT</td><td>교집합</td><td>중복 제거</td></tr>
+          <tr><td>MINUS(EXCEPT)</td><td>차집합</td><td>중복 제거</td></tr>
+        </table>
+      </div>
+      <aside class="s-aside">
+        <div class="h">규칙·함정</div>
+        <ul>
+          <li>각 SELECT <b>컬럼 수·데이터 타입 일치</b></li>
+          <li>컬럼명은 <b>첫 번째 SELECT 기준</b></li>
+          <li>ORDER BY는 <b>맨 마지막에 한 번</b>만</li>
+          <li>성능은 UNION ALL이 유리(정렬 X)</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">서브쿼리</div>
+    <div class="s-title">서브쿼리의 위치별 분류</div>
+    <div class="s-cols">
+      <div class="main">
+        <table class="s-table">
+          <tr><th>종류</th><th>위치</th><th>특징</th></tr>
+          <tr><td>스칼라 서브쿼리</td><td>SELECT 절</td><td>행마다 1행 1열 반환</td></tr>
+          <tr><td>인라인 뷰</td><td>FROM 절</td><td>가상 테이블처럼</td></tr>
+          <tr><td>중첩 서브쿼리</td><td>WHERE 절</td><td>조건으로 사용</td></tr>
+        </table>
+        <div class="s-code"><span class="c">-- 인라인 뷰</span>
+SELECT * FROM (SELECT ename, sal FROM emp
+               ORDER BY sal DESC) WHERE ROWNUM <= 3;</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">연산자</div>
+        <ul>
+          <li>단일행: = &gt; &lt; (1건 반환 전제)</li>
+          <li>다중행: <b>IN · ANY · ALL · EXISTS</b></li>
+          <li>다중행에 = 쓰면 <b>에러</b></li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">서브쿼리</div>
+    <div class="s-title">다중행 연산자 &amp; 상관 서브쿼리</div>
+    <div class="s-cols">
+      <div class="main">
+        <table class="s-table">
+          <tr><th>연산자</th><th>의미</th></tr>
+          <tr><td>IN</td><td>목록 중 하나라도 일치</td></tr>
+          <tr><td>&gt; ANY</td><td>최솟값보다 크면 참</td></tr>
+          <tr><td>&gt; ALL</td><td>최댓값보다 크면 참</td></tr>
+          <tr><td>EXISTS</td><td>한 건이라도 있으면 참</td></tr>
+        </table>
+        <div class="s-code"><span class="c">-- 상관 서브쿼리: 바깥 행 참조</span>
+SELECT ename FROM emp e
+WHERE sal > (SELECT AVG(sal) FROM emp WHERE deptno=e.deptno);</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">함정</div>
+        <ul>
+          <li>&gt;ANY = 최소보다 큼, &gt;ALL = 최대보다 큼</li>
+          <li>EXISTS는 <b>존재 여부</b>만(값 무관)</li>
+          <li>NOT IN + NULL → 결과 사라짐 (NOT EXISTS 권장)</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">계층형 질의</div>
+    <div class="s-title">CONNECT BY (Oracle)</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-code">SELECT LEVEL, ename, mgr
+FROM emp
+START WITH mgr IS NULL          <span class="c">-- 루트</span>
+CONNECT BY PRIOR empno = mgr;   <span class="c">-- 부모→자식</span></div>
+        <table class="s-table" style="margin-top:12px;">
+          <tr><th>요소</th><th>의미</th></tr>
+          <tr><td>START WITH</td><td>최상위(루트) 조건</td></tr>
+          <tr><td>CONNECT BY</td><td>전개 규칙</td></tr>
+          <tr><td>PRIOR</td><td>이전(부모) 행</td></tr>
+          <tr><td>LEVEL</td><td>깊이(1부터)</td></tr>
+        </table>
+      </div>
+      <aside class="s-aside">
+        <div class="h">방향</div>
+        <ul>
+          <li><code>PRIOR 자식=부모</code> → 순방향(위→아래)</li>
+          <li><code>PRIOR 부모=자식</code> → 역방향</li>
+          <li>CONNECT_BY_ROOT, SYS_CONNECT_BY_PATH 보조</li>
+          <li>실습(SQLite)은 미지원 — 개념만</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">그룹 함수</div>
+    <div class="s-title">ROLLUP · CUBE · GROUPING SETS</div>
+    <div class="s-cols">
+      <div class="main">
+        <table class="s-table">
+          <tr><th>함수</th><th>생성하는 소계</th></tr>
+          <tr><td><b>ROLLUP(a,b)</b></td><td>(a,b) → (a) → 전체 : <b>계층적</b> 소계</td></tr>
+          <tr><td><b>CUBE(a,b)</b></td><td>모든 조합 (a,b)(a)(b)(전체)</td></tr>
+          <tr><td><b>GROUPING SETS</b></td><td>지정한 집합만</td></tr>
+        </table>
+        <div class="s-note"><b>GROUPING(col)</b>=1 이면 그 컬럼이 <b>소계 행</b>(집계로 묶임)임을 의미.</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">암기</div>
+        <ul>
+          <li>ROLLUP 결과 수 = 인자 <b>N+1</b> 레벨</li>
+          <li>CUBE = 모든 부분집합 <b>2ⁿ</b></li>
+          <li>실습(SQLite) 미지원 — 개념·결과만</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">윈도우 함수</div>
+    <div class="s-title">순위 함수 — RANK / DENSE_RANK / ROW_NUMBER</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-code">SELECT ename, sal,
+  RANK()       OVER (ORDER BY sal DESC) r,
+  DENSE_RANK() OVER (ORDER BY sal DESC) dr,
+  ROW_NUMBER() OVER (ORDER BY sal DESC) rn
+FROM emp;</div>
+        <table class="s-table" style="margin-top:12px;">
+          <tr><th>값(공동 2위 2명)</th><th>다음 순위</th></tr>
+          <tr><td>RANK</td><td>1,2,2,<b>4</b> (건너뜀)</td></tr>
+          <tr><td>DENSE_RANK</td><td>1,2,2,<b>3</b> (안 건너뜀)</td></tr>
+          <tr><td>ROW_NUMBER</td><td>1,2,3,4 (무조건 유일)</td></tr>
+        </table>
+      </div>
+      <aside class="s-aside">
+        <div class="h">필수 구분</div>
+        <ul>
+          <li>RANK는 동순위 뒤 <b>건너뜀</b></li>
+          <li>DENSE_RANK는 <b>안 건너뜀</b></li>
+          <li>ROW_NUMBER는 동률 없이 1씩</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">윈도우 함수</div>
+    <div class="s-title">집계·순서 윈도우 — PARTITION / LAG / LEAD</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-code"><span class="c">-- 부서별 급여합(행은 유지)</span>
+SUM(sal) OVER (PARTITION BY deptno)
+<span class="c">-- 누적합</span>
+SUM(sal) OVER (ORDER BY sal
+   ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+<span class="c">-- 이전/다음 행 값</span>
+LAG(sal) OVER (ORDER BY sal),  LEAD(sal) OVER (ORDER BY sal)</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">개념</div>
+        <ul>
+          <li>PARTITION BY = 그룹(행 수 유지 ↔ GROUP BY는 축약)</li>
+          <li>LAG/LEAD 기본 1행, 없으면 NULL</li>
+          <li>FIRST_VALUE·LAST_VALUE·NTILE 보조</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">한 장 정리</div>
+    <div class="s-title">4강좌 핵심 &amp; 빈출</div>
+    <div class="s-cols">
+      <div class="main">
+        <ul class="s-keys">
+          <li>OUTER JOIN 결과/COUNT · <code>(+)</code> 위치</li>
+          <li>UNION(정렬·중복제거) vs UNION ALL</li>
+          <li>다중행: IN·ANY·ALL·EXISTS / 상관 서브쿼리</li>
+          <li>CONNECT BY(START WITH·PRIOR·LEVEL)</li>
+          <li>ROLLUP/CUBE · RANK vs DENSE_RANK vs ROW_NUMBER</li>
+        </ul>
+      </div>
+      <aside class="s-aside">
+        <div class="h">다음 강좌</div>
+        <ul>
+          <li><b>2.3 관리 구문</b> — DDL·DML·MERGE·TCL·DCL·제약조건·VIEW</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>

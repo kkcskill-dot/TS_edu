@@ -123,6 +123,28 @@ FROM 사원;
 *   `NULLIF(expr1, expr2)`: expr1과 expr2가 같으면 NULL 반환, 다르면 expr1 반환.
 *   `COALESCE(e1, e2, e3...)`: 나열된 값 중 첫 번째로 NULL이 아닌 값을 반환.
 
+#### 5.5 3치 논리 (Three-Valued Logic, 3VL) 🏆
+일반 프로그래밍 언어의 논리값은 참(TRUE)/거짓(FALSE) **2가지**뿐이지만, SQL은 NULL 때문에 **TRUE / FALSE / UNKNOWN 3가지**를 가집니다. 이것을 3치 논리(3VL)라고 합니다. NULL과 비교한 결과는 참도 거짓도 아닌 **UNKNOWN**입니다.
+
+| 식 | 결과 |
+| :--- | :--- |
+| `1 = 1` | TRUE |
+| `1 = 2` | FALSE |
+| `NULL = 1` | **UNKNOWN** |
+| `NULL = NULL` | **UNKNOWN** (같다고 보지 않음) |
+| `NULL <> 1` | **UNKNOWN** |
+
+> 🚨 `WHERE` 절은 결과가 **TRUE인 행만** 통과시킵니다. UNKNOWN은 통과하지 못합니다. 그래서 `WHERE COMM = NULL`은 한 건도 반환하지 않으며, 반드시 `IS NULL`을 써야 합니다.
+
+**[AND / OR 진리표]** (UNKNOWN이 섞일 때)
+| A | B | A AND B | A OR B |
+| :--- | :--- | :--- | :--- |
+| TRUE | UNKNOWN | UNKNOWN | TRUE |
+| FALSE | UNKNOWN | FALSE | UNKNOWN |
+| UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN |
+
+> 💡 `NOT IN (서브쿼리)`의 결과 목록에 NULL이 하나라도 포함되면, 비교가 전부 UNKNOWN이 되어 **한 건도 반환되지 않습니다.** 이런 경우 `NOT EXISTS` 사용을 권장합니다.
+
 ---
 
 ### 6. GROUP BY 와 HAVING

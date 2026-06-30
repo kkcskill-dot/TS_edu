@@ -1,0 +1,213 @@
+<style>.ts-slide > .inner::after { content: "TS Academy · SQLD 취득!"; }</style>
+
+<section class="ts-slide cover">
+  <div class="inner">
+    <div class="s-kicker">SQLD 2과목 · 관리 구문</div>
+    <div class="s-title">관리 구문</div>
+    <p class="s-lead">DDL · 제약조건 · DML · MERGE · TCL(트랜잭션) · DCL · VIEW<br>— 데이터를 정의·조작·제어하는 구문과 그 동작 규칙.</p>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">DDL</div>
+    <div class="s-title">DDL — CREATE / ALTER / DROP / TRUNCATE</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-code">CREATE TABLE emp (empno NUMBER PRIMARY KEY, ename VARCHAR2(20));
+ALTER TABLE emp ADD (sal NUMBER);
+ALTER TABLE emp MODIFY (ename VARCHAR2(30));
+DROP TABLE emp;</div>
+        <table class="s-table" style="margin-top:12px;">
+          <tr><th></th><th>DELETE</th><th>TRUNCATE</th><th>DROP</th></tr>
+          <tr><td>분류</td><td>DML</td><td>DDL</td><td>DDL</td></tr>
+          <tr><td>롤백</td><td><b>가능</b></td><td>불가</td><td>불가</td></tr>
+          <tr><td>구조</td><td>유지</td><td>유지</td><td><b>삭제</b></td></tr>
+        </table>
+      </div>
+      <aside class="s-aside">
+        <div class="h">시험 1순위</div>
+        <ul>
+          <li>DDL은 <b>Auto Commit</b></li>
+          <li>TRUNCATE는 빠르고 <b>되돌릴 수 없음</b></li>
+          <li>DELETE는 WHERE로 일부 삭제 가능</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">제약조건</div>
+    <div class="s-title">제약조건 (Constraints)</div>
+    <div class="s-cols">
+      <div class="main">
+        <table class="s-table">
+          <tr><th>제약</th><th>의미</th></tr>
+          <tr><td>PRIMARY KEY</td><td>유일 + NOT NULL (테이블당 1개)</td></tr>
+          <tr><td>UNIQUE</td><td>유일(단, <b>NULL은 허용</b>)</td></tr>
+          <tr><td>NOT NULL</td><td>NULL 금지</td></tr>
+          <tr><td>FOREIGN KEY</td><td>부모 PK/UK 참조(참조 무결성)</td></tr>
+          <tr><td>CHECK</td><td>값 조건 (예: sal&gt;0)</td></tr>
+          <tr><td>DEFAULT</td><td>미입력 시 기본값</td></tr>
+        </table>
+      </div>
+      <aside class="s-aside">
+        <div class="h">함정</div>
+        <ul>
+          <li>PK = UNIQUE + NOT NULL</li>
+          <li><b>UNIQUE는 NULL 여러 개 허용</b></li>
+          <li>FK는 부모에 없는 값 입력 불가</li>
+          <li>DEFAULT는 NULL 명시 입력 시 적용 안 됨</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">DML</div>
+    <div class="s-title">INSERT / UPDATE / DELETE</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-code">INSERT INTO dept (deptno, dname) VALUES (50, 'IT');
+UPDATE emp SET sal = sal * 1.1 WHERE deptno = 30;
+DELETE FROM emp WHERE empno = 7369;</div>
+        <div class="s-note" style="margin-top:12px;"><b>WHERE 빠진 UPDATE/DELETE</b>는 전체 행에 적용 — 시험·실무 단골 사고.</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">포인트</div>
+        <ul>
+          <li>INSERT 컬럼 생략 시 <b>전체 컬럼 순서</b>로 입력</li>
+          <li>DML은 <b>커밋 전까지</b> 미확정</li>
+          <li>NOT NULL 컬럼 누락 → 에러</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">DML</div>
+    <div class="s-title">MERGE — 있으면 UPDATE, 없으면 INSERT</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-code">MERGE INTO target t
+USING source s ON (t.id = s.id)
+WHEN MATCHED THEN
+  UPDATE SET t.val = s.val
+WHEN NOT MATCHED THEN
+  INSERT (id, val) VALUES (s.id, s.val);</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">개념</div>
+        <ul>
+          <li>한 문장으로 <b>UPSERT</b> 처리</li>
+          <li>ON 조건 일치 → UPDATE / 불일치 → INSERT</li>
+          <li>대량 동기화·적재에 사용</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">TCL</div>
+    <div class="s-title">트랜잭션 — COMMIT / ROLLBACK / SAVEPOINT</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-code">UPDATE emp SET sal = 0 WHERE empno = 7369;
+SAVEPOINT a;
+DELETE FROM emp WHERE deptno = 10;
+ROLLBACK TO a;   <span class="c">-- DELETE만 취소, UPDATE는 유지</span>
+COMMIT;          <span class="c">-- UPDATE 확정</span></div>
+        <div class="s-note" style="margin-top:10px;">트랜잭션 특성 <b>ACID</b>: 원자성·일관성·고립성·지속성.</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">함정</div>
+        <ul>
+          <li>COMMIT 후에는 <b>ROLLBACK 불가</b></li>
+          <li>DDL 실행 시 <b>앞선 DML도 자동 커밋</b></li>
+          <li>ROLLBACK TO 세이브포인트 = 부분 취소</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">DCL</div>
+    <div class="s-title">DCL — GRANT / REVOKE</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-code">GRANT SELECT, INSERT ON emp TO scott;
+REVOKE INSERT ON emp FROM scott;
+GRANT SELECT ON emp TO scott WITH GRANT OPTION;</div>
+        <div class="s-note" style="margin-top:12px;"><b>ROLE</b>: 권한의 묶음. 사용자에게 ROLE을 부여하면 묶음 권한을 한 번에 부여.</div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">개념</div>
+        <ul>
+          <li>시스템 권한(CREATE…) vs 객체 권한(SELECT…)</li>
+          <li>WITH GRANT OPTION: 받은 권한 재부여 가능</li>
+          <li>REVOKE로 회수(연쇄 회수 주의)</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">VIEW</div>
+    <div class="s-title">뷰 (View)</div>
+    <div class="s-cols">
+      <div class="main">
+        <div class="s-code">CREATE VIEW emp30 AS
+SELECT empno, ename, sal FROM emp WHERE deptno = 30;</div>
+        <div class="s-grid" style="margin-top:12px;">
+          <div class="s-card"><h4>장점</h4><p>독립성·편의성·<b>보안</b>(컬럼/행 제한).</p></div>
+          <div class="s-card y"><h4>특징</h4><p>실제 데이터 없음(가상). 원본 변경 시 반영.</p></div>
+        </div>
+      </div>
+      <aside class="s-aside">
+        <div class="h">포인트</div>
+        <ul>
+          <li>뷰는 <b>물리 데이터 저장 안 함</b></li>
+          <li>단순 뷰는 INSERT/UPDATE 가능(제약 있음)</li>
+          <li>독립성: 원본 테이블 구조 변화 흡수</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="ts-slide">
+  <div class="inner">
+    <div class="s-kicker">한 장 정리</div>
+    <div class="s-title">5강좌 핵심 &amp; 빈출</div>
+    <div class="s-cols">
+      <div class="main">
+        <ul class="s-keys">
+          <li>DELETE(DML·롤백O) vs TRUNCATE(DDL·롤백X) vs DROP</li>
+          <li>PK=UNIQUE+NOT NULL · <b>UNIQUE는 NULL 허용</b></li>
+          <li>MERGE = UPSERT</li>
+          <li>COMMIT 후 롤백 불가 · DDL은 Auto Commit</li>
+          <li>GRANT/REVOKE·ROLE · VIEW는 가상(보안)</li>
+        </ul>
+      </div>
+      <aside class="s-aside">
+        <div class="h">전 과정 마무리</div>
+        <ul>
+          <li>5강좌 개념 + <b>실전문제·SQL 실습·CBT</b>로 반복</li>
+          <li>2과목(SQL) 문제 풀이량이 합격을 만든다</li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</section>
