@@ -1,0 +1,313 @@
+[
+  {
+    "id": "sb-001",
+    "type": "결과예측 · NULL",
+    "q": "EMP 테이블에서 다음 SQL의 결과 <b>건수</b>는? (comm이 NULL인 사원은 10명)",
+    "code": "SELECT COUNT(*) FROM emp WHERE comm = NULL;",
+    "diagram": "<div class='s-flow'><div class='step'>comm = NULL</div><div class='arrow'>▶</div><div class='step'>UNKNOWN</div><div class='arrow'>▶</div><div class='step'>WHERE 탈락</div></div>",
+    "choices": ["0건", "4건", "10건", "14건"],
+    "answer": 0,
+    "result": { "title": "실제 실행 결과", "headers": ["COUNT(*)"], "rows": [["0"]] },
+    "explain": "<p><code>= NULL</code> 비교는 참도 거짓도 아닌 <b>UNKNOWN</b>입니다. WHERE 절은 결과가 <b>TRUE인 행만</b> 통과시키므로 한 건도 반환되지 않습니다.</p><p>NULL을 찾으려면 반드시 <code>WHERE comm IS NULL</code> 을 써야 합니다(이때 10건).</p>"
+  },
+  {
+    "id": "sb-002",
+    "type": "결과예측 · 집계",
+    "q": "EMP는 14명, 그중 <b>comm 값이 있는 사원은 4명</b>입니다. 다음 결과로 옳은 것은?",
+    "code": "SELECT COUNT(*), COUNT(comm) FROM emp;",
+    "diagram": "<div class='s-grid'><div class='s-card'><h4>COUNT(*)</h4><p>NULL 포함 <b>모든 행</b>의 수</p></div><div class='s-card c'><h4>COUNT(comm)</h4><p>comm이 <b>NULL이 아닌</b> 행의 수</p></div></div>",
+    "choices": ["14, 14", "14, 4", "14, 10", "4, 4"],
+    "answer": 1,
+    "result": { "title": "실제 실행 결과", "headers": ["COUNT(*)", "COUNT(comm)"], "rows": [["14", "4"]] },
+    "explain": "<p><code>COUNT(*)</code>는 NULL 여부와 무관하게 전체 행을 세어 <b>14</b>. <code>COUNT(컬럼)</code>은 그 컬럼이 <b>NULL인 행을 제외</b>하므로 <b>4</b>입니다.</p><p>이 차이가 SQLD 단골 함정입니다.</p>"
+  },
+  {
+    "id": "sb-003",
+    "type": "결과예측 · 집계",
+    "q": "comm 값이 있는 4명의 값이 각각 <b>300, 500, 1400, 0</b> 일 때 <code>AVG(comm)</code> 의 결과는?",
+    "code": "SELECT AVG(comm) FROM emp;   -- 전체 14명",
+    "diagram": "<div class='s-flow'><div class='step'>합계 2200</div><div class='arrow'>÷</div><div class='step'>분모 = 4<br>(NULL 제외)</div><div class='arrow'>=</div><div class='step'>550</div></div>",
+    "choices": ["157.1 (2200 ÷ 14)", "550 (2200 ÷ 4)", "440", "0"],
+    "answer": 1,
+    "result": { "title": "실제 실행 결과", "headers": ["AVG(comm)"], "rows": [["550"]] },
+    "explain": "<p>집계 함수는 NULL을 <b>아예 제외</b>하고 계산합니다. 따라서 분모가 전체 14명이 아니라 <b>NULL이 아닌 4명</b>이 됩니다.</p><p>합계 2200 ÷ <b>4</b> = <b>550</b>. 분모를 14로 착각하게 만드는 함정입니다.</p>"
+  },
+  {
+    "id": "sb-004",
+    "type": "결과예측 · NULL 연산",
+    "q": "SMITH는 <code>sal=800, comm=NULL</code> 입니다. <code>sal + comm</code> 의 값은?",
+    "code": "SELECT ename, sal + comm AS 총액 FROM emp WHERE ename = 'SMITH';",
+    "diagram": "<div class='s-flow'><div class='step'>800</div><div class='arrow'>+</div><div class='step'>NULL</div><div class='arrow'>=</div><div class='step'>NULL</div></div>",
+    "choices": ["800", "NULL", "0", "에러 발생"],
+    "answer": 1,
+    "result": { "title": "실제 실행 결과", "headers": ["ename", "총액"], "rows": [["SMITH", null]] },
+    "explain": "<p>NULL과의 <b>모든 사칙연산(+ − × ÷)</b> 결과는 무조건 <b>NULL</b>입니다. 따라서 총액은 NULL.</p><p>0으로 처리하려면 <code>sal + NVL(comm, 0)</code> 로 감싸야 합니다.</p>"
+  },
+  {
+    "id": "sb-005",
+    "type": "개념 · 실행순서",
+    "q": "SELECT 문의 <b>논리적 실행 순서</b>로 올바른 것은?",
+    "diagram": "<div class='s-formula hl'>FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY</div>",
+    "choices": [
+      "SELECT → FROM → WHERE → GROUP BY → HAVING → ORDER BY",
+      "FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY",
+      "FROM → GROUP BY → WHERE → HAVING → SELECT → ORDER BY",
+      "WHERE → FROM → SELECT → GROUP BY → HAVING → ORDER BY"
+    ],
+    "answer": 1,
+    "explain": "<p>작성은 SELECT부터 하지만 실행은 <b>FROM</b>이 먼저입니다. 그래서 SELECT에서 만든 <b>별칭(alias)을 WHERE/GROUP BY/HAVING에서 쓸 수 없고</b>, 가장 마지막에 실행되는 <b>ORDER BY에서는 별칭 사용이 가능</b>합니다.</p>"
+  },
+  {
+    "id": "sb-006",
+    "type": "함정 · 연산자 우선순위",
+    "q": "괄호가 없을 때 다음 WHERE 조건은 어떻게 해석될까요?",
+    "code": "WHERE deptno = 30 AND sal >= 1500 OR job = 'CLERK'",
+    "diagram": "<div class='s-grid'><div class='s-card y'><h4>우선순위</h4><p><b>NOT → AND → OR</b><br>AND가 OR보다 먼저 묶임</p></div></div>",
+    "choices": [
+      "deptno=30 AND (sal>=1500 OR job='CLERK')",
+      "(deptno=30 AND sal>=1500) OR job='CLERK'",
+      "deptno=30 AND sal>=1500 AND job='CLERK'",
+      "셋 중 하나라도 만족하면 참"
+    ],
+    "answer": 1,
+    "explain": "<p>논리 연산자 우선순위는 <b>NOT → AND → OR</b> 입니다. AND가 먼저 묶이므로 <code>(deptno=30 AND sal>=1500) OR job='CLERK'</code> 로 해석됩니다.</p><p>의도가 다르면 반드시 <b>괄호</b>로 명시해야 합니다.</p>"
+  },
+  {
+    "id": "sb-007",
+    "type": "개념 · LIKE",
+    "q": "이름이 <b>'김'으로 시작하는 정확히 두 글자</b>를 찾는 LIKE 패턴은?",
+    "diagram": "<div class='s-grid'><div class='s-card'><h4>%</h4><p>0개 이상의 임의 문자</p></div><div class='s-card c'><h4>_</h4><p>정확히 <b>1개</b>의 임의 문자</p></div></div>",
+    "choices": ["LIKE '김%'", "LIKE '김_'", "LIKE '_김'", "LIKE '%김%'"],
+    "answer": 1,
+    "explain": "<p><code>_</code> 는 정확히 한 글자를 의미하므로 <code>'김_'</code> 은 '김'으로 시작하는 <b>두 글자</b>를 찾습니다. <code>'김%'</code> 는 글자 수 제한 없이 '김'으로 시작하는 모든 문자열입니다.</p>"
+  },
+  {
+    "id": "sb-008",
+    "type": "함정 · BETWEEN",
+    "q": "<code>WHERE sal BETWEEN 1000 AND 2000</code> 은 경계값을 포함하나요?",
+    "choices": [
+      "1000과 2000 모두 포함한다",
+      "둘 다 제외한다(초과~미만)",
+      "1000만 포함, 2000 제외",
+      "2000만 포함, 1000 제외"
+    ],
+    "answer": 0,
+    "explain": "<p><b>BETWEEN A AND B</b> 는 <b>A와 B를 모두 포함</b>합니다(이상~이하). 즉 <code>sal >= 1000 AND sal <= 2000</code> 과 같습니다.</p>"
+  },
+  {
+    "id": "sb-009",
+    "type": "함정 · NOT IN + NULL",
+    "q": "서브쿼리 결과에 <b>NULL이 포함</b>될 때 <code>NOT IN</code> 의 동작으로 옳은 것은?",
+    "code": "WHERE deptno NOT IN (10, 20, NULL)",
+    "choices": [
+      "정상적으로 10, 20을 제외하고 반환",
+      "한 건도 반환되지 않는다",
+      "NULL을 무시하고 처리",
+      "에러가 발생한다"
+    ],
+    "answer": 1,
+    "explain": "<p><code>NOT IN</code> 목록에 NULL이 있으면 비교가 모두 <b>UNKNOWN</b>이 되어 <b>한 건도 반환되지 않습니다</b>. 이런 경우 <code>NOT EXISTS</code> 사용을 권장합니다.</p>"
+  },
+  {
+    "id": "sb-010",
+    "type": "함정 · GROUP BY",
+    "q": "다음 SQL의 실행 결과로 옳은 것은?",
+    "code": "SELECT deptno, ename, COUNT(*)\nFROM emp\nGROUP BY deptno;",
+    "choices": [
+      "부서별 사원 수가 정상 출력",
+      "ename 때문에 에러가 발생한다",
+      "ename은 NULL로 출력된다",
+      "ename은 첫 사원 이름으로 출력"
+    ],
+    "answer": 1,
+    "explain": "<p>GROUP BY에 없는 일반 컬럼(<code>ename</code>)을 집계함수 없이 SELECT에 쓰면 <b>에러</b>입니다. GROUP BY 절에 없는 컬럼은 반드시 집계함수 안에서만 사용할 수 있습니다.</p>"
+  },
+  {
+    "id": "sb-011",
+    "type": "개념 · WHERE vs HAVING",
+    "q": "<b>부서별 급여 합계가 5000을 초과</b>하는 부서만 조회하려면, 그 조건은 어디에 써야 하나요?",
+    "diagram": "<div class='s-flow'><div class='step'>WHERE<br>(행 필터·그룹 전)</div><div class='arrow'>▶</div><div class='step'>GROUP BY</div><div class='arrow'>▶</div><div class='step'>HAVING<br>(그룹 필터·집계)</div></div>",
+    "choices": ["WHERE SUM(sal) > 5000", "HAVING SUM(sal) > 5000", "WHERE sal > 5000", "ORDER BY SUM(sal)"],
+    "answer": 1,
+    "explain": "<p>집계 결과에 대한 조건은 <b>HAVING</b>에 씁니다. WHERE에는 집계함수를 쓸 수 없습니다(WHERE는 그룹화 전 개별 행 필터).</p>"
+  },
+  {
+    "id": "sb-012",
+    "type": "함정 · 형변환",
+    "q": "Oracle에서 다음 연산의 결과는? (문자 '10' 과 숫자 1)",
+    "code": "SELECT '10' + 1 FROM dual;",
+    "choices": ["'101' (문자 연결)", "11 (묵시적 형변환)", "에러", "NULL"],
+    "answer": 1,
+    "explain": "<p>Oracle은 산술 연산에서 문자 '10'을 숫자로 <b>묵시적 형변환</b>하여 <code>10 + 1 = 11</code> 을 반환합니다. (문자 연결은 <code>||</code> 사용)</p>"
+  },
+  {
+    "id": "sb-013",
+    "type": "개념 · NULL 함수",
+    "q": "<code>NVL2(comm, 'Y', 'N')</code> 에서 comm이 <b>NULL</b>이면 결과는?",
+    "diagram": "<div class='s-grid'><div class='s-card'><h4>NVL2(A, B, C)</h4><p>A가 <b>NULL 아니면 B</b><br>A가 <b>NULL이면 C</b></p></div></div>",
+    "choices": ["'Y'", "'N'", "NULL", "에러"],
+    "answer": 1,
+    "explain": "<p><code>NVL2(A,B,C)</code> 는 A가 NULL이 <b>아니면 B</b>, NULL이면 <b>C</b>를 반환합니다. comm이 NULL이므로 결과는 <b>'N'</b>.</p>"
+  },
+  {
+    "id": "sb-014",
+    "type": "개념 · NULL 함수",
+    "q": "<code>NULLIF(10, 10)</code> 의 결과는?",
+    "choices": ["10", "0", "NULL", "TRUE"],
+    "answer": 2,
+    "explain": "<p><code>NULLIF(A, B)</code> 는 A와 B가 <b>같으면 NULL</b>, 다르면 A를 반환합니다. 두 값이 같으므로 <b>NULL</b>.</p>"
+  },
+  {
+    "id": "sb-015",
+    "type": "결과예측 · DISTINCT",
+    "q": "EMP의 deptno에는 10, 20, 30 세 종류만 있습니다. 결과는?",
+    "code": "SELECT COUNT(DISTINCT deptno) FROM emp;",
+    "choices": ["3", "14", "4", "1"],
+    "answer": 0,
+    "result": { "title": "실제 실행 결과", "headers": ["COUNT(DISTINCT deptno)"], "rows": [["3"]] },
+    "explain": "<p><code>DISTINCT</code>로 중복을 제거하면 부서는 10·20·30 <b>세 종류</b>입니다(40번은 사원이 없어 EMP엔 없음). 따라서 <b>3</b>.</p>"
+  },
+  {
+    "id": "sb-016",
+    "type": "개념 · ORDER BY",
+    "q": "ORDER BY 절에 대한 설명으로 옳은 것은?",
+    "choices": [
+      "SELECT의 별칭(alias)은 ORDER BY에서 쓸 수 없다",
+      "ORDER BY는 SELECT보다 먼저 실행된다",
+      "SELECT의 별칭과 컬럼 순번(1,2)을 ORDER BY에서 쓸 수 있다",
+      "기본 정렬은 내림차순(DESC)이다"
+    ],
+    "answer": 2,
+    "explain": "<p>ORDER BY는 <b>가장 마지막에 실행</b>되므로 SELECT에서 만든 <b>별칭</b>이나 <b>컬럼 순번</b>을 쓸 수 있습니다. 기본 정렬은 <b>오름차순(ASC)</b>입니다.</p>"
+  },
+  {
+    "id": "sb-017",
+    "type": "함정 · ROWNUM",
+    "q": "EMP에서 <b>상위 3건</b>을 가져오려고 합니다. 올바른 것은?",
+    "code": "(A) WHERE ROWNUM <= 3\n(B) WHERE ROWNUM = 3",
+    "choices": ["(A)만 올바르다", "(B)만 올바르다", "둘 다 올바르다", "둘 다 0건"],
+    "answer": 0,
+    "explain": "<p><code>ROWNUM &lt;= 3</code> 은 정상 동작하지만, <code>ROWNUM = 3</code> 은 <b>한 건도 반환하지 않습니다</b>. ROWNUM은 행이 결과에 포함된 뒤 1부터 매겨지는데, 첫 행이 3이 될 수 없기 때문입니다.</p>"
+  },
+  {
+    "id": "sb-018",
+    "type": "결과예측 · 문자함수",
+    "q": "<code>SUBSTR('ABCDE', 2, 3)</code> 의 결과는?",
+    "diagram": "<table class='s-table'><tr><th>위치</th><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td></tr><tr><th>문자</th><td>A</td><td>B</td><td>C</td><td>D</td><td>E</td></tr></table>",
+    "choices": ["'ABC'", "'BCD'", "'BCDE'", "'CDE'"],
+    "answer": 1,
+    "explain": "<p><code>SUBSTR(문자, 시작, 길이)</code> 는 <b>2번째 위치부터 3글자</b> → <b>'BCD'</b>. SUBSTR의 인덱스는 1부터 시작합니다.</p>"
+  },
+  {
+    "id": "sb-019",
+    "type": "결과예측 · 문자함수",
+    "q": "<code>INSTR('ABCABC', 'B')</code> 의 결과는?",
+    "choices": ["1", "2", "5", "0"],
+    "answer": 1,
+    "explain": "<p><code>INSTR</code>은 문자가 <b>처음 나타나는 위치</b>를 반환합니다. 'B'는 2번째 위치에 처음 나오므로 <b>2</b>.</p>"
+  },
+  {
+    "id": "sb-020",
+    "type": "결과예측 · 숫자함수",
+    "q": "<code>MOD(10, 3)</code> 의 결과는?",
+    "choices": ["3", "1", "0", "3.33"],
+    "answer": 1,
+    "explain": "<p><code>MOD(a, b)</code> 는 a를 b로 나눈 <b>나머지</b>입니다. 10 ÷ 3 = 3 … 나머지 <b>1</b>.</p>"
+  },
+  {
+    "id": "sb-021",
+    "type": "결과예측 · 숫자함수",
+    "q": "<code>ROUND(123.456, 1)</code> 과 <code>TRUNC(123.456, 1)</code> 의 결과는?",
+    "diagram": "<div class='s-grid'><div class='s-card'><h4>ROUND</h4><p>반올림 → 123.5</p></div><div class='s-card c'><h4>TRUNC</h4><p>버림 → 123.4</p></div></div>",
+    "choices": ["123.5 / 123.4", "123.4 / 123.5", "123.5 / 123.5", "123.46 / 123.45"],
+    "answer": 0,
+    "explain": "<p><code>ROUND(123.456, 1)</code> = <b>123.5</b>(소수 1자리 반올림), <code>TRUNC(123.456, 1)</code> = <b>123.4</b>(버림).</p>"
+  },
+  {
+    "id": "sb-022",
+    "type": "결과예측 · DECODE",
+    "q": "<code>DECODE(1, 1, 'A', 2, 'B', 'C')</code> 의 결과는?",
+    "choices": ["'A'", "'B'", "'C'", "NULL"],
+    "answer": 0,
+    "explain": "<p><code>DECODE(기준, 값1, 결과1, 값2, 결과2, 기본값)</code>. 기준 1이 값1(1)과 같으므로 <b>'A'</b>를 반환합니다. (DECODE는 = 비교만 가능한 Oracle 전용 함수)</p>"
+  },
+  {
+    "id": "sb-023",
+    "type": "결과예측 · NULL 함수",
+    "q": "<code>COALESCE(NULL, NULL, 3, 4)</code> 의 결과는?",
+    "choices": ["NULL", "3", "4", "7"],
+    "answer": 1,
+    "explain": "<p><code>COALESCE</code>는 나열된 값 중 <b>첫 번째로 NULL이 아닌 값</b>을 반환합니다. 앞의 두 NULL을 건너뛰고 <b>3</b>.</p>"
+  },
+  {
+    "id": "sb-024",
+    "type": "함정 · CASE",
+    "q": "다음 CASE 식에서 sal이 1000일 때(어떤 WHEN에도 해당 안 됨, ELSE 없음) 결과는?",
+    "code": "CASE WHEN sal >= 5000 THEN 'A'\n     WHEN sal >= 3000 THEN 'B' END",
+    "choices": ["'A'", "'B'", "NULL", "에러"],
+    "answer": 2,
+    "explain": "<p>어떤 WHEN 조건도 참이 아니고 <b>ELSE가 없으면</b> CASE 식은 <b>NULL</b>을 반환합니다.</p>"
+  },
+  {
+    "id": "sb-025",
+    "type": "개념 · 연결연산자",
+    "q": "Oracle에서 두 문자열을 연결(붙이기)하는 연산자는?",
+    "choices": ["+", "||", "&", "CONCAT만 가능"],
+    "answer": 1,
+    "explain": "<p>Oracle의 문자열 연결 연산자는 <code>||</code> 입니다. (<code>+</code>는 산술 연산이라 문자 연결에 쓰면 묵시적 형변환·에러가 날 수 있음)</p>"
+  },
+  {
+    "id": "sb-026",
+    "type": "개념 · WHERE",
+    "q": "<code>WHERE deptno IN (10, 20)</code> 와 동일한 의미의 조건은?",
+    "choices": [
+      "deptno = 10 AND deptno = 20",
+      "deptno = 10 OR deptno = 20",
+      "deptno BETWEEN 10 AND 20",
+      "deptno != 10 OR deptno != 20"
+    ],
+    "answer": 1,
+    "explain": "<p><code>IN (목록)</code> 은 <b>OR의 묶음</b>과 같습니다. <code>deptno=10 OR deptno=20</code>. (AND로 하면 한 컬럼이 동시에 두 값일 수 없어 항상 거짓)</p>"
+  },
+  {
+    "id": "sb-027",
+    "type": "결과예측 · 집계",
+    "q": "EMP 14명 전원의 deptno는 NULL이 없습니다. <code>COUNT(deptno)</code> 의 결과는?",
+    "code": "SELECT COUNT(deptno) FROM emp;",
+    "choices": ["14", "3", "0", "NULL"],
+    "answer": 0,
+    "result": { "title": "실제 실행 결과", "headers": ["COUNT(deptno)"], "rows": [["14"]] },
+    "explain": "<p><code>COUNT(컬럼)</code>은 NULL이 아닌 행을 셉니다. deptno에 NULL이 없으므로 전체 <b>14</b>. (중복 제거는 DISTINCT를 써야 3)</p>"
+  },
+  {
+    "id": "sb-028",
+    "type": "개념 · 정렬",
+    "q": "Oracle에서 ORDER BY 시 <b>NULL</b>의 기본 정렬 위치는?",
+    "choices": [
+      "오름차순(ASC)에서 가장 앞",
+      "오름차순(ASC)에서 가장 뒤(가장 큰 값 취급)",
+      "항상 제외된다",
+      "에러가 발생한다"
+    ],
+    "answer": 1,
+    "explain": "<p>Oracle은 NULL을 <b>가장 큰 값</b>으로 취급합니다. 따라서 ASC면 맨 뒤, DESC면 맨 앞에 옵니다. <code>NULLS FIRST/LAST</code>로 제어할 수 있습니다.</p>"
+  },
+  {
+    "id": "sb-029",
+    "type": "개념 · 그룹함수",
+    "q": "다음 중 <b>NULL을 포함</b>하여 행 수를 세는 것은?",
+    "choices": ["COUNT(comm)", "COUNT(*)", "SUM(comm)", "AVG(comm)"],
+    "answer": 1,
+    "explain": "<p><code>COUNT(*)</code>만 NULL 여부와 무관하게 <b>전체 행</b>을 셉니다. 나머지(COUNT(컬럼)·SUM·AVG)는 모두 NULL을 제외합니다.</p>"
+  },
+  {
+    "id": "sb-030",
+    "type": "결과예측 · GROUP BY",
+    "q": "부서별 사원 수를 구하는 다음 SQL의 결과 <b>행 수</b>는? (deptno는 10·20·30 세 종류)",
+    "code": "SELECT deptno, COUNT(*) FROM emp GROUP BY deptno;",
+    "choices": ["1행", "3행", "14행", "4행"],
+    "answer": 1,
+    "result": { "title": "실제 실행 결과", "headers": ["deptno", "COUNT(*)"], "rows": [["10", "3"], ["20", "5"], ["30", "6"]] },
+    "explain": "<p>GROUP BY는 그룹마다 <b>한 행</b>을 만듭니다. 부서가 3종류이므로 <b>3행</b>입니다.</p>"
+  }
+]

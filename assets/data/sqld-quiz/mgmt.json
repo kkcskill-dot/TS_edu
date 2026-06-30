@@ -1,0 +1,193 @@
+[
+  {
+    "id": "mg-001",
+    "type": "함정 · DDL/DML",
+    "q": "DELETE와 TRUNCATE의 차이로 옳은 것은?",
+    "diagram": "<table class='s-table'><tr><th></th><th>DELETE</th><th>TRUNCATE</th></tr><tr><td>분류</td><td>DML</td><td>DDL</td></tr><tr><td>롤백</td><td>가능</td><td>불가(자동 커밋)</td></tr><tr><td>조건</td><td>WHERE 가능</td><td>전체 삭제</td></tr></table>",
+    "choices": [
+      "둘 다 ROLLBACK으로 되돌릴 수 있다",
+      "TRUNCATE는 DDL이라 ROLLBACK으로 되돌릴 수 없다",
+      "DELETE는 항상 전체 행을 삭제한다",
+      "TRUNCATE는 WHERE 조건으로 일부만 삭제할 수 있다"
+    ],
+    "answer": 1,
+    "explain": "<p><b>TRUNCATE는 DDL</b>이라 실행 즉시 자동 커밋되어 <b>ROLLBACK 불가</b>합니다. 반면 <b>DELETE는 DML</b>이라 커밋 전이면 되돌릴 수 있고, WHERE로 일부만 삭제할 수 있습니다.</p>"
+  },
+  {
+    "id": "mg-002",
+    "type": "함정 · 제약조건",
+    "q": "UNIQUE 제약조건에 대한 설명으로 옳은 것은?",
+    "diagram": "<div class='s-grid'><div class='s-card'><h4>PRIMARY KEY</h4><p>유일 + <b>NOT NULL</b></p></div><div class='s-card c'><h4>UNIQUE</h4><p>유일하지만 <b>NULL은 허용</b>(여러 개 가능)</p></div></div>",
+    "choices": [
+      "UNIQUE 컬럼에는 NULL을 넣을 수 없다",
+      "UNIQUE 컬럼에는 NULL을 여러 개 넣을 수 있다",
+      "UNIQUE는 테이블당 하나만 만들 수 있다",
+      "UNIQUE는 PRIMARY KEY와 완전히 동일하다"
+    ],
+    "answer": 1,
+    "explain": "<p><b>UNIQUE</b>는 값의 유일성만 보장하고 <b>NULL은 제한하지 않으므로 여러 개 허용</b>됩니다. NULL까지 막으려면 <code>NOT NULL</code>을 함께 걸어야 합니다.</p><p>반면 <b>PK = UNIQUE + NOT NULL</b> 이며 테이블당 1개입니다.</p>"
+  },
+  {
+    "id": "mg-003",
+    "type": "함정 · 트랜잭션",
+    "q": "데이터를 수정한 뒤 <code>COMMIT</code> 을 실행했습니다. 이후 <code>ROLLBACK</code> 을 하면?",
+    "diagram": "<div class='s-flow'><div class='step'>UPDATE</div><div class='arrow'>▶</div><div class='step'>COMMIT<br>(영구 확정)</div><div class='arrow'>✗</div><div class='step'>ROLLBACK<br>되돌릴 수 없음</div></div>",
+    "choices": [
+      "수정 전 상태로 되돌아간다",
+      "이미 확정되어 되돌릴 수 없다",
+      "COMMIT이 취소된다",
+      "에러가 발생하며 트랜잭션이 종료된다"
+    ],
+    "answer": 1,
+    "explain": "<p><b>COMMIT은 변경을 영구 확정</b>합니다. 확정된 뒤의 ROLLBACK은 되돌릴 대상이 없으므로 <b>이전 상태로 돌아가지 않습니다</b>.</p><p>또한 DDL(CREATE/ALTER 등)은 실행 시 <b>앞선 DML까지 자동 커밋</b>한다는 점도 함께 기억하세요.</p>"
+  },
+  {
+    "id": "mg-004",
+    "type": "개념 · 트랜잭션",
+    "q": "다음 중 실행 즉시 <b>자동 커밋(Auto Commit)</b>이 일어나는 명령은?",
+    "diagram": "<table class='s-table'><tr><th>분류</th><th>커밋</th></tr><tr><td>DML(INSERT/UPDATE)</td><td>수동(COMMIT 필요)</td></tr><tr><td>DDL(CREATE/ALTER)</td><td>자동 커밋</td></tr></table>",
+    "choices": ["UPDATE", "DELETE", "CREATE TABLE", "SELECT"],
+    "answer": 2,
+    "explain": "<p><b>DDL(CREATE/ALTER/DROP/TRUNCATE)</b>은 실행 즉시 자동 커밋됩니다. 따라서 DDL 직전의 DML도 함께 확정되어 롤백할 수 없게 됩니다.</p>"
+  },
+  {
+    "id": "mg-005",
+    "type": "개념 · 제약조건",
+    "q": "PRIMARY KEY 제약에 대한 설명으로 옳은 것은?",
+    "choices": [
+      "NULL을 허용한다",
+      "유일성 + NOT NULL을 동시에 보장하며 테이블당 1개다",
+      "한 테이블에 여러 개 만들 수 있다",
+      "중복 값을 허용한다"
+    ],
+    "answer": 1,
+    "explain": "<p><b>PRIMARY KEY = UNIQUE + NOT NULL</b> 이며, 테이블을 대표하는 키로 <b>테이블당 1개</b>만 존재합니다.</p>"
+  },
+  {
+    "id": "mg-006",
+    "type": "개념 · 제약조건",
+    "q": "FOREIGN KEY(외래키)가 보장하는 것은?",
+    "diagram": "<div class='s-flow'><div class='step'>자식 FK 값</div><div class='arrow'>반드시 존재</div><div class='step'>부모 PK/UK</div></div>",
+    "choices": ["개체 무결성", "참조 무결성", "도메인 무결성", "고유 무결성"],
+    "answer": 1,
+    "explain": "<p>외래키는 <b>참조 무결성</b>을 보장합니다. 자식 테이블의 FK 값은 부모 테이블에 <b>존재하는 값</b>이어야 하며, 없는 값은 입력할 수 없습니다.</p>"
+  },
+  {
+    "id": "mg-007",
+    "type": "개념 · DML",
+    "q": "대상이 <b>있으면 UPDATE, 없으면 INSERT</b> 를 한 문장으로 처리하는 명령은?",
+    "code": "MERGE INTO t USING s ON (t.id = s.id)\nWHEN MATCHED THEN UPDATE SET ...\nWHEN NOT MATCHED THEN INSERT ...",
+    "choices": ["UPSERT", "MERGE", "REPLACE", "UNION"],
+    "answer": 1,
+    "explain": "<p><b>MERGE</b>는 ON 조건이 일치하면 UPDATE, 불일치하면 INSERT 하는 UPSERT 명령입니다. 대량 동기화·적재에 사용됩니다.</p>"
+  },
+  {
+    "id": "mg-008",
+    "type": "개념 · VIEW",
+    "q": "뷰(VIEW)에 대한 설명으로 옳은 것은?",
+    "choices": [
+      "실제 데이터를 물리적으로 저장한다",
+      "데이터를 저장하지 않는 가상 테이블이며 보안에 유리하다",
+      "원본 테이블이 바뀌어도 뷰는 갱신되지 않는다",
+      "인덱스를 대체하는 객체다"
+    ],
+    "answer": 1,
+    "explain": "<p>뷰는 데이터를 저장하지 않는 <b>가상 테이블</b>입니다. 필요한 컬럼·행만 보여줘 <b>보안</b>에 유리하고, 원본 변경이 그대로 반영되며 논리적 독립성을 제공합니다.</p>"
+  },
+  {
+    "id": "mg-009",
+    "type": "개념 · 트랜잭션",
+    "q": "트랜잭션의 일부 지점까지만 부분 취소할 수 있게 표시하는 명령은?",
+    "code": "SAVEPOINT a;\n...\nROLLBACK TO a;   -- a 이후만 취소",
+    "choices": ["CHECKPOINT", "SAVEPOINT", "COMMIT", "MARK"],
+    "answer": 1,
+    "explain": "<p><b>SAVEPOINT</b>로 지점을 표시한 뒤 <code>ROLLBACK TO 세이브포인트</code> 로 그 지점 이후 작업만 부분 취소할 수 있습니다.</p>"
+  },
+  {
+    "id": "mg-010",
+    "type": "개념 · DCL",
+    "q": "사용자에게 권한을 부여하고 회수하는 명령(DCL)으로 짝지어진 것은?",
+    "choices": ["COMMIT / ROLLBACK", "GRANT / REVOKE", "CREATE / DROP", "INSERT / DELETE"],
+    "answer": 1,
+    "explain": "<p>권한 부여는 <code>GRANT</code>, 회수는 <code>REVOKE</code> (DCL)입니다. <code>WITH GRANT OPTION</code>을 주면 받은 권한을 다시 다른 사용자에게 부여할 수 있습니다.</p>"
+  },
+  {
+    "id": "mg-011",
+    "type": "개념 · 제약조건",
+    "q": "<code>sal &gt; 0</code> 처럼 컬럼 값이 특정 <b>조건을 만족</b>하도록 강제하는 제약은?",
+    "choices": ["NOT NULL", "UNIQUE", "CHECK", "DEFAULT"],
+    "answer": 2,
+    "explain": "<p>값의 범위·조건을 강제하는 것은 <b>CHECK</b> 제약입니다. (DEFAULT=미입력 시 기본값, NOT NULL=NULL 금지)</p>"
+  },
+  {
+    "id": "mg-012",
+    "type": "개념 · DDL",
+    "q": "기존 테이블에 <b>새 컬럼을 추가</b>하는 명령은?",
+    "code": "ALTER TABLE emp ADD (bonus NUMBER);",
+    "choices": ["CREATE TABLE", "ALTER TABLE ... ADD", "UPDATE TABLE", "INSERT COLUMN"],
+    "answer": 1,
+    "explain": "<p>테이블 구조 변경은 <code>ALTER TABLE</code> 입니다. 컬럼 추가는 <code>ADD</code>, 변경은 <code>MODIFY</code>, 삭제는 <code>DROP COLUMN</code>.</p>"
+  },
+  {
+    "id": "mg-013",
+    "type": "함정 · DDL",
+    "q": "테이블의 <b>구조 자체</b>(정의)를 삭제하는 명령은?",
+    "diagram": "<table class='s-table'><tr><th>명령</th><th>데이터</th><th>구조</th></tr><tr><td>DELETE</td><td>삭제</td><td>유지</td></tr><tr><td>TRUNCATE</td><td>삭제</td><td>유지</td></tr><tr><td>DROP</td><td>삭제</td><td>삭제</td></tr></table>",
+    "choices": ["DELETE", "TRUNCATE", "DROP", "ROLLBACK"],
+    "answer": 2,
+    "explain": "<p><b>DROP</b>은 데이터와 <b>테이블 구조(정의)까지</b> 삭제합니다. DELETE·TRUNCATE는 데이터만 지우고 구조는 남깁니다.</p>"
+  },
+  {
+    "id": "mg-014",
+    "type": "함정 · DML",
+    "q": "<code>WHERE 절 없이</code> 실행한 다음 명령의 결과는?",
+    "code": "UPDATE emp SET sal = 0;",
+    "choices": [
+      "아무 행도 바뀌지 않는다",
+      "첫 번째 행만 바뀐다",
+      "모든 행의 sal이 0이 된다",
+      "에러가 발생한다"
+    ],
+    "answer": 2,
+    "explain": "<p>WHERE가 없는 UPDATE/DELETE는 <b>전체 행</b>에 적용됩니다. 위 명령은 모든 사원의 sal을 0으로 만듭니다(실무 단골 사고).</p>"
+  },
+  {
+    "id": "mg-015",
+    "type": "개념 · DML",
+    "q": "INSERT 시 컬럼 목록을 <b>생략</b>하면?",
+    "code": "INSERT INTO dept VALUES (50, 'IT', 'SEOUL');",
+    "choices": [
+      "임의의 컬럼에 들어간다",
+      "테이블 정의의 전체 컬럼 순서대로 값이 들어간다",
+      "에러가 발생한다",
+      "PK 컬럼만 입력된다"
+    ],
+    "answer": 1,
+    "explain": "<p>컬럼 목록을 생략하면 <b>테이블에 정의된 전체 컬럼 순서대로</b> 값을 입력해야 합니다. 값 개수·순서가 맞지 않으면 에러가 납니다.</p>"
+  },
+  {
+    "id": "mg-016",
+    "type": "개념 · DCL",
+    "q": "여러 권한을 묶어 한 번에 부여할 수 있게 만든 <b>권한의 묶음</b>은?",
+    "choices": ["ROLE", "VIEW", "SYNONYM", "SEQUENCE"],
+    "answer": 0,
+    "explain": "<p>권한의 묶음은 <b>ROLE</b>입니다. 사용자에게 ROLE을 부여하면 묶인 권한을 한 번에 줄 수 있어 관리가 편합니다.</p>"
+  },
+  {
+    "id": "mg-017",
+    "type": "개념 · DCL",
+    "q": "권한을 부여받은 사용자가 <b>그 권한을 다시 다른 사용자에게</b> 부여할 수 있게 하는 옵션은?",
+    "code": "GRANT SELECT ON emp TO scott WITH GRANT OPTION;",
+    "choices": ["WITH ADMIN OPTION", "WITH GRANT OPTION", "WITH CHECK OPTION", "CASCADE"],
+    "answer": 1,
+    "explain": "<p>객체 권한을 재부여할 수 있게 하는 것은 <b>WITH GRANT OPTION</b>입니다. (시스템 권한은 WITH ADMIN OPTION)</p>"
+  },
+  {
+    "id": "mg-018",
+    "type": "개념 · 제약조건",
+    "q": "특정 컬럼에 <b>NULL 입력을 금지</b>하는 제약조건은?",
+    "choices": ["UNIQUE", "NOT NULL", "CHECK", "PRIMARY KEY만 가능"],
+    "answer": 1,
+    "explain": "<p>NULL 입력을 막는 것은 <b>NOT NULL</b> 제약입니다. (UNIQUE는 NULL 허용, CHECK는 값 조건, PK는 유일성+NOT NULL을 함께 보장)</p>"
+  }
+]

@@ -1,0 +1,298 @@
+[
+  {
+    "id": "sa-001",
+    "type": "결과예측 · 윈도우함수",
+    "q": "점수가 <b>90, 90, 85, 80</b> 인 4명에 대해 <code>RANK()</code> 의 순위 결과는?",
+    "code": "SELECT name, score, RANK() OVER (ORDER BY score DESC) FROM t;",
+    "diagram": "<div class='s-grid'><div class='s-card'><h4>RANK</h4><p>동순위 뒤를 <b>건너뜀</b><br>1, 1, 3, 4</p></div><div class='s-card c'><h4>DENSE_RANK</h4><p>건너뛰지 <b>않음</b><br>1, 1, 2, 3</p></div><div class='s-card g'><h4>ROW_NUMBER</h4><p>무조건 유일<br>1, 2, 3, 4</p></div></div>",
+    "choices": ["1, 1, 3, 4", "1, 1, 2, 3", "1, 2, 3, 4", "1, 1, 2, 2"],
+    "answer": 0,
+    "result": { "title": "실제 실행 결과", "headers": ["score", "RANK"], "rows": [["90", "1"], ["90", "1"], ["85", "3"], ["80", "4"]] },
+    "explain": "<p><b>RANK()</b>는 공동 순위 다음을 <b>건너뜁니다</b>: 90·90이 공동 1위 → 그다음은 3위. 따라서 <b>1, 1, 3, 4</b>.</p><p>건너뛰지 않으려면 <code>DENSE_RANK()</code>(1,1,2,3), 동률 없이 부여하려면 <code>ROW_NUMBER()</code>(1,2,3,4).</p>"
+  },
+  {
+    "id": "sa-002",
+    "type": "결과예측 · 외부조인",
+    "q": "사원이 한 명도 없는 부서(40번)가 있습니다. 다음 LEFT JOIN에서 <b>40번 부서의 사원 수</b>는?",
+    "code": "SELECT d.deptno, COUNT(e.empno)\nFROM dept d LEFT JOIN emp e ON d.deptno = e.deptno\nGROUP BY d.deptno;",
+    "diagram": "<div class='s-flow'><div class='step'>dept 40<br>(사원 없음)</div><div class='arrow'>LEFT JOIN</div><div class='step'>e.empno = NULL</div><div class='arrow'>COUNT(e.empno)</div><div class='step'>0</div></div>",
+    "choices": ["0", "1", "NULL", "에러"],
+    "answer": 0,
+    "result": { "title": "실제 실행 결과", "headers": ["deptno", "COUNT(e.empno)"], "rows": [["10", "3"], ["20", "5"], ["30", "6"], ["40", "0"]] },
+    "explain": "<p>LEFT JOIN으로 40번 부서는 살아남지만, 매칭되는 사원이 없어 <code>e.empno</code>가 <b>NULL</b>이 됩니다. <code>COUNT(e.empno)</code>는 NULL을 제외하므로 <b>0</b>.</p><p>만약 <code>COUNT(*)</code>로 세면 NULL 행도 1로 세어 <b>1</b>이 되는 함정이 있습니다.</p>"
+  },
+  {
+    "id": "sa-003",
+    "type": "결과예측 · 집합연산",
+    "q": "A = {1, 2, 3}, B = {2, 3, 4, 4} 일 때 <code>A UNION B</code> 의 결과 <b>건수</b>는?",
+    "code": "SELECT v FROM A\nUNION\nSELECT v FROM B;",
+    "diagram": "<div class='s-grid'><div class='s-card'><h4>UNION</h4><p>중복 제거 + 정렬<br>→ 1, 2, 3, 4</p></div><div class='s-card y'><h4>UNION ALL</h4><p>중복 그대로<br>→ 1,2,3,2,3,4,4 (7건)</p></div></div>",
+    "choices": ["4건", "5건", "7건", "12건"],
+    "answer": 0,
+    "result": { "title": "실제 실행 결과", "headers": ["v"], "rows": [["1"], ["2"], ["3"], ["4"]] },
+    "explain": "<p><b>UNION</b>은 <b>중복을 제거</b>하고 정렬하므로 결과는 1, 2, 3, 4 → <b>4건</b>.</p><p>중복을 살리는 <code>UNION ALL</code>은 7건이며 정렬도 하지 않아 성능이 더 좋습니다.</p>"
+  },
+  {
+    "id": "sa-004",
+    "type": "개념 · 서브쿼리",
+    "q": "다중 행 서브쿼리에 사용할 수 <b>없는</b> 연산자는?",
+    "diagram": "<div class='s-grid'><div class='s-card c'><h4>다중행 OK</h4><p>IN · ANY · ALL · EXISTS</p></div><div class='s-card r'><h4>단일행 전용</h4><p>= , &gt; , &lt; (1건 반환 전제)</p></div></div>",
+    "choices": ["IN", "= (등호)", "EXISTS", "> ANY"],
+    "answer": 1,
+    "explain": "<p>서브쿼리가 <b>여러 행</b>을 반환하면 단일행 연산자 <code>=</code> 는 쓸 수 없습니다(에러). 다중행에는 <b>IN · ANY · ALL · EXISTS</b> 를 사용합니다.</p><p>참고: <code>&gt;ANY</code>=최솟값보다 큼, <code>&gt;ALL</code>=최댓값보다 큼.</p>"
+  },
+  {
+    "id": "sa-005",
+    "type": "결과예측 · 윈도우함수",
+    "q": "점수 <b>90, 90, 85, 80</b> 에 대해 <code>DENSE_RANK()</code> 의 순위는?",
+    "code": "DENSE_RANK() OVER (ORDER BY score DESC)",
+    "choices": ["1, 1, 3, 4", "1, 1, 2, 3", "1, 2, 3, 4", "1, 1, 2, 2"],
+    "answer": 1,
+    "result": { "title": "실제 실행 결과", "headers": ["score", "DENSE_RANK"], "rows": [["90", "1"], ["90", "1"], ["85", "2"], ["80", "3"]] },
+    "explain": "<p><b>DENSE_RANK()</b>는 공동 순위 뒤를 <b>건너뛰지 않습니다</b>: 90·90 공동 1위 → 다음 85는 <b>2위</b>. 결과 <b>1, 1, 2, 3</b>.</p>"
+  },
+  {
+    "id": "sa-006",
+    "type": "개념 · 윈도우함수",
+    "q": "동점이 있어도 <b>항상 고유한 일련번호</b>(중복 없음)를 부여하는 함수는?",
+    "choices": ["RANK()", "DENSE_RANK()", "ROW_NUMBER()", "NTILE()"],
+    "answer": 2,
+    "explain": "<p><b>ROW_NUMBER()</b>는 동점 여부와 무관하게 1, 2, 3, … 처럼 <b>유일한 번호</b>를 부여합니다. RANK/DENSE_RANK는 동점에 같은 순위를 줍니다.</p>"
+  },
+  {
+    "id": "sa-007",
+    "type": "개념 · 외부조인",
+    "q": "Oracle 전통식 외부조인에서 <code>(+)</code> 기호는 어느 쪽에 붙이나요?",
+    "code": "WHERE d.deptno = e.deptno(+)   -- dept 기준 LEFT OUTER",
+    "choices": [
+      "데이터가 모두 있는(기준) 쪽",
+      "데이터가 부족한(결손) 쪽",
+      "양쪽 모두",
+      "WHERE 절 맨 앞"
+    ],
+    "answer": 1,
+    "explain": "<p><code>(+)</code>는 <b>데이터가 부족한(결손) 쪽</b>에 붙입니다. 위 예는 dept를 모두 보존하는 LEFT OUTER JOIN과 같습니다. <code>(+)</code>는 OR·IN과 함께 쓸 수 없는 제약이 있습니다.</p>"
+  },
+  {
+    "id": "sa-008",
+    "type": "개념 · 집합연산",
+    "q": "집합 연산자(UNION 등)를 사용할 때 <b>반드시 지켜야 하는</b> 규칙은?",
+    "choices": [
+      "각 SELECT의 컬럼 이름이 동일해야 한다",
+      "각 SELECT의 컬럼 수와 데이터 타입이 일치해야 한다",
+      "각 SELECT에 ORDER BY를 모두 넣어야 한다",
+      "테이블이 같아야 한다"
+    ],
+    "answer": 1,
+    "explain": "<p>집합 연산은 각 SELECT의 <b>컬럼 수와 데이터 타입이 일치</b>해야 합니다. 컬럼명은 첫 번째 SELECT 기준이며, ORDER BY는 <b>맨 마지막에 한 번만</b> 씁니다.</p>"
+  },
+  {
+    "id": "sa-009",
+    "type": "개념 · 계층질의",
+    "q": "Oracle 계층형 질의에서 <b>최상위(루트) 행</b>을 지정하는 절은?",
+    "code": "SELECT LEVEL, ename\nFROM emp\nSTART WITH mgr IS NULL\nCONNECT BY PRIOR empno = mgr;",
+    "choices": ["CONNECT BY", "START WITH", "PRIOR", "ORDER SIBLINGS BY"],
+    "answer": 1,
+    "explain": "<p><b>START WITH</b>가 전개의 시작점(루트)을 지정합니다. <code>CONNECT BY</code>는 전개 규칙, <code>PRIOR</code>는 부모 행, <code>LEVEL</code>은 깊이(1부터)입니다.</p>"
+  },
+  {
+    "id": "sa-010",
+    "type": "개념 · 계층질의",
+    "q": "계층형 질의에서 <b>계층의 깊이</b>(1부터)를 나타내는 의사 컬럼은?",
+    "choices": ["DEPTH", "LEVEL", "RANK", "ROWNUM"],
+    "answer": 1,
+    "explain": "<p><b>LEVEL</b>이 계층의 깊이를 나타냅니다(루트=1). CONNECT_BY_ROOT, SYS_CONNECT_BY_PATH 등이 보조로 사용됩니다.</p>"
+  },
+  {
+    "id": "sa-011",
+    "type": "개념 · 그룹함수",
+    "q": "<code>GROUP BY ROLLUP(deptno)</code> 가 추가로 만들어 내는 행은?",
+    "diagram": "<div class='s-grid'><div class='s-card'><h4>ROLLUP</h4><p>그룹별 소계 + <b>전체 합계</b></p></div><div class='s-card c'><h4>CUBE</h4><p>가능한 <b>모든 조합</b>의 소계</p></div></div>",
+    "choices": [
+      "부서별 합계만",
+      "부서별 합계 + 전체 총합계",
+      "모든 컬럼 조합의 소계",
+      "아무 것도 추가하지 않음"
+    ],
+    "answer": 1,
+    "explain": "<p><b>ROLLUP(deptno)</b>은 부서별 소계에 더해 <b>전체 총합계</b> 행을 추가합니다(계층적 소계). CUBE는 모든 조합의 소계를 만듭니다.</p>"
+  },
+  {
+    "id": "sa-012",
+    "type": "개념 · 서브쿼리",
+    "q": "SELECT 절에 위치하여 <b>행마다 1행 1열</b>을 반환하는 서브쿼리는?",
+    "diagram": "<table class='s-table'><tr><th>위치</th><th>종류</th></tr><tr><td>SELECT 절</td><td>스칼라 서브쿼리</td></tr><tr><td>FROM 절</td><td>인라인 뷰</td></tr><tr><td>WHERE 절</td><td>중첩 서브쿼리</td></tr></table>",
+    "choices": ["인라인 뷰", "스칼라 서브쿼리", "중첩 서브쿼리", "상관 서브쿼리"],
+    "answer": 1,
+    "explain": "<p>SELECT 절에서 행마다 단일 값을 반환하는 것은 <b>스칼라 서브쿼리</b>입니다. FROM 절은 인라인 뷰, WHERE 절은 중첩 서브쿼리입니다.</p>"
+  },
+  {
+    "id": "sa-013",
+    "type": "개념 · 서브쿼리",
+    "q": "FROM 절에 사용되어 <b>가상의 테이블(집합)</b>처럼 동작하는 서브쿼리는?",
+    "choices": ["스칼라 서브쿼리", "인라인 뷰", "상관 서브쿼리", "EXISTS 서브쿼리"],
+    "answer": 1,
+    "explain": "<p>FROM 절의 서브쿼리는 <b>인라인 뷰</b>로, 결과 집합을 하나의 테이블처럼 사용합니다. (예: TOP-N 추출 시 인라인 뷰 + ROWNUM)</p>"
+  },
+  {
+    "id": "sa-014",
+    "type": "개념 · EXISTS",
+    "q": "<code>EXISTS</code> 서브쿼리에 대한 설명으로 옳은 것은?",
+    "choices": [
+      "서브쿼리가 반환한 값을 직접 비교한다",
+      "행이 한 건이라도 존재하면 참(존재 여부만 판단)",
+      "반드시 단일 행만 반환해야 한다",
+      "집계 함수와 함께 쓸 수 없다"
+    ],
+    "answer": 1,
+    "explain": "<p><b>EXISTS</b>는 서브쿼리에 <b>행이 한 건이라도 존재하는지</b>만 판단합니다(값 자체는 무관). 첫 행을 찾으면 즉시 참이 되어 효율적이며, <code>NOT IN</code>+NULL 함정을 피하려면 <code>NOT EXISTS</code>를 권장합니다.</p>"
+  },
+  {
+    "id": "sa-015",
+    "type": "개념 · 조인",
+    "q": "두 테이블에서 <b>조인 조건이 일치하는 행만</b> 반환하는 조인은?",
+    "diagram": "<div class='s-grid'><div class='s-card'><h4>INNER JOIN</h4><p>양쪽 <b>일치</b>하는 행만</p></div><div class='s-card c'><h4>OUTER JOIN</h4><p>한쪽 전체 + 반대쪽(없으면 NULL)</p></div></div>",
+    "choices": ["INNER JOIN", "LEFT OUTER JOIN", "FULL OUTER JOIN", "CROSS JOIN"],
+    "answer": 0,
+    "explain": "<p>양쪽 모두 매칭되는 행만 반환하는 것은 <b>INNER JOIN</b>입니다. OUTER는 매칭이 없어도 한쪽을 보존(NULL 채움)합니다.</p>"
+  },
+  {
+    "id": "sa-016",
+    "type": "개념 · 조인",
+    "q": "조인 조건 없이 두 테이블의 <b>모든 행을 곱</b>(N×M)하는 조인은?",
+    "choices": ["INNER JOIN", "CROSS JOIN", "NATURAL JOIN", "SELF JOIN"],
+    "answer": 1,
+    "explain": "<p>조인 조건 없이 모든 조합을 만드는 것은 <b>CROSS JOIN</b>(카티션 곱)입니다. 실수로 조인 조건을 빠뜨려도 같은 결과(N×M)가 됩니다.</p>"
+  },
+  {
+    "id": "sa-017",
+    "type": "함정 · NATURAL JOIN",
+    "q": "NATURAL JOIN에 대한 설명으로 옳은 것은?",
+    "choices": [
+      "조인 조건을 ON으로 직접 지정한다",
+      "이름이 같은 컬럼을 자동으로 등가 조인하며, 그 컬럼엔 별칭(alias)을 붙일 수 없다",
+      "모든 컬럼을 곱한다",
+      "외부 조인만 가능하다"
+    ],
+    "answer": 1,
+    "explain": "<p><b>NATURAL JOIN</b>은 이름이 같은 컬럼을 자동으로 찾아 등가 조인합니다. 이 공통 컬럼에는 <b>테이블 별칭이나 한정자를 붙이면 안 됩니다</b>.</p>"
+  },
+  {
+    "id": "sa-018",
+    "type": "개념 · 조인",
+    "q": "양쪽 테이블의 행을 <b>모두 보존</b>(어느 쪽에 매칭이 없어도 NULL로 채움)하는 조인은?",
+    "choices": ["LEFT OUTER JOIN", "RIGHT OUTER JOIN", "FULL OUTER JOIN", "INNER JOIN"],
+    "answer": 2,
+    "explain": "<p><b>FULL OUTER JOIN</b>은 양쪽 테이블의 모든 행을 보존하고, 매칭이 없는 쪽은 NULL로 채웁니다.</p>"
+  },
+  {
+    "id": "sa-019",
+    "type": "개념 · 다중행연산자",
+    "q": "<code>sal &gt; ANY (1000, 2000, 3000)</code> 이 참이 되는 조건은?",
+    "diagram": "<div class='s-grid'><div class='s-card'><h4>&gt; ANY</h4><p><b>최솟값</b>보다 크면 참</p></div><div class='s-card c'><h4>&gt; ALL</h4><p><b>최댓값</b>보다 크면 참</p></div></div>",
+    "choices": ["sal이 3000보다 클 때", "sal이 1000보다 클 때", "sal이 2000과 같을 때", "항상 거짓"],
+    "answer": 1,
+    "explain": "<p><code>&gt; ANY</code> 는 목록의 값 중 <b>하나라도 만족</b>하면 되므로 <b>최솟값(1000)보다 크면</b> 참입니다.</p>"
+  },
+  {
+    "id": "sa-020",
+    "type": "개념 · 다중행연산자",
+    "q": "<code>sal &gt; ALL (1000, 2000, 3000)</code> 이 참이 되려면?",
+    "choices": ["sal > 1000", "sal > 2000", "sal > 3000", "sal = 3000"],
+    "answer": 2,
+    "explain": "<p><code>&gt; ALL</code> 은 목록의 <b>모든 값보다 커야</b> 하므로 <b>최댓값(3000)보다 클 때</b> 참입니다.</p>"
+  },
+  {
+    "id": "sa-021",
+    "type": "개념 · 서브쿼리",
+    "q": "바깥쪽 쿼리의 컬럼을 <b>참조</b>하여, 행마다 반복 수행되는 서브쿼리는?",
+    "code": "WHERE sal > (SELECT AVG(sal) FROM emp WHERE deptno = e.deptno)",
+    "choices": ["스칼라 서브쿼리", "인라인 뷰", "상관 서브쿼리", "단순 중첩 서브쿼리"],
+    "answer": 2,
+    "explain": "<p>바깥 쿼리의 컬럼(<code>e.deptno</code>)을 참조하는 것은 <b>상관 서브쿼리</b>입니다. 바깥 행마다 서브쿼리가 평가됩니다.</p>"
+  },
+  {
+    "id": "sa-022",
+    "type": "개념 · 계층질의",
+    "q": "<code>CONNECT BY PRIOR empno = mgr</code> 는 어떤 방향으로 전개되나요?",
+    "choices": [
+      "자식에서 부모로(상향)",
+      "부모에서 자식으로(하향)",
+      "양방향 동시",
+      "무작위"
+    ],
+    "answer": 1,
+    "explain": "<p><code>PRIOR</code>가 붙은 쪽이 '이전(부모)' 행입니다. <code>PRIOR empno = mgr</code> 은 부모의 empno가 자식의 mgr과 같다는 의미로 <b>부모→자식(하향)</b> 전개입니다.</p>"
+  },
+  {
+    "id": "sa-023",
+    "type": "개념 · 그룹함수",
+    "q": "<code>CUBE(a, b)</code> 가 생성하는 소계 조합은?",
+    "choices": [
+      "(a,b) 와 전체합계만",
+      "(a,b), (a), (b), 전체 — 가능한 모든 조합",
+      "(a) 만",
+      "(b) 만"
+    ],
+    "answer": 1,
+    "explain": "<p><b>CUBE</b>는 인자의 <b>가능한 모든 조합</b>(a,b)(a)(b)(전체)의 소계를 만듭니다. ROLLUP은 계층적 소계만(전체 N+1단계) 만듭니다.</p>"
+  },
+  {
+    "id": "sa-024",
+    "type": "개념 · 그룹함수",
+    "q": "소계(집계) 행에서 해당 컬럼이 집계로 묶였는지를 1/0으로 알려주는 함수는?",
+    "choices": ["GROUPING", "GROUP_ID", "RANK", "DECODE"],
+    "answer": 0,
+    "explain": "<p><code>GROUPING(컬럼)</code> 이 <b>1</b>이면 그 컬럼이 소계(집계)로 묶인 행임을, 0이면 일반 그룹 행임을 의미합니다.</p>"
+  },
+  {
+    "id": "sa-025",
+    "type": "개념 · 윈도우함수",
+    "q": "현재 행의 <b>바로 이전 행</b> 값을 가져오는 윈도우 함수는?",
+    "diagram": "<div class='s-grid'><div class='s-card'><h4>LAG</h4><p>이전 행 값</p></div><div class='s-card c'><h4>LEAD</h4><p>다음 행 값</p></div></div>",
+    "choices": ["LAG", "LEAD", "RANK", "NTILE"],
+    "answer": 0,
+    "explain": "<p><b>LAG</b>는 이전 행, <b>LEAD</b>는 다음 행의 값을 가져옵니다. 기본 1칸이며 해당 행이 없으면 NULL입니다.</p>"
+  },
+  {
+    "id": "sa-026",
+    "type": "함정 · 윈도우 vs 그룹",
+    "q": "<code>SUM(sal) OVER (PARTITION BY deptno)</code> 와 <code>GROUP BY deptno</code> 의 가장 큰 차이는?",
+    "choices": [
+      "결과가 완전히 같다",
+      "윈도우 함수는 원본 행을 유지하고, GROUP BY는 그룹당 한 행으로 축약한다",
+      "윈도우 함수는 NULL을 포함한다",
+      "GROUP BY가 더 느리다"
+    ],
+    "answer": 1,
+    "explain": "<p><b>PARTITION BY(윈도우)</b>는 <b>개별 행을 그대로 유지</b>하면서 그룹 집계를 각 행에 붙입니다. <b>GROUP BY</b>는 그룹당 <b>한 행</b>으로 축약합니다.</p>"
+  },
+  {
+    "id": "sa-027",
+    "type": "함정 · 단일행 서브쿼리",
+    "q": "단일행 연산자 <code>=</code> 를 쓴 서브쿼리가 <b>2건 이상</b>을 반환하면?",
+    "code": "WHERE sal = (SELECT sal FROM emp WHERE deptno = 30)",
+    "choices": [
+      "첫 번째 값으로 비교한다",
+      "에러가 발생한다",
+      "모두 OR로 비교한다",
+      "NULL을 반환한다"
+    ],
+    "answer": 1,
+    "explain": "<p>단일행 연산자(<code>=</code>)는 서브쿼리가 <b>1행</b>만 반환할 때만 유효합니다. 여러 행이 오면 <b>에러</b>입니다. 다중행에는 <code>IN</code> 등을 써야 합니다.</p>"
+  },
+  {
+    "id": "sa-028",
+    "type": "개념 · TOP-N",
+    "q": "급여 상위 3명을 구할 때 <b>인라인 뷰 + ROWNUM</b> 을 쓰는 이유는?",
+    "code": "SELECT * FROM (SELECT ename, sal FROM emp ORDER BY sal DESC)\nWHERE ROWNUM <= 3;",
+    "choices": [
+      "ROWNUM이 정렬보다 먼저 매겨져서, 정렬을 먼저 끝낸 인라인 뷰가 필요하다",
+      "ROWNUM은 ORDER BY와 함께 쓰면 빨라진다",
+      "인라인 뷰가 없으면 에러가 난다",
+      "ROWNUM은 항상 정렬 후 매겨진다"
+    ],
+    "answer": 0,
+    "explain": "<p>ROWNUM은 <b>정렬(ORDER BY)보다 먼저</b> 매겨지므로, 바로 쓰면 정렬 전 임의 3건이 나옵니다. 따라서 <b>인라인 뷰에서 먼저 정렬</b>한 뒤 바깥에서 ROWNUM으로 잘라야 정확한 TOP-N이 됩니다.</p>"
+  }
+]
