@@ -35,9 +35,12 @@
         <main class="sph-main">
             <div class="sph-card sph-card--accent">
                 <h3 class="sph-h3" style="margin-top:0;">신규 주제 생성</h3>
-                <div style="margin-top: 16px; margin-bottom: 8px;">
-                    <label style="margin-right: 16px; cursor: pointer;"><input type="radio" name="topicType" value="survey" checked> 설문조사</label>
-                    <label style="cursor: pointer;"><input type="radio" name="topicType" value="apply"> 지원서 양식</label>
+                <div style="margin-top: 16px; margin-bottom: 8px; display:flex; align-items:center;">
+                    <label style="margin-right: 16px; cursor: pointer;"><input type="radio" name="topicType" value="survey" checked onchange="document.getElementById('starOptionWrapper').style.display='inline-flex'"> 설문조사</label>
+                    <label style="cursor: pointer;"><input type="radio" name="topicType" value="apply" onchange="document.getElementById('starOptionWrapper').style.display='none'"> 지원서 양식</label>
+                    <div id="starOptionWrapper" style="display:inline-flex; align-items:center; margin-left:16px; border-left:1px solid var(--sph-line); padding-left:16px;">
+                        <label style="cursor: pointer; font-size:13px; color:var(--sph-slate);"><input type="checkbox" id="requireStarCheck" checked> 별점 입력 받기</label>
+                    </div>
                 </div>
                 <div style="display:flex; gap:12px;">
                     <input type="text" id="topicTitleInput" class="sph-input" placeholder="예: 7월 DB 성능진단 교육 만족도 조사" style="flex:1;">
@@ -122,6 +125,8 @@
                 const title = titleInput.value.trim();
                 const typeInput = document.querySelector('input[name="topicType"]:checked');
                 const type = typeInput ? typeInput.value : 'survey';
+                const requireStarCheck = document.getElementById('requireStarCheck');
+                const requireStar = requireStarCheck ? requireStarCheck.checked : true;
                 
                 if (!title) {
                     alert('주제를 입력하세요.');
@@ -129,7 +134,7 @@
                 }
 
                 try {
-                    await suvApi.createTopic(title, type);
+                    await suvApi.createTopic(title, type, requireStar);
                     titleInput.value = '';
                     alert('주제가 생성되었습니다.');
                     loadTopics();

@@ -73,6 +73,8 @@ def init_db():
         columns = [col['name'] for col in cursor.fetchall()]
         if 'TOPIC_TYPE' not in columns:
             conn.execute("ALTER TABLE TB_TOPIC ADD COLUMN TOPIC_TYPE TEXT DEFAULT 'survey'")
+        if 'REQUIRE_STAR' not in columns:
+            conn.execute("ALTER TABLE TB_TOPIC ADD COLUMN REQUIRE_STAR INTEGER DEFAULT 1")
 
             
         conn.commit()
@@ -126,7 +128,7 @@ class TSSurveyRequestHandler(BaseHTTPRequestHandler):
             try:
                 cur = conn.execute('''
                     SELECT 
-                        t.ID, t.TITLE, t.CREATED_AT, t.IS_ACTIVE, t.TOPIC_TYPE,
+                        t.ID, t.TITLE, t.CREATED_AT, t.IS_ACTIVE, t.TOPIC_TYPE, t.REQUIRE_STAR,
                         CASE 
                             WHEN t.TOPIC_TYPE = 'apply' THEN (SELECT COUNT(*) FROM TB_APPLY_RESPONSE a WHERE a.TOPIC_ID = t.ID)
                             ELSE (SELECT COUNT(*) FROM TB_SURVEY_RESPONSE r WHERE r.TOPIC_ID = t.ID)
@@ -208,6 +210,7 @@ class TSSurveyRequestHandler(BaseHTTPRequestHandler):
 
             title = data.get("title")
             topic_type = data.get("type", "survey")
+            require_star = 1 if data.get("require_star", True) else 0
             if not title:
                 return self._respond_json(400, {"error": "title is required"})
             
@@ -218,8 +221,8 @@ class TSSurveyRequestHandler(BaseHTTPRequestHandler):
                 conn = _connect()
                 try:
                     conn.execute(
-                        "INSERT INTO TB_TOPIC (ID, TITLE, CREATED_AT, IS_ACTIVE, TOPIC_TYPE) VALUES (?, ?, ?, 1, ?)",
-                        (topic_id, title, created_at, topic_type)
+                        "INSERT INTO TB_TOPIC (ID, TITLE, CREATED_AT, IS_ACTIVE, TOPIC_TYPE, REQUIRE_STAR) VALUES (?, ?, ?, 1, ?, ?)",
+                        (topic_id, title, created_at, topic_type, require_star)
                     )
                     conn.commit()
                     return self._respond_json(200, {"id": topic_id, "title": title, "type": topic_type, "created_at": created_at})
@@ -264,8 +267,8 @@ class TSSurveyRequestHandler(BaseHTTPRequestHandler):
                         if star_rating is not None:
                             try:
                                 star_rating = int(star_rating)
-                                if star_rating < 1 or star_rating > 5:
-                                    raise ValueError("star_rating must be between 1 and 5")
+                                if star_rating < 0 or star_rating > 5:
+                                    raise ValueError("star_rating must be between 0 and 5")
                             except ValueError as e:
                                 return self._respond_json(400, {"error": str(e)})
                         else:

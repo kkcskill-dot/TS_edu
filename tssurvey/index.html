@@ -111,6 +111,20 @@
                             `;
                             document.getElementById('surveyForm').parentNode.appendChild(closedMsg);
                         }
+                        
+                        if (topic.REQUIRE_STAR === 0) {
+                            const starRatingDiv = document.querySelector('.sph-star-rating');
+                            if (starRatingDiv) {
+                                starRatingDiv.parentElement.style.display = 'none';
+                            }
+                            const commentLabel = document.querySelector('label[for="comment"]');
+                            if (commentLabel) {
+                                commentLabel.textContent = commentLabel.textContent.replace('2. ', '');
+                            }
+                            window.survRequireStar = false;
+                        } else {
+                            window.survRequireStar = true;
+                        }
                     } else {
                         document.getElementById('surveyForm').style.display = 'none';
                         const err = document.getElementById('errorContainer');
@@ -132,11 +146,16 @@
 
             document.getElementById('btnSubmit').addEventListener('click', async () => {
                 const ratingInput = document.querySelector('input[name="rating"]:checked');
-                if (!ratingInput) {
-                    alert('별점을 선택해 주세요.');
-                    return;
+                let starRating = 0;
+                
+                if (window.survRequireStar !== false) {
+                    if (!ratingInput) {
+                        alert('별점을 선택해 주세요.');
+                        return;
+                    }
+                    starRating = parseInt(ratingInput.value, 10);
                 }
-                const starRating = parseInt(ratingInput.value, 10);
+                
                 const comment = commentInput.value.trim();
 
                 try {

@@ -27,14 +27,14 @@ const suvApi = {
         return res.json();
     },
 
-    async createTopic(title, type = 'survey') {
+    async createTopic(title, type = 'survey', requireStar = true) {
         const res = await fetch(`${API_BASE}/topics`, {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${adminToken}`
             },
-            body: JSON.stringify({ title, type })
+            body: JSON.stringify({ title, type, require_star: requireStar })
         });
         if (!res.ok) throw new Error(res.status === 401 ? '401' : 'Failed to create topic');
         return res.json();
