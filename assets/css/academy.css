@@ -294,33 +294,46 @@
 .course-indicator {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 16px;
+  gap: 12px;
+  margin-bottom: 24px;
   font-family: var(--sph-font);
 }
 .course-indicator .ci-home {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   background: var(--sph-card);
   border: 1px solid var(--sph-line);
-  color: var(--sph-navy);
+  color: var(--sph-ink);
   font-weight: 700;
-  font-size: 0.78rem;
-  padding: 6px 12px;
+  font-size: 0.85rem;
+  padding: 8px 16px;
   border-radius: 999px;
+  box-shadow: var(--sph-shadow-sm);
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: all 0.2s ease;
 }
-.course-indicator .ci-home:hover { background: var(--sph-gray); }
-.course-indicator .ci-sep { color: var(--sph-muted); }
+.course-indicator .ci-home:hover {
+  background: #fff;
+  border-color: var(--sph-navy);
+  color: var(--sph-navy);
+  transform: translateY(-1px);
+  box-shadow: var(--sph-shadow);
+}
+.course-indicator .ci-sep {
+  color: var(--sph-muted);
+  font-weight: 600;
+  font-size: 1rem;
+}
 .course-indicator .ci-course {
-  font-weight: 700;
+  font-weight: 800;
   color: #fff;
-  font-size: 0.82rem;
-  background: var(--sph-navy);
-  padding: 5px 14px;
+  font-size: 0.9rem;
+  background: linear-gradient(135deg, var(--sph-navy), #1e3a8a);
+  padding: 8px 18px;
   border-radius: 999px;
+  box-shadow: 0 4px 12px rgba(30, 58, 138, 0.2);
+  letter-spacing: 0.2px;
 }
 
 /* 운영 중인 스터디(성능진단 소모임) — 정규 과정과 분리 */
