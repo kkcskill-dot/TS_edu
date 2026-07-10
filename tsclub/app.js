@@ -122,25 +122,26 @@ async function loadNotices() {
 
         data.data.forEach(n => {
             const item = document.createElement('div');
-            item.className = 'timeline-item';
+            item.className = 'notice-item';
             
             let adminHtml = '';
             if(adminToken) {
                 adminHtml = `
-                    <div style="margin-top:8px; display:flex; gap:8px;">
-                        <button onclick="editNotice('${n.id}', '${n.session_no}', '${n.date_info}', '${n.location}', '${n.content}')" style="background:none; border:none; cursor:pointer; color:var(--sph-blue); font-size:0.8rem; padding:0;">수정</button>
-                        <button onclick="deleteNotice('${n.id}')" style="background:none; border:none; cursor:pointer; color:#ef4444; font-size:0.8rem; padding:0;">삭제</button>
+                    <div style="margin-top:12px; display:flex; gap:12px; justify-content:flex-end;">
+                        <button onclick="editNotice('${n.id}', '${n.session_no}', '${n.date_info}', '${n.location}', '${n.content}')" style="background:none; border:none; cursor:pointer; color:var(--sph-blue); font-size:0.85rem; font-weight:600; padding:0;">수정</button>
+                        <button onclick="deleteNotice('${n.id}')" style="background:none; border:none; cursor:pointer; color:#ef4444; font-size:0.85rem; font-weight:600; padding:0;">삭제</button>
                     </div>
                 `;
             }
 
             item.innerHTML = `
-                <div class="timeline-dot"></div>
-                <div class="timeline-content">
-                    <div class="timeline-title">${n.session_no}회차 <span style="font-weight:400; font-size:0.85rem; color:var(--sph-slate); margin-left:8px;">${n.date_info} / ${n.location || '미정'}</span></div>
-                    <div class="timeline-body">${n.content || ''}</div>
-                    ${adminHtml}
+                <div class="notice-session">${n.session_no}회차 공지</div>
+                <div class="notice-meta">
+                    <span>🗓 ${n.date_info}</span>
+                    <span>📍 ${n.location || '미정'}</span>
                 </div>
+                <div style="font-size:0.95rem; color:var(--sph-ink); margin-top:8px;">${n.content || ''}</div>
+                ${adminHtml}
             `;
             container.appendChild(item);
         });
