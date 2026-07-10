@@ -1,6 +1,6 @@
-const API_BASE = '/tsclub/api'; // Assuming Nginx routes this to 8092, for local testing we use relative if no Nginx
-// Local dev fallback
-const API_URL = location.port === '8000' || location.port === '5500' ? 'http://localhost:8092' : '/tsclub/api';
+const API_URL = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost' || window.location.protocol === 'file:' 
+    ? 'http://127.0.0.1:8092' 
+    : '/tsclub/api';
 
 let currentGroupId = null;
 let currentPollId = null;
