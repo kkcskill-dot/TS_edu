@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>소모임관리 - TS 아카데미</title>
+    <!-- App Styles -->
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+    <link rel="stylesheet" href="../style.css?v=6.2">
+    <link rel="stylesheet" href="../assets/css/spharos.css?v=6.2">
+    <link rel="stylesheet" href="style.css?v=1.0">
+</head>
+<body class="light-theme">
+
+    <div class="club-container">
+        <!-- List View -->
+        <div id="list-view">
+            <header class="club-header">
+                <div>
+                    <button class="nav-home-btn" onclick="location.href='../index.html'" style="background:transparent; border:none; padding:0; cursor:pointer; margin-bottom:12px; display:inline-flex; align-items:center; color:var(--sph-slate); font-weight:600; gap:4px;">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5"></path><path d="M12 19l-7-7 7-7"></path></svg>
+                        아카데미 메인으로
+                    </button>
+                    <h1>소모임관리</h1>
+                    <p>사내 기술서비스 및 운영 관련 소모임을 등록하고 일정을 조율해 보세요.</p>
+                </div>
+                <button class="btn-primary" onclick="openModal('createGroupModal')">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    새 소모임 등록
+                </button>
+            </header>
+
+            <div class="club-grid" id="groups-container">
+                <!-- Groups injected here -->
+            </div>
+        </div>
+
+        <!-- Detail View -->
+        <div id="detail-view">
+            <header class="club-header">
+                <div>
+                    <button class="nav-home-btn" onclick="showList()" style="background:transparent; border:none; padding:0; cursor:pointer; margin-bottom:12px; display:inline-flex; align-items:center; color:var(--sph-slate); font-weight:600; gap:4px;">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5"></path><path d="M12 19l-7-7 7-7"></path></svg>
+                        소모임 목록으로
+                    </button>
+                    <h1 id="detail-title">소모임명</h1>
+                    <p id="detail-desc">소모임 설명</p>
+                </div>
+            </header>
+
+            <div class="detail-layout">
+                <div class="detail-main">
+                    <div class="panel">
+                        <div class="panel-title">
+                            회차별 공지
+                            <button class="btn-primary" style="padding:6px 12px; font-size:0.85rem;" onclick="openModal('createNoticeModal')">+ 공지 등록</button>
+                        </div>
+                        <div id="notices-container">
+                            <!-- Notices injected here -->
+                        </div>
+                    </div>
+                </div>
+                <div class="detail-side">
+                    <div class="panel">
+                        <div class="panel-title">
+                            일정 투표
+                            <button class="btn-primary" style="padding:6px 12px; font-size:0.85rem;" onclick="openModal('createPollModal')">+ 투표 만들기</button>
+                        </div>
+                        <div id="polls-container">
+                            <!-- Polls injected here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <!-- Create Group Modal -->
+    <div class="modal-overlay" id="createGroupModal">
+        <div class="modal-content">
+            <h2 class="modal-title">새 소모임 등록</h2>
+            <form id="createGroupForm">
+                <div class="form-group">
+                    <label>소모임명 (제목)</label>
+                    <input type="text" class="form-control" name="title" required placeholder="예: MySQL 실무 튜닝 소모임">
+                </div>
+                <div class="form-group">
+                    <label>내용</label>
+                    <textarea class="form-control" name="description" rows="3" placeholder="어떤 소모임인지 설명해주세요."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>예상 참석인원 (명)</label>
+                    <input type="number" class="form-control" name="participants_count" min="1" value="5">
+                </div>
+                <div class="form-group">
+                    <label>등록자 성명</label>
+                    <input type="text" class="form-control" name="creator_name" required placeholder="본인 성명을 입력하세요 (자동 마스킹)">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('createGroupModal')">취소</button>
+                    <button type="submit" class="btn-primary">등록하기</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Create Notice Modal -->
+    <div class="modal-overlay" id="createNoticeModal">
+        <div class="modal-content">
+            <h2 class="modal-title">공지 등록</h2>
+            <form id="createNoticeForm">
+                <div class="form-group">
+                    <label>회차</label>
+                    <input type="number" class="form-control" name="session_no" min="1" value="1" required>
+                </div>
+                <div class="form-group">
+                    <label>일정 (일시)</label>
+                    <input type="text" class="form-control" name="date_info" placeholder="예: 7/15(금) 14:00" required>
+                </div>
+                <div class="form-group">
+                    <label>장소</label>
+                    <input type="text" class="form-control" name="location" placeholder="예: 3층 대회의실">
+                </div>
+                <div class="form-group">
+                    <label>내용 (선택)</label>
+                    <textarea class="form-control" name="content" rows="3"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('createNoticeModal')">취소</button>
+                    <button type="submit" class="btn-primary">등록하기</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Create Poll Modal -->
+    <div class="modal-overlay" id="createPollModal">
+        <div class="modal-content">
+            <h2 class="modal-title">일정 투표 만들기</h2>
+            <form id="createPollForm">
+                <div class="form-group">
+                    <label>투표 제목</label>
+                    <input type="text" class="form-control" name="title" value="다음 회차 일정 투표" required>
+                </div>
+                <div class="form-group">
+                    <label>후보 일자 (콤마로 구분)</label>
+                    <input type="text" class="form-control" name="options" placeholder="예: 7/10, 7/11, 7/12" required>
+                    <p style="font-size:0.8rem; color:var(--sph-slate); margin-top:4px;">참여자들은 이 중 여러 개를 선택할 수 있습니다.</p>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('createPollModal')">취소</button>
+                    <button type="submit" class="btn-primary">만들기</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Vote Modal -->
+    <div class="modal-overlay" id="voteModal">
+        <div class="modal-content">
+            <h2 class="modal-title">일정 투표 참여</h2>
+            <form id="voteForm">
+                <div class="form-group">
+                    <label>참여자 성명</label>
+                    <input type="text" class="form-control" name="voter_name" required placeholder="본인 성명 (예: 홍길동)">
+                </div>
+                <div class="form-group">
+                    <label>가능한 일자 선택 (다중 선택 가능)</label>
+                    <div class="checkbox-group" id="vote-options-container">
+                        <!-- Checkboxes injected here -->
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('voteModal')">취소</button>
+                    <button type="submit" class="btn-primary">투표하기</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js?v=1.0"></script>
+</body>
+</html>

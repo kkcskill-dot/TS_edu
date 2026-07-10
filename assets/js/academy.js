@@ -190,6 +190,11 @@
               <div class="ts-study-name" style="color: var(--accent-emerald);">찾아가는 기술서비스 <span style="font-size:0.8rem; font-weight:600; color:var(--sph-slate);">— Visiting Tech Service</span></div>
               <div class="ts-study-desc">현업 부서로 직접 찾아가 DB 성능 및 아키텍처 관련 기술적 애로사항을 해결합니다.</div>
             </div>
+
+            <div class="ts-study clickable" style="border: 1px solid var(--sph-navy); background: rgba(30, 58, 138, 0.02);" onclick="location.href='tsclub/index.html'">
+              <div class="ts-study-name" style="color: var(--sph-navy);">소모임관리 <span style="font-size:0.8rem; font-weight:600; color:var(--sph-slate);">— TS Club</span></div>
+              <div class="ts-study-desc">사내 기술서비스 및 운영 관련 소모임을 등록하고 일정을 조율합니다.</div>
+            </div>
           </div>
         </aside>
       </div>`;
