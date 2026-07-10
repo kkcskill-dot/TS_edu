@@ -414,7 +414,7 @@
   align-items: start;
   font-family: var(--sph-font);
 }
-.ts-home-side { display: flex; flex-direction: column; gap: 12px; }
+.ts-home-side { display: block; }
 .ts-side-title {
   font-size: 0.95rem;
   font-weight: 700;
