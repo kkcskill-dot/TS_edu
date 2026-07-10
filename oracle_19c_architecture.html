@@ -99,14 +99,14 @@
         }
     </style>
 </head>
-<body class="text-spharos-ink h-screen w-screen flex flex-col overflow-hidden bg-white">
+<body class="text-spharos-ink min-h-screen flex flex-col bg-white">
 
 
     <!-- Main Workspace -->
-    <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 min-h-0 overflow-hidden">
+    <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 p-6">
         
         <!-- Left Section: Interactive Diagram (7 Columns) -->
-        <section class="lg:col-span-7 flex flex-col gap-4 min-h-0">
+        <section class="lg:col-span-7 flex flex-col gap-4">
             
             <!-- Controls & Legend -->
             <div class="bg-white border border-spharos-line p-4 rounded-md flex flex-wrap items-center justify-between gap-4">
@@ -135,7 +135,7 @@
             </div>
 
             <!-- Visual Simulator Canvas Area -->
-            <div class="bg-spharos-card border border-spharos-line rounded-md p-6 relative flex-1 overflow-y-auto flex flex-col justify-between gap-6 min-h-0">
+            <div class="bg-spharos-card border border-spharos-line rounded-md p-6 relative flex flex-col justify-between gap-6" style="min-height: 580px;">
                 
                 <!-- 1. Client & Listener Layer (Top Row) -->
                 <div class="grid grid-cols-12 gap-4 items-center">
@@ -416,10 +416,10 @@
         </section>
 
         <!-- Right Section: Details & Document Deep-Dive (5 Columns) -->
-        <section class="lg:col-span-5 flex flex-col gap-4 min-h-0">
+        <section class="lg:col-span-5 flex flex-col gap-4">
             
             <!-- Contextual Inspector (Tabs) -->
-            <div class="bg-white border border-spharos-line rounded-md flex-1 flex flex-col min-h-0 overflow-hidden">
+            <div class="bg-white border border-spharos-line rounded-md flex-1 flex flex-col">
                 <div class="flex border-b border-spharos-line bg-spharos-card/50">
                     <button onclick="switchTab('tab-inspector')" id="btn-tab-inspector" class="flex-1 py-3 px-4 text-xs font-bold border-b-2 border-spharos-navy text-spharos-navy focus:outline-none transition-all flex items-center justify-center gap-1.5">
                         <i class="fa-solid fa-search"></i> 실시간 아키텍처 분석기
@@ -430,7 +430,7 @@
                 </div>
 
                 <!-- Tab 1: Realtime Inspector Content -->
-                <div id="tab-inspector" class="flex-1 p-6 overflow-y-auto flex flex-col gap-6 min-h-0">
+                <div id="tab-inspector" class="p-6 flex flex-col gap-6">
                     <!-- Component Highlight Info -->
                     <div id="inspector-placeholder" class="text-center py-16 text-spharos-muted">
                         <i class="fa-solid fa-cubes text-5xl mb-4 text-slate-700 animate-pulse-glow"></i>
@@ -478,7 +478,7 @@
                 </div>
 
                 <!-- Tab 2: Storage Inspector Content -->
-                <div id="tab-storage" class="hidden p-6 overflow-y-auto flex flex-col gap-6 min-h-0">
+                <div id="tab-storage" class="hidden p-6 flex flex-col gap-6">
                     <div class="border-b border-spharos-line pb-4">
                         <h2 class="text-lg font-extrabold text-spharos-ink">논리적 & 물리적 데이터 저장 구조</h2>
                         <p class="text-xs text-spharos-slate mt-1">Oracle Logical to Physical Architecture Deep Dive</p>
