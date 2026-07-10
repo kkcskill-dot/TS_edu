@@ -181,14 +181,13 @@ class TSClubRequestHandler(BaseHTTPRequestHandler):
         path = parsed.path
         
         content_length = int(self.headers.get("Content-Length", 0))
-        if content_length == 0:
-            return self._respond_json(400, {"error": "Empty body"})
-        
-        body = self.rfile.read(content_length)
-        try:
-            data = json.loads(body.decode("utf-8"))
-        except:
-            return self._respond_json(400, {"error": "Invalid JSON"})
+        data = {}
+        if content_length > 0:
+            body = self.rfile.read(content_length)
+            try:
+                data = json.loads(body.decode("utf-8"))
+            except:
+                return self._respond_json(400, {"error": "Invalid JSON"})
 
         if path == "/groups":
             if not self.check_auth(): return
