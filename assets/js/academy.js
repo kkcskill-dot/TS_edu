@@ -134,7 +134,6 @@
         ${badgeHtml(lv.status)}
         <div class="ts-level-name">${lv.name}</div>
         ${lv.sub ? `<div class="ts-level-sub">${lv.sub}</div>` : ""}
-        ${interactive ? `<div class="ts-enter">과정 입장 ➔</div>` : ""}
       </div>`;
   }
 
@@ -168,7 +167,6 @@
               ${badgeHtml(f.status)}
               <div class="ts-level-name">${f.name} <span style="font-weight:400;color:var(--sph-slate);font-size:0.82rem;">— ${f.sub}</span></div>
               <div class="ts-found-items">${f.items}</div>
-              ${f.status === "live" ? '<div class="ts-enter" style="margin-top:8px;color:var(--tc-ink);font-weight:700;font-size:0.76rem;">과정 입장 ➔</div>' : ""}
             </div>
           </div>
         </div>
@@ -180,7 +178,6 @@
               <div class="ts-study-name">${s.name}</div>
               <div class="ts-study-sub">${s.sub}</div>
               <div class="ts-study-desc">${s.desc}</div>
-              <div class="ts-study-cta">스터디 입장 ➔</div>
             </div>`).join("")}
           </div>
 
@@ -189,7 +186,6 @@
             <div class="ts-study-name" style="color: var(--accent-yellow);">CBT 평가 센터</div>
             <div class="ts-study-sub">TS CBT System</div>
             <div class="ts-study-desc">핵심 이론 및 실전 튜닝 지식을 테스트하고 모니터링합니다.</div>
-            <div class="ts-study-cta" style="color: var(--accent-yellow);">평가 응시 ➔</div>
           </div>
 
           <div class="ts-side-title" style="margin-top:24px;">기술서비스</div>
@@ -197,7 +193,6 @@
             <div class="ts-study-name" style="color: var(--accent-emerald);">찾아가는 기술서비스</div>
             <div class="ts-study-sub">Visiting Tech Service</div>
             <div class="ts-study-desc">현업 부서로 직접 찾아가 DB 성능 및 아키텍처 관련 기술적 애로사항을 해결합니다.</div>
-            <div class="ts-study-cta" style="color: var(--accent-emerald);">서비스 안내 ➔</div>
           </div>
         </aside>
       </div>`;
