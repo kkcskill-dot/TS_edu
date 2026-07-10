@@ -96,7 +96,7 @@ ADMIN_PASSWORD = "qhdkscjfwj!!"
 class TSClubRequestHandler(BaseHTTPRequestHandler):
     def _send_cors_headers(self):
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
     def _respond_json(self, status_code, data):
@@ -309,7 +309,99 @@ class TSClubRequestHandler(BaseHTTPRequestHandler):
                     conn.commit()
                 finally:
                     conn.close()
-            return self._respond_json(201, {"ok": True, "id": new_id})
+            return self._respond_json(201, {"ok": True})
+
+        self._respond_json(404, {"error": "Not Found"})
+
+    def do_DELETE(self):
+        if not self.check_auth(): return
+        parsed = urlparse(self.path)
+        path = parsed.path
+
+        # DELETE /groups/<id>
+        match = re.match(r'^/groups/([^/]+)$', path)
+        if match:
+            group_id = match.group(1)
+            with _write_lock:
+                conn = _connect()
+                try:
+                    conn.execute("DELETE FROM groups WHERE id=?", (group_id,))
+                    conn.execute("DELETE FROM notices WHERE group_id=?", (group_id,))
+                    # Get polls to delete votes
+                    cur = conn.execute("SELECT id FROM polls WHERE group_id=?", (group_id,))
+                    polls = cur.fetchall()
+                    for p in polls:
+                        conn.execute("DELETE FROM votes WHERE poll_id=?", (p["id"],))
+                    conn.execute("DELETE FROM polls WHERE group_id=?", (group_id,))
+                    conn.commit()
+                finally:
+                    conn.close()
+            return self._respond_json(200, {"ok": True})
+
+        # DELETE /notices/<id>
+        match = re.match(r'^/notices/([^/]+)$', path)
+        if match:
+            notice_id = match.group(1)
+            with _write_lock:
+                conn = _connect()
+                try:
+                    conn.execute("DELETE FROM notices WHERE id=?", (notice_id,))
+                    conn.commit()
+                finally:
+                    conn.close()
+            return self._respond_json(200, {"ok": True})
+
+        # DELETE /polls/<id>
+        match = re.match(r'^/polls/([^/]+)$', path)
+        if match:
+            poll_id = match.group(1)
+            with _write_lock:
+                conn = _connect()
+                try:
+                    conn.execute("DELETE FROM polls WHERE id=?", (poll_id,))
+                    conn.execute("DELETE FROM votes WHERE poll_id=?", (poll_id,))
+                    conn.commit()
+                finally:
+                    conn.close()
+            return self._respond_json(200, {"ok": True})
+
+        self._respond_json(404, {"error": "Not Found"})
+
+    def do_PUT(self):
+        if not self.check_auth(): return
+        parsed = urlparse(self.path)
+        path = parsed.path
+        
+        content_length = int(self.headers.get("Content-Length", 0))
+        if content_length == 0:
+            return self._respond_json(400, {"error": "Empty body"})
+            
+        body = self.rfile.read(content_length)
+        try:
+            data = json.loads(body.decode("utf-8"))
+        except:
+            return self._respond_json(400, {"error": "Invalid JSON"})
+
+        # PUT /notices/<id>
+        match = re.match(r'^/notices/([^/]+)$', path)
+        if match:
+            notice_id = match.group(1)
+            session_no = data.get("session_no")
+            date_info = data.get("date_info", "").strip()
+            location = data.get("location", "").strip()
+            content = data.get("content", "").strip()
+            
+            with _write_lock:
+                conn = _connect()
+                try:
+                    conn.execute(
+                        "UPDATE notices SET session_no=?, date_info=?, location=?, content=? WHERE id=?",
+                        (session_no, date_info, location, content, notice_id)
+                    )
+                    conn.commit()
+                finally:
+                    conn.close()
+            return self._respond_json(200, {"ok": True})
 
         self._respond_json(404, {"error": "Not Found"})
 

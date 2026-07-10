@@ -58,6 +58,8 @@ function showDetail(group) {
     currentGroupId = group.id;
     document.getElementById('detail-title').textContent = group.title;
     document.getElementById('detail-desc').textContent = group.description;
+    currentGroupId = groupId;
+    document.getElementById('detail-title').textContent = title;
     
     loadNotices();
     loadPolls();
@@ -67,28 +69,41 @@ function showDetail(group) {
 async function loadGroups() {
     try {
         const res = await fetch(`${API_URL}/groups`);
-        const json = await res.json();
+        const data = await res.json();
         const container = document.getElementById('groups-container');
         container.innerHTML = '';
         
-        if (json.data && json.data.length > 0) {
-            json.data.forEach(g => {
-                const card = document.createElement('div');
-                card.className = 'club-card';
-                card.onclick = () => showDetail(g);
-                card.innerHTML = `
-                    <h3 class="club-card-title">${g.title}</h3>
-                    <div class="club-card-desc">${g.description || '설명이 없습니다.'}</div>
-                    <div class="club-card-meta">
-                        <span>👤 등록: ${g.creator_name}</span>
-                        <span>👥 참석 예상: ${g.participants_count}명</span>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-        } else {
-            container.innerHTML = '<p style="color:var(--sph-muted);">등록된 소모임이 없습니다.</p>';
+        if (!data.data || data.data.length === 0) {
+            container.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--sph-muted);">등록된 소모임이 없습니다.</div>';
+            return;
         }
+
+        data.data.forEach(g => {
+            const card = document.createElement('div');
+            card.className = 'club-card';
+            card.style.position = 'relative'; // For absolute positioning of delete btn
+            card.onclick = (e) => {
+                // Don't trigger if clicking delete button
+                if(e.target.closest('.delete-group-btn')) return;
+                openGroupDetail(g.id, g.title);
+            };
+            
+            let adminHtml = '';
+            if(adminToken) {
+                adminHtml = `<button class="delete-group-btn" onclick="deleteGroup('${g.id}', '${g.title}')" style="position:absolute; top:12px; right:12px; background:none; border:none; cursor:pointer; color:#ef4444; padding:4px;"><svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>`;
+            }
+
+            card.innerHTML = `
+                ${adminHtml}
+                <div class="club-title">${g.title}</div>
+                <div class="club-desc">${g.description || '설명이 없습니다.'}</div>
+                <div class="club-meta">
+                    <span>👤 등록: ${g.creator_name}</span>
+                    <span>👥 참석 예상: ${g.participants_count}명</span>
+                </div>
+            `;
+            container.appendChild(card);
+        });
     } catch (err) {
         console.error(err);
     }
@@ -98,27 +113,39 @@ async function loadNotices() {
     if (!currentGroupId) return;
     try {
         const res = await fetch(`${API_URL}/groups/${currentGroupId}/notices`);
-        const json = await res.json();
+        const data = await res.json();
         const container = document.getElementById('notices-container');
         container.innerHTML = '';
         
-        if (json.data && json.data.length > 0) {
-            json.data.forEach(n => {
-                const item = document.createElement('div');
-                item.className = 'notice-item';
-                item.innerHTML = `
-                    <div class="notice-session">${n.session_no}회차 공지</div>
-                    <div class="notice-meta">
-                        <span>🗓 ${n.date_info}</span>
-                        <span>📍 ${n.location || '미정'}</span>
-                    </div>
-                    <div style="font-size:0.95rem; color:var(--sph-ink);">${n.content || ''}</div>
-                `;
-                container.appendChild(item);
-            });
-        } else {
-            container.innerHTML = '<p style="color:var(--sph-muted); font-size:0.9rem;">아직 등록된 공지가 없습니다.</p>';
+        if (!data.data || data.data.length === 0) {
+            container.innerHTML = '<div style="text-align:center; padding:30px; color:var(--sph-muted); font-size:0.9rem;">등록된 공지가 없습니다.</div>';
+            return;
         }
+
+        data.data.forEach(n => {
+            const item = document.createElement('div');
+            item.className = 'timeline-item';
+            
+            let adminHtml = '';
+            if(adminToken) {
+                adminHtml = `
+                    <div style="margin-top:8px; display:flex; gap:8px;">
+                        <button onclick="editNotice('${n.id}', '${n.session_no}', '${n.date_info}', '${n.location}', '${n.content}')" style="background:none; border:none; cursor:pointer; color:var(--sph-blue); font-size:0.8rem; padding:0;">수정</button>
+                        <button onclick="deleteNotice('${n.id}')" style="background:none; border:none; cursor:pointer; color:#ef4444; font-size:0.8rem; padding:0;">삭제</button>
+                    </div>
+                `;
+            }
+
+            item.innerHTML = `
+                <div class="timeline-dot"></div>
+                <div class="timeline-content">
+                    <div class="timeline-title">${n.session_no}회차 <span style="font-weight:400; font-size:0.85rem; color:var(--sph-slate); margin-left:8px;">${n.date_info} / ${n.location || '미정'}</span></div>
+                    <div class="timeline-body">${n.content || ''}</div>
+                    ${adminHtml}
+                </div>
+            `;
+            container.appendChild(item);
+        });
     } catch (err) {
         console.error(err);
     }
@@ -179,6 +206,10 @@ async function loadPolls() {
                         <button class="btn-primary" style="padding:6px 16px; font-size:0.85rem;" onclick="openVoteModal('${p.id}', '${p.options.join(',')}')">투표하기</button>
                     `;
                 }
+                
+                if (adminToken) {
+                    actionHtml = `<button class="btn-secondary" style="padding:6px 16px; font-size:0.85rem; margin-right:8px; border:color:var(--sph-gray);" onclick="deletePoll('${p.id}')">삭제</button>` + actionHtml;
+                }
 
                 item.innerHTML = `
                     <div class="poll-title">${p.title} <span style="font-size:0.8rem; color:var(--sph-slate); font-weight:400; margin-left:8px;">(총 ${totalVotes}명 참여)</span></div>
@@ -234,6 +265,63 @@ async function closePoll(pollId) {
     }
 }
 
+async function deleteGroup(groupId, title) {
+    if(!confirm(`'${title}' 소모임을 삭제하시겠습니까?\n관련된 모든 공지와 투표가 함께 삭제됩니다.`)) return;
+    try {
+        const res = await fetch(`${API_URL}/groups/${groupId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${adminToken}` }
+        });
+        if(res.ok) loadGroups();
+        else alert("삭제 권한이 없거나 오류가 발생했습니다.");
+    } catch(err) { alert("오류 발생"); }
+}
+
+async function deleteNotice(noticeId) {
+    if(!confirm("이 공지를 삭제하시겠습니까?")) return;
+    try {
+        const res = await fetch(`${API_URL}/notices/${noticeId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${adminToken}` }
+        });
+        if(res.ok) loadNotices();
+        else alert("삭제 오류");
+    } catch(err) { alert("오류 발생"); }
+}
+
+async function deletePoll(pollId) {
+    if(!confirm("이 투표를 삭제하시겠습니까? 투표 결과가 모두 사라집니다.")) return;
+    try {
+        const res = await fetch(`${API_URL}/polls/${pollId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${adminToken}` }
+        });
+        if(res.ok) loadPolls();
+        else alert("삭제 오류");
+    } catch(err) { alert("오류 발생"); }
+}
+
+let editingNoticeId = null;
+function editNotice(id, session, date, loc, content) {
+    editingNoticeId = id;
+    const form = document.querySelector('#createNoticeModal form');
+    form.querySelector('[name="session_no"]').value = session;
+    form.querySelector('[name="date_info"]').value = date;
+    form.querySelector('[name="location"]').value = loc;
+    form.querySelector('[name="content"]').value = content;
+    document.querySelector('#createNoticeModal .modal-title').textContent = "공지 수정";
+    openModal('createNoticeModal');
+}
+
+// Override openModal specifically to reset title for notice
+const originalOpenModal = openModal;
+openModal = function(id) {
+    if(id === 'createNoticeModal' && !editingNoticeId) {
+        document.querySelector('#createNoticeModal .modal-title').textContent = "공지 등록";
+    }
+    originalOpenModal(id);
+}
+
 // Form Submissions
 document.getElementById('createGroupForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -278,22 +366,36 @@ document.getElementById('createNoticeForm').addEventListener('submit', async (e)
     };
     
     try {
-        const res = await fetch(`${API_URL}/groups/${currentGroupId}/notices`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${adminToken}`
-            },
-            body: JSON.stringify(data)
-        });
+        let res;
+        if (editingNoticeId) {
+            res = await fetch(`${API_URL}/notices/${editingNoticeId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${adminToken}`
+                },
+                body: JSON.stringify(data)
+            });
+        } else {
+            res = await fetch(`${API_URL}/groups/${currentGroupId}/notices`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${adminToken}`
+                },
+                body: JSON.stringify(data)
+            });
+        }
+        
         if(!res.ok) {
             alert("권한이 없거나 오류가 발생했습니다.");
             return;
         }
         closeModal('createNoticeModal');
+        editingNoticeId = null;
         loadNotices();
     } catch (err) {
-        alert("등록 실패");
+        alert("저장 중 오류가 발생했습니다.");
     }
 });
 
