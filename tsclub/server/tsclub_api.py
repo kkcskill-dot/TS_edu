@@ -70,6 +70,13 @@ def init_db():
                 created_at TEXT
             )"""
         )
+        
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA table_info(polls)")
+        columns = [col['name'] for col in cursor.fetchall()]
+        if 'is_closed' not in columns:
+            conn.execute("ALTER TABLE polls ADD COLUMN is_closed INTEGER DEFAULT 0")
+            
         conn.commit()
     finally:
         conn.close()
@@ -83,6 +90,8 @@ def mask_name(name):
         return name[0] + "*"
     else:
         return name[0] + "*" * (len(name) - 2) + name[-1]
+
+ADMIN_PASSWORD = "qhdkscjfwj!!"
 
 class TSClubRequestHandler(BaseHTTPRequestHandler):
     def _send_cors_headers(self):
@@ -99,6 +108,13 @@ class TSClubRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def check_auth(self):
+        auth_header = self.headers.get("Authorization", "")
+        if auth_header != f"Bearer {ADMIN_PASSWORD}":
+            self._respond_json(401, {"error": "Unauthorized"})
+            return False
+        return True
+
     def do_OPTIONS(self):
         self.send_response(204)
         self._send_cors_headers()
@@ -111,6 +127,11 @@ class TSClubRequestHandler(BaseHTTPRequestHandler):
 
         if path == "/health":
             return self._respond_json(200, {"ok": True, "service": "tsclub-api"})
+
+        if path == "/auth":
+            if self.check_auth():
+                return self._respond_json(200, {"ok": True})
+            return
 
         if path == "/groups":
             conn = _connect()
@@ -170,6 +191,7 @@ class TSClubRequestHandler(BaseHTTPRequestHandler):
             return self._respond_json(400, {"error": "Invalid JSON"})
 
         if path == "/groups":
+            if not self.check_auth(): return
             title = data.get("title", "").strip()
             desc = data.get("description", "").strip()
             p_count = data.get("participants_count", 0)
@@ -196,6 +218,7 @@ class TSClubRequestHandler(BaseHTTPRequestHandler):
 
         match = re.match(r'^/groups/([^/]+)/notices$', path)
         if match:
+            if not self.check_auth(): return
             group_id = match.group(1)
             session_no = data.get("session_no", 1)
             date_info = data.get("date_info", "").strip()
@@ -219,6 +242,7 @@ class TSClubRequestHandler(BaseHTTPRequestHandler):
 
         match = re.match(r'^/groups/([^/]+)/polls$', path)
         if match:
+            if not self.check_auth(): return
             group_id = match.group(1)
             title = data.get("title", "").strip()
             options = data.get("options", []) # list of strings
@@ -241,6 +265,19 @@ class TSClubRequestHandler(BaseHTTPRequestHandler):
                     conn.close()
             return self._respond_json(201, {"ok": True, "id": new_id})
 
+        match = re.match(r'^/polls/([^/]+)/close$', path)
+        if match:
+            if not self.check_auth(): return
+            poll_id = match.group(1)
+            with _write_lock:
+                conn = _connect()
+                try:
+                    conn.execute("UPDATE polls SET is_closed=1 WHERE id=?", (poll_id,))
+                    conn.commit()
+                finally:
+                    conn.close()
+            return self._respond_json(200, {"ok": True})
+
         match = re.match(r'^/polls/([^/]+)/vote$', path)
         if match:
             poll_id = match.group(1)
@@ -257,6 +294,11 @@ class TSClubRequestHandler(BaseHTTPRequestHandler):
             with _write_lock:
                 conn = _connect()
                 try:
+                    cur = conn.execute("SELECT is_closed FROM polls WHERE id=?", (poll_id,))
+                    poll_row = cur.fetchone()
+                    if not poll_row or poll_row["is_closed"] == 1:
+                        return self._respond_json(400, {"error": "종료된 투표입니다."})
+                        
                     cur = conn.execute("SELECT id FROM votes WHERE poll_id=? AND voter_name=?", (poll_id, masked_voter))
                     if cur.fetchone():
                         return self._respond_json(400, {"error": "이미 투표에 참여하셨습니다."})

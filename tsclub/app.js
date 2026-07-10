@@ -4,6 +4,33 @@ const API_URL = window.location.hostname === '127.0.0.1' || window.location.host
 
 let currentGroupId = null;
 let currentPollId = null;
+let adminToken = localStorage.getItem('tsclub_admin_token') || '';
+
+function updateAdminUI() {
+    if (adminToken) {
+        document.getElementById('admin-login-btn').style.display = 'none';
+        document.getElementById('admin-logout-btn').style.display = 'inline-flex';
+        document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'inline-flex');
+    } else {
+        document.getElementById('admin-login-btn').style.display = 'inline-flex';
+        document.getElementById('admin-logout-btn').style.display = 'none';
+        document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
+    }
+}
+
+function logoutAdmin() {
+    adminToken = '';
+    localStorage.removeItem('tsclub_admin_token');
+    updateAdminUI();
+    loadPolls(); // Re-render to hide close buttons
+}
+
+async function verifyAuth(token) {
+    const res = await fetch(`${API_URL}/auth`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    return res.ok;
+}
 
 // Modal Logic
 function openModal(id) {
@@ -143,13 +170,23 @@ async function loadPolls() {
                     `;
                 });
                 
+                let actionHtml = '';
+                if (p.is_closed) {
+                    actionHtml = `<span style="display:inline-block; padding:6px 12px; background:var(--sph-gray); color:var(--sph-muted); font-size:0.85rem; border-radius:4px; font-weight:600;">종료된 투표입니다</span>`;
+                } else {
+                    actionHtml = `
+                        ${adminToken ? `<button class="btn-secondary" style="padding:6px 16px; font-size:0.85rem; margin-right:8px; border-color:#e11d48; color:#e11d48;" onclick="closePoll('${p.id}')">투표 종료</button>` : ''}
+                        <button class="btn-primary" style="padding:6px 16px; font-size:0.85rem;" onclick="openVoteModal('${p.id}', '${p.options.join(',')}')">투표하기</button>
+                    `;
+                }
+
                 item.innerHTML = `
                     <div class="poll-title">${p.title} <span style="font-size:0.8rem; color:var(--sph-slate); font-weight:400; margin-left:8px;">(총 ${totalVotes}명 참여)</span></div>
                     <div class="poll-options">
                         ${optionsHtml}
                     </div>
                     <div style="margin-top:16px; text-align:right;">
-                        <button class="btn-primary" style="padding:6px 16px; font-size:0.85rem;" onclick="openVoteModal('${p.id}', '${p.options.join(',')}')">투표하기</button>
+                        ${actionHtml}
                     </div>
                 `;
                 container.appendChild(item);
@@ -178,6 +215,25 @@ function openVoteModal(pollId, optionsStr) {
     openModal('voteModal');
 }
 
+async function closePoll(pollId) {
+    if(!confirm("이 투표를 종료하시겠습니까? 더 이상 투표를 받을 수 없습니다.")) return;
+    try {
+        const res = await fetch(`${API_URL}/polls/${pollId}/close`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${adminToken}`
+            }
+        });
+        if(res.ok) {
+            loadPolls();
+        } else {
+            alert("투표 종료 실패 (권한 확인 필요)");
+        }
+    } catch(err) {
+        alert("오류 발생");
+    }
+}
+
 // Form Submissions
 document.getElementById('createGroupForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -190,11 +246,18 @@ document.getElementById('createGroupForm').addEventListener('submit', async (e) 
     };
     
     try {
-        await fetch(`${API_URL}/groups`, {
+        const res = await fetch(`${API_URL}/groups`, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${adminToken}`
+            },
             body: JSON.stringify(data)
         });
+        if(!res.ok) {
+            alert("권한이 없거나 오류가 발생했습니다.");
+            return;
+        }
         closeModal('createGroupModal');
         loadGroups();
     } catch (err) {
@@ -215,11 +278,18 @@ document.getElementById('createNoticeForm').addEventListener('submit', async (e)
     };
     
     try {
-        await fetch(`${API_URL}/groups/${currentGroupId}/notices`, {
+        const res = await fetch(`${API_URL}/groups/${currentGroupId}/notices`, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${adminToken}`
+            },
             body: JSON.stringify(data)
         });
+        if(!res.ok) {
+            alert("권한이 없거나 오류가 발생했습니다.");
+            return;
+        }
         closeModal('createNoticeModal');
         loadNotices();
     } catch (err) {
@@ -239,11 +309,18 @@ document.getElementById('createPollForm').addEventListener('submit', async (e) =
     };
     
     try {
-        await fetch(`${API_URL}/groups/${currentGroupId}/polls`, {
+        const res = await fetch(`${API_URL}/groups/${currentGroupId}/polls`, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${adminToken}`
+            },
             body: JSON.stringify(data)
         });
+        if(!res.ok) {
+            alert("권한이 없거나 오류가 발생했습니다.");
+            return;
+        }
         closeModal('createPollModal');
         loadPolls();
     } catch (err) {
@@ -285,7 +362,33 @@ document.getElementById('voteForm').addEventListener('submit', async (e) => {
     }
 });
 
+document.getElementById('adminAuthForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const pwd = fd.get('password');
+    try {
+        const ok = await verifyAuth(pwd);
+        if(ok) {
+            adminToken = pwd;
+            localStorage.setItem('tsclub_admin_token', adminToken);
+            updateAdminUI();
+            closeModal('adminAuthModal');
+            loadPolls(); // Refresh UI in case we need to show close buttons
+        } else {
+            alert("비밀번호가 일치하지 않습니다.");
+        }
+    } catch(err) {
+        alert("인증 오류");
+    }
+});
+
 // Init
 window.addEventListener('DOMContentLoaded', () => {
+    updateAdminUI();
     loadGroups();
+    if(adminToken) {
+        verifyAuth(adminToken).then(ok => {
+            if(!ok) logoutAdmin();
+        }).catch(err => logoutAdmin());
+    }
 });
