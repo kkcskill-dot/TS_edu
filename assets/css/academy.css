@@ -272,6 +272,7 @@
 .app-container[data-course="sql-tuning-basics"] .course-menu[data-course="sql-tuning-basics"],
 .app-container[data-course="sqld-club"] .course-menu[data-course="sqld-club"],
 .app-container[data-course="cloud-db"] .course-menu[data-course="cloud-db"],
+.app-container[data-course="visit-service"] .course-menu[data-course="visit-service"],
 .app-container[data-course="data-modeling"] .course-menu[data-course="data-modeling"] { display: block; }
 .app-container[data-course="cbt"] .course-menu[data-course="cbt"] {
   display: flex !important;

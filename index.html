@@ -856,6 +856,62 @@
 
 
         </div><!-- /course: data-modeling -->
+
+        <!-- 과정: 찾아가는 기술서비스 -->
+        <div class="course-menu" data-course="visit-service">
+          <div class="menu-group-title">기술서비스</div>
+          <button id="nav-btn-visit-service" class="menu-item" data-target="panel-visit-service">
+            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="menu-icon"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            찾아가는 기술서비스
+          </button>
+
+          <div class="menu-group-title">인터랙티브 실습</div>
+          <button id="nav-btn-visit-architecture-lab" class="menu-item" data-target="panel-visit-architecture-lab">
+            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="menu-icon">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+              <polyline points="22,6 12,13 2,6"></polyline>
+            </svg>
+            오라클 아키텍처 시뮬레이터
+          </button>
+          <button id="nav-btn-visit-partitioning-lab" class="menu-item" data-target="panel-visit-partitioning-lab">
+            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="menu-icon">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="3" y1="9" x2="21" y2="9"></line>
+              <line x1="3" y1="15" x2="21" y2="15"></line>
+            </svg>
+            파티셔닝 시뮬레이터
+          </button>
+          
+          <button id="nav-btn-visit-explain" class="menu-item" data-target="panel-explain">
+            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="menu-icon">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+              <polyline points="2 17 12 22 22 17"></polyline>
+              <polyline points="2 12 12 17 22 12"></polyline>
+            </svg>
+            실행 계획 시각화
+          </button>
+          <button id="nav-btn-visit-plan-diag" class="menu-item" data-target="panel-plan-diag">
+            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="menu-icon">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+            </svg>
+            플랜 진단 실습
+          </button>
+          <button id="nav-btn-visit-index" class="menu-item" data-target="panel-index">
+            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="menu-icon">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+              <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
+            인덱스 탐색 원리
+          </button>
+          <button id="nav-btn-visit-join-lab" class="menu-item" data-target="panel-join-lab">
+            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="menu-icon">
+              <circle cx="8" cy="12" r="5"></circle>
+              <circle cx="16" cy="12" r="5"></circle>
+            </svg>
+            조인 비교 실험실
+          </button>
+        </div><!-- /course: visit-service -->
       </nav>
 
       <div class="sidebar-footer">
@@ -1120,6 +1176,28 @@
           <div id="dm-quiz-root"></div>
         </section>
 
+        <!-- ===== 과정: 찾아가는 기술서비스 ===== -->
+        <section id="panel-visit-service" class="content-panel">
+          <div class="panel-intro">
+            <p>개발자를 위한 핵심 SQL 튜닝 및 성능 진단 가이드입니다.</p>
+          </div>
+          <div class="bg-glass" style="border:1px solid var(--border-light);border-radius:8px;overflow:hidden;">
+            <div id="visit-tb-tabs" style="display:flex;flex-wrap:wrap;border-bottom:1px solid var(--border-light);background:var(--bg-card);overflow-x:auto;"></div>
+            <div id="visit-md-viewer" style="padding:24px 28px;min-height:300px;">
+              <p style="color: var(--color-text-muted); text-align: center; margin-top: 50px;">로딩 중입니다...</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="panel-visit-architecture-lab" class="content-panel" style="padding: 0; height: calc(100vh - 64px);">
+          <iframe src="oracle_19c_architecture.html" style="width: 100%; height: 100%; border: none;"></iframe>
+        </section>
+
+        <section id="panel-visit-partitioning-lab" class="content-panel" style="padding: 0; height: calc(100vh - 64px);">
+          <iframe src="oracle_19c_partitioning.html" style="width: 100%; height: 100%; border: none;"></iframe>
+        </section>
+
+
         <!-- 소모임(성능진단) 패널 → partials/perf-club.html (app.js injectPartial 로 주입) -->
 
       </div>
@@ -1162,6 +1240,7 @@
   <script src="assets/js/courses/sql-foundation-labs.js?v=7.8"></script>
   <script src="assets/js/courses/sql-tuning-basics.js?v=7.8"></script>
   <script src="assets/js/courses/data-modeling.js?v=7.8"></script>
+  <script src="assets/js/courses/visit-service.js?v=1.0"></script>
   <script src="assets/js/slides.js?v=8.4"></script>
 
   <!-- External Parsers -->

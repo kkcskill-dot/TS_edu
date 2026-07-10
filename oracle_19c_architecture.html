@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oracle Database Architecture Interactive Deep Dive</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            spharos: {
+              navy: '#002A5B',
+              ink: '#121D2A',
+              yellow: '#F9BB00',
+              bg: '#FFFFFF',
+              gray: '#EFEFEF',
+              card: '#F7F8FA',
+              'tint-blue': '#E6EDF7',
+              'border-blue': '#BBD0F2',
+              line: '#CBD5E1',
+              body: '#424A57',
+              slate: '#64748B',
+              muted: '#8A93A3',
+            }
+          },
+          fontFamily: {
+            sans: ['Pretendard', 'Noto Sans KR', 'sans-serif'],
+            mono: ['Consolas', 'Fira Code', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+        
+        body {
+            font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
+            background-color: #FFFFFF;
+        }
+        
+        .code-font {
+            font-family: 'Fira Code', monospace;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #F7F8FA;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #CBD5E1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #8A93A3;
+        }
+
+        /* Pulsing & Flowing animations for database packets */
+        @keyframes pulse-glow {
+            0%, 100% { transform: scale(1); opacity: 0.8; filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.6)); }
+            50% { transform: scale(1.15); opacity: 1; filter: drop-shadow(0 0 12px rgba(56, 189, 248, 1)); }
+        }
+        .animate-pulse-glow {
+            animation: pulse-glow 2s infinite ease-in-out;
+        }
+
+        @keyframes data-flow-x {
+            0% { left: 0%; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { left: 100%; opacity: 0; }
+        }
+        .flow-line-active::after {
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background-color: #38bdf8;
+            border-radius: 50%;
+            top: -3px;
+            animation: data-flow-x 3s infinite linear;
+        }
+
+        /* Component active highlighting */
+        .component-active {
+            border-color: #38bdf8 !important;
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+            transform: scale(1.02);
+            transition: all 0.3s ease;
+        }
+    </style>
+</head>
+<body class="text-spharos-ink min-h-screen flex flex-col overflow-x-hidden">
+
+
+    <!-- Main Workspace -->
+    <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 overflow-hidden">
+        
+        <!-- Left Section: Interactive Diagram (7 Columns) -->
+        <section class="lg:col-span-7 flex flex-col gap-4">
+            
+            <!-- Controls & Legend -->
+            <div class="bg-white border border-spharos-line p-4 rounded-md flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center gap-2">
+                    <button id="btn-auto-play" class="bg-spharos-navy text-white hover:bg-[#063a73] text-white text-white font-medium text-sm px-4 py-2 rounded-md transition-all flex items-center gap-2 shadow-sm shadow-sm">
+                        <i class="fa-solid fa-play"></i> SQL 트랜잭션 시뮬레이션 실행
+                    </button>
+                    <button id="btn-next-step" class="hidden bg-[#F9BB00] text-[#121D2A] hover:bg-amber-500 font-extrabold text-sm px-4 py-2 rounded-md transition-all flex items-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-forward-step"></i> 다음 단계 (Next)
+                    </button>
+                    <button id="btn-reset" class="bg-spharos-gray hover:bg-spharos-line text-spharos-body font-medium text-sm px-3 py-2 rounded-md transition-all flex items-center gap-1.5 border border-spharos-line">
+                        <i class="fa-solid fa-rotate-left"></i> 초기화
+                    </button>
+                    <button id="btn-startup-flow" class="bg-spharos-navy text-white hover:bg-spharos-navy text-white font-medium text-sm px-3 py-2 rounded-md transition-all flex items-center gap-1.5 shadow-sm shadow-sm">
+                        <i class="fa-solid fa-power-off"></i> STARTUP 흐름 보기
+                    </button>
+                    <button id="btn-arch-flow" class="bg-spharos-navy text-white hover:bg-spharos-navy text-white font-medium text-sm px-3 py-2 rounded-md transition-all flex items-center gap-1.5 shadow-sm shadow-sm">
+                        <i class="fa-solid fa-box-archive"></i> ARCH 흐름 보기
+                    </button>
+                </div>
+                <div class="flex items-center gap-4 text-xs text-spharos-slate">
+                    <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-cyan-500 rounded-sm"></span> SGA (공유)</span>
+                    <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-spharos-navy text-white rounded-sm"></span> PGA (개별)</span>
+                    <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-amber-500 rounded-sm"></span> 백그라운드 프로세스</span>
+                </div>
+            </div>
+
+            <!-- Visual Simulator Canvas Area -->
+            <div class="bg-spharos-card border border-spharos-line rounded-md p-6 relative overflow-y-auto flex-1 flex flex-col justify-between gap-6" style="min-height: 580px;">
+                
+                <!-- 1. Client & Listener Layer (Top Row) -->
+                <div class="grid grid-cols-12 gap-4 items-center">
+                    <div id="comp-user-process" onclick="inspect('user-process')" class="col-span-3 bg-white/80 border border-spharos-line hover:border-spharos-navy rounded-md p-3 cursor-pointer transition-all flex flex-col items-center justify-center text-center group">
+                        <div class="w-10 h-10 rounded-full bg-spharos-tint-blue text-spharos-navy flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-laptop-code text-lg"></i>
+                        </div>
+                        <span class="text-xs font-bold block text-spharos-ink">User Process</span>
+                        <span class="text-xs text-spharos-slate">SQL 요청 주체</span>
+                    </div>
+
+                    <div class="col-span-1 flex justify-center relative h-6">
+                        <div class="w-full border-t-2 border-dashed border-spharos-line self-center"></div>
+                        <i class="fa-solid fa-arrow-right text-slate-600 absolute top-1/2 -translate-y-1/2"></i>
+                    </div>
+
+                    <div id="comp-listener" onclick="inspect('listener')" class="col-span-4 bg-white/80 border border-spharos-line hover:border-spharos-navy rounded-md p-3 cursor-pointer transition-all flex items-center gap-3 group">
+                        <div class="w-10 h-10 rounded-md bg-[#063a73] text-white/10 text-spharos-navy flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-headset text-lg"></i>
+                        </div>
+                        <div class="text-left">
+                            <span class="text-xs font-bold block text-spharos-ink">TNS Listener</span>
+                            <span class="text-xs text-spharos-slate">포트 1521 대기/매칭</span>
+                        </div>
+                    </div>
+
+                    <div class="col-span-1 flex justify-center relative h-6">
+                        <div class="w-full border-t-2 border-dashed border-spharos-line self-center"></div>
+                        <i class="fa-solid fa-arrow-right text-slate-600 absolute top-1/2 -translate-y-1/2"></i>
+                    </div>
+
+                    <div id="comp-server-process" onclick="inspect('server-process')" class="col-span-3 bg-white/80 border border-spharos-line hover:border-spharos-navy rounded-md p-3 cursor-pointer transition-all flex flex-col items-center justify-center text-center group">
+                        <div class="w-10 h-10 rounded-full bg-spharos-tint-blue text-spharos-navy flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-user-tie text-lg"></i>
+                        </div>
+                        <span class="text-xs font-bold block text-spharos-ink">Server Process</span>
+                        <span class="text-xs text-spharos-navy/80 font-semibold">PGA 영역 소유</span>
+                    </div>
+                </div>
+
+                <!-- 2. Instance Area (SGA & PGA Container) -->
+                <div class="border border-spharos-line rounded-md p-4 bg-white/30 flex flex-col gap-4 relative">
+                    <div class="absolute -top-3 left-4 bg-white border border-spharos-line text-spharos-body text-xs font-bold px-2 py-0.5 rounded-md">
+                        ORACLE INSTANCE (SGA + Background Processes)
+                    </div>
+
+                    <!-- SGA Layer (Huge Shared Memory) -->
+                    <div id="comp-sga" class="border border-spharos-border-blue rounded-md p-4 bg-spharos-tint-blue flex flex-col gap-3">
+                        <div class="flex justify-between items-center border-b border-spharos-border-blue pb-2">
+                            <span class="text-xs font-bold text-spharos-navy flex items-center gap-1.5">
+                                <i class="fa-solid fa-memory"></i> SGA (System Global Area)
+                            </span>
+                            <span class="text-xs text-spharos-navy/80 font-mono">Shared Across All Sessions</span>
+                        </div>
+
+                        <div class="grid grid-cols-12 gap-3">
+                            <!-- Shared Pool Deep Dive Box -->
+                            <div id="comp-shared-pool" onclick="inspect('shared-pool')" class="col-span-5 bg-white/90 border border-spharos-line hover:border-cyan-400 rounded-md p-3 cursor-pointer transition-all flex flex-col justify-between min-h-[110px] group">
+                                <div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-sm font-extrabold text-spharos-navy">Shared Pool</span>
+                                        <i class="fa-solid fa-book-bookmark text-spharos-muted text-xs"></i>
+                                    </div>
+                                    <p class="text-[11px] text-spharos-slate mt-1">SQL/PLSQL, 실행 정보, 사전 정보 캐싱</p>
+                                </div>
+                                <div class="grid grid-cols-2 gap-1 mt-2">
+                                    <div class="bg-spharos-card border border-spharos-line p-1 rounded text-[11px] text-spharos-body text-center font-mono">
+                                        Library Cache
+                                    </div>
+                                    <div class="bg-spharos-card border border-spharos-line p-1 rounded text-[11px] text-spharos-body text-center font-mono">
+                                        Row Cache
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Database Buffer Cache Box -->
+                            <div id="comp-buffer-cache" onclick="inspect('buffer-cache')" class="col-span-4 bg-white/90 border border-spharos-line hover:border-cyan-400 rounded-md p-3 cursor-pointer transition-all flex flex-col justify-between min-h-[110px] group">
+                                <div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-sm font-extrabold text-spharos-navy">Database Buffer Cache</span>
+                                        <i class="fa-solid fa-border-all text-spharos-muted text-xs"></i>
+                                    </div>
+                                    <p class="text-[11px] text-spharos-slate mt-1">디스크 데이터 블록의 메모리 복사본 적재소</p>
+                                </div>
+                                <div class="grid grid-cols-3 gap-0.5 mt-2">
+                                    <div class="bg-spharos-tint-blue text-spharos-navy border border-spharos-border-blue p-0.5 rounded text-[7px] text-center font-mono font-bold">
+                                        Keep
+                                    </div>
+                                    <div class="bg-spharos-tint-blue text-spharos-navy border border-spharos-border-blue p-0.5 rounded text-[7px] text-center font-mono font-bold">
+                                        Recycle
+                                    </div>
+                                    <div class="bg-purple-950/80 text-purple-400 border border-purple-900/50 p-0.5 rounded text-[7px] text-center font-mono font-bold">
+                                        Default
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Redo Log Buffer Box -->
+                            <div id="comp-redo-buffer" onclick="inspect('redo-buffer')" class="col-span-3 bg-white/90 border border-spharos-line hover:border-cyan-400 rounded-md p-3 cursor-pointer transition-all flex flex-col justify-between min-h-[110px] group">
+                                <div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-sm font-extrabold text-spharos-navy">Redo Log Buffer</span>
+                                        <i class="fa-solid fa-list-check text-spharos-muted text-xs"></i>
+                                    </div>
+                                    <p class="text-[11px] text-spharos-slate mt-1">변경 정보 Redo Entry 저장</p>
+                                </div>
+                                <div class="bg-spharos-card border border-spharos-line p-1.5 rounded text-[11px] text-spharos-body text-center font-mono mt-2 flex items-center justify-center gap-1">
+                                    <span class="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping"></span> Circular Buffer
+                                </div>
+                            </div>
+
+                            <!-- Large Pool Box -->
+                            <div id="comp-large-pool" onclick="inspect('large-pool')" class="col-span-6 bg-white/90 border border-spharos-line hover:border-cyan-400 rounded-md p-3 cursor-pointer transition-all flex flex-col justify-between min-h-[92px] group">
+                                <div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-sm font-extrabold text-spharos-navy">Large Pool</span>
+                                        <i class="fa-solid fa-water text-spharos-muted text-xs"></i>
+                                    </div>
+                                    <p class="text-[11px] text-spharos-slate mt-1">Shared Server UGA, 병렬 실행 메시지 버퍼, RMAN I/O 버퍼 등 대용량 메모리 할당</p>
+                                </div>
+                                <div class="grid grid-cols-3 gap-1 mt-2">
+                                    <div class="bg-spharos-card border border-spharos-line p-1 rounded text-[11px] text-spharos-body text-center font-mono">Shared Server</div>
+                                    <div class="bg-spharos-card border border-spharos-line p-1 rounded text-[11px] text-spharos-body text-center font-mono">Parallel Exec</div>
+                                    <div class="bg-spharos-card border border-spharos-line p-1 rounded text-[11px] text-spharos-body text-center font-mono">RMAN</div>
+                                </div>
+                            </div>
+
+                            <!-- Streams Pool Box -->
+                            <div id="comp-streams-pool" onclick="inspect('streams-pool')" class="col-span-6 bg-white/90 border border-spharos-line hover:border-cyan-400 rounded-md p-3 cursor-pointer transition-all flex flex-col justify-between min-h-[92px] group">
+                                <div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-sm font-extrabold text-spharos-navy">Streams Pool</span>
+                                        <i class="fa-solid fa-right-left text-spharos-muted text-xs"></i>
+                                    </div>
+                                    <p class="text-[11px] text-spharos-slate mt-1">GoldenGate, XStream, Advanced Queuing, Data Pump 관련 메모리</p>
+                                </div>
+                                <div class="grid grid-cols-4 gap-1 mt-2">
+                                    <div class="bg-spharos-card border border-spharos-line p-1 rounded text-[11px] text-spharos-body text-center font-mono">OGG</div>
+                                    <div class="bg-spharos-card border border-spharos-line p-1 rounded text-[11px] text-spharos-body text-center font-mono">XStream</div>
+                                    <div class="bg-spharos-card border border-spharos-line p-1 rounded text-[11px] text-spharos-body text-center font-mono">AQ</div>
+                                    <div class="bg-spharos-card border border-spharos-line p-1 rounded text-[11px] text-spharos-body text-center font-mono">Data Pump</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Background Processes Layer -->
+                    <div class="flex items-center justify-between gap-2 px-2">
+                        <div class="text-xs font-bold text-spharos-slate uppercase tracking-wider">Background Processes (주요 프로세스)</div>
+                        <div class="flex-1 border-t border-dashed border-spharos-line mx-2"></div>
+                    </div>
+                    
+                    <div class="grid grid-cols-6 gap-2">
+                        <div id="proc-dbw" onclick="inspect('proc-dbw')" class="bg-white hover:bg-spharos-gray border border-spharos-line hover:border-amber-500 p-2 rounded-md cursor-pointer transition-all text-center group">
+                            <span class="text-[11px] font-bold block text-spharos-ink group-hover:text-spharos-navy">DBWn</span>
+                            <span class="text-[11px] text-spharos-slate">Database Writer</span>
+                        </div>
+                        <div id="proc-lgwr" onclick="inspect('proc-lgwr')" class="bg-white hover:bg-spharos-gray border border-spharos-line hover:border-amber-500 p-2 rounded-md cursor-pointer transition-all text-center group">
+                            <span class="text-[11px] font-bold block text-spharos-ink group-hover:text-spharos-navy">LGWR</span>
+                            <span class="text-[11px] text-spharos-slate">Log Writer</span>
+                        </div>
+                        <div id="proc-ckpt" onclick="inspect('proc-ckpt')" class="bg-white hover:bg-spharos-gray border border-spharos-line hover:border-amber-500 p-2 rounded-md cursor-pointer transition-all text-center group">
+                            <span class="text-[11px] font-bold block text-spharos-ink group-hover:text-spharos-navy">CKPT</span>
+                            <span class="text-[11px] text-spharos-slate">Checkpoint</span>
+                        </div>
+                        <div id="proc-pmon" onclick="inspect('proc-pmon')" class="bg-white hover:bg-spharos-gray border border-spharos-line hover:border-amber-500 p-2 rounded-md cursor-pointer transition-all text-center group">
+                            <span class="text-[11px] font-bold block text-spharos-ink group-hover:text-spharos-navy">PMON</span>
+                            <span class="text-[11px] text-spharos-slate">Process Mon</span>
+                        </div>
+                        <div id="proc-smon" onclick="inspect('proc-smon')" class="bg-white hover:bg-spharos-gray border border-spharos-line hover:border-amber-500 p-2 rounded-md cursor-pointer transition-all text-center group">
+                            <span class="text-[11px] font-bold block text-spharos-ink group-hover:text-spharos-navy">SMON</span>
+                            <span class="text-[11px] text-spharos-slate">System Mon</span>
+                        </div>
+                        <div id="proc-arch" onclick="inspect('proc-arch')" class="bg-white hover:bg-spharos-gray border border-spharos-line hover:border-amber-500 p-2 rounded-md cursor-pointer transition-all text-center group">
+                            <span class="text-[11px] font-bold block text-spharos-ink group-hover:text-spharos-navy">ARCn</span>
+                            <span class="text-[11px] text-spharos-slate">Archiver</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Startup Configuration Layer -->
+                <div class="border border-spharos-line rounded-md p-4 bg-white/30 flex flex-col gap-3 relative">
+                    <div class="absolute -top-3 left-4 bg-white border border-spharos-line text-spharos-body text-xs font-bold px-2 py-0.5 rounded-md">
+                        INSTANCE STARTUP CONFIGURATION
+                    </div>
+
+                    <div class="grid grid-cols-12 gap-3 items-stretch">
+                        <div id="file-init-param" onclick="inspect('file-init-param')" class="col-span-12 bg-white/80 border border-spharos-line hover:border-violet-500 rounded-md p-3 cursor-pointer transition-all group">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-md bg-spharos-tint-blue text-spharos-navy flex items-center justify-center group-hover:scale-110 transition-transform">
+                                    <i class="fa-solid fa-sliders text-lg"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <span class="text-sm font-extrabold text-spharos-ink">Initialization Parameter File</span>
+                                        <span class="text-[11px] text-spharos-navy bg-spharos-tint-blue border border-spharos-border-blue rounded-full px-2 py-0.5 font-mono">SPFILE / PFILE / init.ora</span>
+                                    </div>
+                                    <p class="text-xs text-spharos-slate mt-1">
+                                        STARTUP 시 인스턴스가 읽는 설정 정보입니다. SGA/PGA 메모리, 백그라운드 프로세스, control file 위치, undo 설정 등 인스턴스 동작의 기준값을 제공합니다.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Physical Storage & Files Layer (Bottom Row) -->
+                <div class="border border-spharos-line rounded-md p-4 bg-white/30 flex flex-col gap-3 relative">
+                    <div class="absolute -top-3 left-4 bg-white border border-spharos-line text-spharos-body text-xs font-bold px-2 py-0.5 rounded-md">
+                        DATABASE STORAGE (Physical/Logical Files)
+                    </div>
+
+                    <div class="grid grid-cols-12 gap-3 items-stretch">
+                        <!-- Control Files -->
+                        <div id="file-control" onclick="inspect('file-control')" class="col-span-3 bg-white/80 border border-spharos-line hover:border-rose-500 rounded-md p-2.5 cursor-pointer transition-all text-center group">
+                            <i class="fa-solid fa-compass text-spharos-muted group-hover:text-spharos-navy mb-1 block text-sm"></i>
+                            <span class="text-[11px] font-bold block text-spharos-ink">Control Files</span>
+                            <span class="text-[11px] text-spharos-slate">파일 위치, 체크포인트 정보</span>
+                        </div>
+
+                        <!-- Data Files / Tablespaces -->
+                        <div id="file-data" onclick="inspect('file-data')" class="col-span-3 bg-white/80 border border-spharos-line hover:border-rose-500 rounded-md p-2.5 cursor-pointer transition-all group">
+                            <div class="flex items-center gap-1.5 mb-1 justify-center">
+                                <i class="fa-solid fa-folder-open text-spharos-muted group-hover:text-spharos-navy text-xs"></i>
+                                <span class="text-[11px] font-bold text-spharos-ink">Data Files / Tablespaces</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-1 text-[11px] font-mono text-center">
+                                <div class="bg-spharos-card p-1 rounded text-spharos-navy border border-spharos-line font-bold">SYSTEM</div>
+                                <div class="bg-spharos-card p-1 rounded text-orange-400 border border-spharos-line font-bold">SYSAUX</div>
+                                <div class="bg-spharos-card p-1 rounded text-spharos-navy border border-spharos-line font-bold">UNDO</div>
+                                <div class="bg-spharos-card p-1 rounded text-spharos-navy border border-spharos-line font-bold">USERS</div>
+                            </div>
+                        </div>
+
+                        <!-- Temp Files / Temporary Tablespace -->
+                        <div id="file-temp" onclick="inspect('file-temp')" class="col-span-3 bg-white/80 border border-spharos-line hover:border-rose-500 rounded-md p-2.5 cursor-pointer transition-all text-center group">
+                            <i class="fa-solid fa-temperature-half text-spharos-muted group-hover:text-spharos-navy mb-1 block text-sm"></i>
+                            <span class="text-[11px] font-bold block text-spharos-ink">Temp Files</span>
+                            <span class="text-[11px] text-spharos-slate">Sort/Hash 임시 작업 공간</span>
+                        </div>
+
+                        <!-- Redo Log Files -->
+                        <div id="file-redo" onclick="inspect('file-redo')" class="col-span-3 bg-white/80 border border-spharos-line hover:border-rose-500 rounded-md p-2.5 cursor-pointer transition-all text-center group">
+                            <i class="fa-solid fa-clock-rotate-left text-spharos-muted group-hover:text-spharos-navy mb-1 block text-sm"></i>
+                            <span class="text-[11px] font-bold block text-spharos-ink">Redo Log Files</span>
+                            <span class="text-[11px] text-spharos-slate">Instance Recovery용 변경 로그</span>
+                        </div>
+
+                        <!-- Archived Redo Logs -->
+                        <div id="file-archived-redo" onclick="inspect('file-archived-redo')" class="col-span-12 bg-white/80 border border-spharos-line hover:border-rose-500 rounded-md p-3 cursor-pointer transition-all group">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-md bg-spharos-tint-blue text-spharos-navy flex items-center justify-center group-hover:scale-110 transition-transform">
+                                    <i class="fa-solid fa-box-archive text-lg"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <span class="text-sm font-extrabold text-spharos-ink">Archived Redo Logs</span>
+                                        <span class="text-[11px] text-spharos-navy bg-spharos-tint-blue border border-spharos-border-blue rounded-full px-2 py-0.5 font-mono">ARCHIVELOG / PITR</span>
+                                    </div>
+                                    <p class="text-xs text-spharos-slate mt-1">
+                                        Log Switch 이후 재사용되기 전 online redo log를 보관한 파일입니다. 백업/복구, 장애 복구, 시점 복구의 핵심 자료입니다.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Simulation Stepper Info Box (Inside Canvas) -->
+                <div id="sim-info-box" class="hidden bg-white/95 border-2 border-spharos-navy rounded-md p-4 transition-all shadow-sm shadow-cyan-950/20">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span id="sim-step-badge" class="bg-spharos-navy text-white font-bold text-xs px-2 py-0.5 rounded-full uppercase">Step 1</span>
+                        <span id="sim-step-title" class="text-xs font-bold text-spharos-navy">유저 프로세스 SQL 요청</span>
+                    </div>
+                    <p id="sim-step-desc" class="text-xs text-spharos-body leading-relaxed">로딩 중...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Section: Details & Document Deep-Dive (5 Columns) -->
+        <section class="lg:col-span-5 flex flex-col gap-4">
+            
+            <!-- Contextual Inspector (Tabs) -->
+            <div class="bg-white border border-spharos-line rounded-md flex-1 flex flex-col overflow-hidden">
+                <div class="flex border-b border-spharos-line bg-spharos-card/50">
+                    <button onclick="switchTab('tab-inspector')" id="btn-tab-inspector" class="flex-1 py-3 px-4 text-xs font-bold border-b-2 border-spharos-navy text-spharos-navy focus:outline-none transition-all flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-search"></i> 실시간 아키텍처 분석기
+                    </button>
+                    <button onclick="switchTab('tab-storage')" id="btn-tab-storage" class="flex-1 py-3 px-4 text-xs font-bold border-b-2 border-transparent text-spharos-slate hover:text-spharos-ink focus:outline-none transition-all flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-sitemap"></i> 세그먼트 & 블록 구조
+                    </button>
+                </div>
+
+                <!-- Tab 1: Realtime Inspector Content -->
+                <div id="tab-inspector" class="flex-1 p-6 overflow-y-auto flex flex-col gap-6">
+                    <!-- Component Highlight Info -->
+                    <div id="inspector-placeholder" class="text-center py-16 text-spharos-muted">
+                        <i class="fa-solid fa-cubes text-5xl mb-4 text-slate-700 animate-pulse-glow"></i>
+                        <p class="text-sm">화면의 인스턴스, 프로세스, 메모리 영역, 시작 설정 및 디스크 파일을 마우스로 클릭하면 공식 문서 기반의 기술 설명이 이곳에 렌더링됩니다.</p>
+                        <p class="text-xs mt-2 text-slate-600">PGA 영역, SGA 상세 구조, 백그라운드 프로세스의 물리적 작동 원리를 즉각 분석하세요.</p>
+                    </div>
+
+                    <div id="inspector-content" class="hidden flex flex-col gap-4">
+                        <div class="flex items-start justify-between border-b border-spharos-line pb-3">
+                            <div>
+                                <span id="insp-category" class="text-xs uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-spharos-tint-blue text-spharos-navy border border-spharos-border-blue">SGA Memory Section</span>
+                                <h2 id="insp-title" class="text-xl font-black mt-1 text-spharos-ink">Database Buffer Cache</h2>
+                            </div>
+                            <span id="insp-icon" class="text-2xl text-spharos-navy bg-spharos-tint-blue p-3 rounded-md border border-spharos-navy/10">
+                                <i class="fa-solid fa-memory"></i>
+                            </span>
+                        </div>
+
+                        <!-- Core Functional Definition -->
+                        <div>
+                            <span class="text-xs text-spharos-slate block mb-1 font-semibold uppercase tracking-wider">공식 정의 (Functional Definition)</span>
+                            <p id="insp-definition" class="text-sm text-spharos-body leading-relaxed bg-spharos-tint-blue p-3 rounded-md border border-spharos-border-blue text-spharos-navy font-medium">
+                                -
+                            </p>
+                        </div>
+
+                        <!-- Inner Components / Data Structures -->
+                        <div id="insp-structures-box" class="hidden">
+                            <span class="text-xs text-spharos-slate block mb-2 font-semibold uppercase tracking-wider">세부 아키텍처 및 핵심 구조</span>
+                            <div id="insp-structures-container" class="grid grid-cols-1 gap-2">
+                                <!-- Dynamically generated -->
+                            </div>
+                        </div>
+
+                        <!-- DB Administrator Checklist -->
+                        <div class="bg-spharos-card p-4 rounded-md border border-spharos-line">
+                            <span class="text-xs text-spharos-navy block mb-2 font-black uppercase tracking-wider flex items-center gap-1.5">
+                                <i class="fa-solid fa-user-shield"></i> 핵심 고성능 튜닝 & 운영 가이드
+                            </span>
+                            <p id="insp-dba-note" class="text-xs text-spharos-body leading-relaxed">
+                                -
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Storage Inspector Content -->
+                <div id="tab-storage" class="hidden p-6 overflow-y-auto flex flex-col gap-6">
+                    <div class="border-b border-spharos-line pb-4">
+                        <h2 class="text-lg font-extrabold text-spharos-ink">논리적 & 물리적 데이터 저장 구조</h2>
+                        <p class="text-xs text-spharos-slate mt-1">Oracle Logical to Physical Architecture Deep Dive</p>
+                    </div>
+
+                    <div class="bg-spharos-card p-3.5 rounded-md border border-spharos-border-blue">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-xs font-bold text-spharos-navy uppercase">Startup Configuration 흐름</span>
+                            <span class="text-xs bg-spharos-tint-blue text-spharos-navy px-1.5 py-0.5 rounded font-mono">SPFILE / PFILE</span>
+                        </div>
+                        <p class="text-xs text-spharos-body leading-relaxed">
+                            STARTUP 시 Oracle은 SPFILE 또는 PFILE을 읽어 초기화 파라미터를 확인합니다. 이후 파라미터 값에 따라 SGA를 할당하고 백그라운드 프로세스를 시작하며, CONTROL_FILES 파라미터에 지정된 control file을 읽어 데이터베이스를 mount합니다.
+                        </p>
+                    </div>
+
+                    <div class="bg-spharos-card p-3.5 rounded-md border border-spharos-border-blue">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-xs font-bold text-spharos-navy uppercase">ARCHIVELOG / Recovery 흐름</span>
+                            <span class="text-xs bg-spharos-tint-blue text-spharos-navy px-1.5 py-0.5 rounded font-mono">LGWR → ARCn → Recovery</span>
+                        </div>
+                        <p class="text-xs text-spharos-body leading-relaxed">
+                            LGWR는 변경 내용을 online redo log에 기록합니다. Log switch가 발생하면 ARCHIVELOG 모드에서는 ARCn이 이전 redo log group을 archived redo log로 복사합니다. Archived redo log는 백업 이후 변경분을 재적용하는 media recovery와 특정 시점 복구에 사용됩니다.
+                        </p>
+                    </div>
+
+                    <!-- Logical Hierarchy Graph -->
+                    <div class="flex flex-col gap-4">
+                        <!-- Tablespace -->
+                        <div class="bg-spharos-card p-3.5 rounded-md border border-spharos-line hover:border-spharos-navy/50 transition-colors">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-xs font-bold text-spharos-navy uppercase">1. Tablespace (테이블스페이스)</span>
+                                <span class="text-xs bg-spharos-tint-blue text-spharos-navy px-1.5 py-0.5 rounded font-mono">Logical</span>
+                            </div>
+                            <p class="text-xs text-spharos-body leading-relaxed">
+                                데이터베이스 저장 공간을 논리적으로 구분하는 단위입니다. 하나의 테이블스페이스는 하나 이상의 물리적인 Data File로 구성됩니다.
+                            </p>
+                        </div>
+
+                        <!-- Segment -->
+                        <div class="bg-spharos-card p-3.5 rounded-md border border-spharos-line hover:border-spharos-navy/50 transition-colors ml-4 relative">
+                            <div class="absolute left-[-12px] top-1/2 -translate-y-1/2 w-[12px] h-0.5 bg-spharos-gray"></div>
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-xs font-bold text-spharos-navy uppercase">2. Segment (세그먼트)</span>
+                                <span class="text-xs bg-spharos-tint-blue text-spharos-navy px-1.5 py-0.5 rounded font-mono">Logical</span>
+                            </div>
+                            <p class="text-xs text-spharos-body leading-relaxed">
+                                테이블, 인덱스, Undo, Temporary 객체처럼 특정 데이터베이스 객체가 사용하는 논리적 저장 영역입니다.
+                            </p>
+                        </div>
+
+                        <!-- Temporary Tablespace / Temp File Note -->
+                        <div class="bg-spharos-card p-3.5 rounded-md border border-spharos-line hover:border-indigo-500/50 transition-colors">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-xs font-bold text-spharos-navy uppercase">참고. Temporary Tablespace / Temp File</span>
+                                <span class="text-xs bg-spharos-tint-blue text-spharos-navy px-1.5 py-0.5 rounded font-mono">Temporary</span>
+                            </div>
+                            <p class="text-xs text-spharos-body leading-relaxed">
+                                TEMP tablespace는 영구 객체 저장용 data file이 아니라 temp file을 사용합니다. 정렬, 해시, 임시 결과 집합처럼 작업 중에만 필요한 데이터를 저장하며, temp file 정보는 DBA_TEMP_FILES와 V$TEMPFILE에서 확인합니다.
+                            </p>
+                        </div>
+
+                        <!-- Extent -->
+                        <div class="bg-spharos-card p-3.5 rounded-md border border-spharos-line hover:border-amber-500/50 transition-colors ml-8 relative">
+                            <div class="absolute left-[-16px] top-1/2 -translate-y-1/2 w-[16px] h-0.5 bg-spharos-gray"></div>
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-xs font-bold text-spharos-navy uppercase">3. Extent (익스텐트)</span>
+                                <span class="text-xs bg-spharos-tint-blue text-spharos-navy px-1.5 py-0.5 rounded font-mono">Logical</span>
+                            </div>
+                            <p class="text-xs text-spharos-body leading-relaxed">
+                                익스텐트는 논리적으로 연속된 Oracle data block의 집합입니다. 세그먼트에 더 많은 공간이 필요하면 Oracle Database는 해당 세그먼트에 하나 이상의 익스텐트를 추가로 할당합니다.
+                            </p>
+                        </div>
+
+                        <!-- Block -->
+                        <div class="bg-spharos-card p-3.5 rounded-md border border-spharos-line hover:border-red-500/50 transition-colors ml-12 relative">
+                            <div class="absolute left-[-16px] top-1/2 -translate-y-1/2 w-[16px] h-0.5 bg-spharos-gray"></div>
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-xs font-bold text-spharos-navy uppercase">4. Block (블록)</span>
+                                <span class="text-xs bg-spharos-tint-blue text-spharos-navy px-1.5 py-0.5 rounded font-mono">Min I/O Unit</span>
+                            </div>
+                            <p class="text-xs text-spharos-body leading-relaxed">
+                                Oracle data block은 Oracle Database가 데이터를 저장하고 읽는 최소 논리 I/O 단위입니다. 크기는 DB_BLOCK_SIZE 파라미터로 결정되며, 많은 환경에서 8KB를 사용하지만 고정값은 아닙니다.
+                            </p>
+                            <!-- Block Internal Structure -->
+                            <div class="mt-2 bg-white p-2.5 rounded border border-spharos-line text-xs text-spharos-slate flex flex-col gap-1 font-mono">
+                                <div class="bg-red-500/10 text-spharos-navy p-1 rounded border border-spharos-border-blue text-center font-bold">Block Header (블록 주소, 세그먼트 유형, 트랜잭션/ITL 정보)</div>
+                                <div class="bg-spharos-tint-blue text-spharos-navy p-1 rounded border border-spharos-border-blue text-center font-bold">Directory (Table/Row Directory)</div>
+                                <div class="bg-spharos-card p-2 rounded border border-spharos-line text-center h-8 flex items-center justify-center border-dashed text-spharos-muted">Free Space (행 삽입/갱신에 사용 가능한 공간)</div>
+                                <div class="bg-spharos-tint-blue text-spharos-navy p-1 rounded border border-spharos-border-blue text-center font-bold">Row Data (실제 행 데이터)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Oracle Doc DB Database for Realtime Inspector Injection -->
+    <script>
+        const docDatabase = {
+            'user-process': {
+                title: 'User Process (유저 프로세스)',
+                category: 'Client Connection Layer',
+                icon: 'fa-laptop-code',
+                definition: '클라이언트 애플리케이션 또는 툴(SQL*Plus, SQL Developer, WAS 등)에서 실행되어 Oracle Database에 접속을 요청하고 SQL 문을 전달하는 프로세스입니다. User Process는 데이터베이스 인스턴스의 SGA에 직접 접근하지 않고, 서버 프로세스를 통해 요청을 처리합니다.',
+                dba_note: '애플리케이션과 데이터베이스 서버 간 네트워크 지연, 세션 생성 빈도, 커넥션 풀 설정은 접속 성능에 영향을 줍니다. OLTP 환경에서는 매 요청마다 새 접속을 만들기보다 커넥션 풀을 사용하는 것이 일반적입니다.',
+                structures: [
+                    { name: 'Oracle Net', desc: '클라이언트와 데이터베이스 서버 사이의 네트워크 통신을 담당하는 Oracle의 통신 계층입니다.' },
+                    { name: 'Connect Descriptor', desc: '접속 대상 호스트, 포트, 프로토콜, 서비스 이름 또는 SID 등을 포함하는 접속 정보입니다.' }
+                ]
+            },
+            'listener': {
+                title: 'Oracle Net Listener (리스너)',
+                category: 'Connection Broker',
+                icon: 'fa-headset',
+                definition: 'Oracle Net Listener는 클라이언트의 접속 요청을 수신하고, 요청된 데이터베이스 서비스로 연결될 수 있도록 중개하는 네트워크 프로세스입니다. 리스너는 하나 이상의 listening protocol address와 지원 서비스 정보를 기반으로 동작하며, 일반적으로 기본 TCP 포트 1521을 사용합니다.',
+                dba_note: '리스너가 중지되면 일반적으로 신규 원격 접속은 실패하지만, 이미 연결이 완료된 세션은 리스너와 분리되어 동작하므로 즉시 끊기지는 않습니다. 19c에서는 데이터베이스 서비스 정보가 LREG 프로세스에 의해 리스너에 동적으로 등록됩니다.',
+                structures: [
+                    { name: 'listener.ora', desc: '리스너의 프로토콜 주소, 포트, 런타임 동작 관련 설정을 담는 서버 측 구성 파일입니다. 동적 서비스 등록을 사용하는 경우 서비스 정보를 수동으로 모두 작성하지 않아도 됩니다.' },
+                    { name: 'Service Registration', desc: '데이터베이스 인스턴스가 자신의 서비스 정보를 리스너에 등록하는 기능입니다. Oracle Database 19c에서는 LREG가 이 역할을 담당합니다.' }
+                ]
+            },
+            'server-process': {
+                title: 'Server Process (서버 프로세스)',
+                category: 'Process Architecture',
+                icon: 'fa-user-tie',
+                definition: '서버 프로세스는 클라이언트의 요청을 대신 처리하며 SQL 구문 파싱, 실행, 데이터 블록 읽기, 결과 반환 등의 작업을 수행합니다. Dedicated Server 구성에서는 각 클라이언트 프로세스가 전용 서버 프로세스와 연결되고, 이 서버 프로세스는 자체 PGA를 가집니다.',
+                dba_note: '동시 접속 수가 많으면 서버 프로세스와 PGA 사용량이 증가할 수 있습니다. OLTP 환경에서는 WAS 커넥션 풀, PGA_AGGREGATE_TARGET, 세션 수, SQL Work Area 사용량을 함께 관리해야 합니다.',
+                structures: [
+                    { name: 'PGA (Program Global Area)', desc: '서버 프로세스 또는 백그라운드 프로세스에 종속된 비공유 메모리 영역입니다. 정렬, 해시 조인, 세션 관련 작업 영역 등이 포함될 수 있습니다.' },
+                    { name: 'Private SQL Area', desc: '각 세션의 SQL 실행 상태, 바인드 변수 값, 런타임 정보 등을 보관하는 영역입니다. Dedicated Server에서는 주로 PGA에 위치합니다.' }
+                ]
+            },
+            'shared-pool': {
+                title: 'Shared Pool',
+                category: 'SGA Memory Component',
+                icon: 'fa-book-bookmark',
+                definition: 'Shared Pool은 parsed SQL, PL/SQL 코드, 시스템 파라미터, 데이터 사전 정보 등 다양한 프로그램 데이터를 캐시하는 SGA 영역입니다. SQL 실행 시 Oracle Database는 Shared Pool을 확인하여 기존 실행 정보를 재사용할 수 있는지 판단합니다.',
+                dba_note: '동일하거나 공유 가능한 SQL은 Library Cache의 shared SQL area를 재사용할 수 있어 파싱 비용을 줄입니다. 바인드 변수 사용은 하드 파싱을 줄이는 데 중요하지만, 성능 문제는 bind peeking, child cursor, 통계 정보, 실행 계획 변동도 함께 확인해야 합니다.',
+                structures: [
+                    { name: 'Library Cache', desc: '실행 가능한 SQL 및 PL/SQL 코드, shared SQL area, parse tree, execution plan 등을 저장하는 영역입니다.' },
+                    { name: 'Data Dictionary Cache (Row Cache)', desc: '테이블, 컬럼, 권한, 사용자 등 데이터베이스 객체와 관련된 사전 정보를 row 단위로 캐시하는 영역입니다.' },
+                    { name: 'Server Result Cache', desc: '데이터 블록이 아니라 SQL Query Result Cache와 PL/SQL Function Result Cache의 결과 집합을 저장하는 메모리 영역입니다.' },
+                    { name: 'Reserved Pool', desc: 'Shared Pool 내에서 비교적 큰 연속 메모리 할당을 처리하기 위해 별도로 확보되는 영역입니다.' }
+                ]
+            },
+            'buffer-cache': {
+                title: 'Database Buffer Cache',
+                category: 'SGA Memory Component',
+                icon: 'fa-border-all',
+                definition: 'Database Buffer Cache는 data file에서 읽은 data block의 복사본을 저장하는 SGA 영역입니다. 사용자가 데이터를 조회하거나 변경할 때 Oracle Database는 가능한 한 디스크가 아니라 buffer cache의 블록을 사용합니다.',
+                dba_note: 'Buffer Cache는 물리 I/O를 줄이기 위한 핵심 영역입니다. 다만 Buffer Cache Hit Ratio 하나만으로 성능을 판단하지 말고, SQL 실행 계획, physical reads, wait event, AWR/ASH 지표를 함께 확인해야 합니다.',
+                structures: [
+                    { name: 'Default Pool', desc: '일반적인 데이터 블록이 캐시되는 기본 버퍼 풀입니다.' },
+                    { name: 'Keep Pool', desc: '자주 접근되는 객체의 블록을 더 오래 유지하도록 설계된 별도 버퍼 풀입니다. 객체에 명시적으로 지정해야 의미가 있습니다.' },
+                    { name: 'Recycle Pool', desc: '재사용 가능성이 낮은 객체의 블록이 기본 풀을 과도하게 점유하지 않도록 분리할 때 사용하는 버퍼 풀입니다.' },
+                    { name: 'Buffer States', desc: '버퍼는 unused, clean, dirty 상태를 가질 수 있습니다. Dirty buffer는 변경되었지만 아직 data file에 기록되지 않은 버퍼입니다.' }
+                ]
+            },
+            'redo-buffer': {
+                title: 'Redo Log Buffer',
+                category: 'SGA Memory Component',
+                icon: 'fa-list-check',
+                definition: 'Redo Log Buffer는 데이터베이스 변경 내용을 설명하는 redo entry를 저장하는 SGA의 circular buffer입니다. DML 또는 DDL로 인해 발생한 변경 정보가 redo record 형태로 기록됩니다.',
+                dba_note: 'COMMIT 시 LGWR가 관련 redo를 online redo log에 기록해야 트랜잭션의 내구성이 보장됩니다. Redo 쓰기 지연은 commit latency와 직결되므로 log file sync, log file parallel write 같은 대기 이벤트를 함께 확인합니다.',
+                structures: [
+                    { name: 'Redo Entry / Redo Record', desc: '데이터베이스 변경을 재구성하는 데 필요한 정보를 담은 구조입니다. Instance recovery 시 redo가 data file에 적용됩니다.' },
+                    { name: 'Circular Buffer', desc: 'Redo Log Buffer는 순환 구조로 사용되며, LGWR가 내용을 online redo log file로 기록합니다.' }
+                ]
+            },
+            'large-pool': {
+                title: 'Large Pool',
+                category: 'Optional SGA Memory Component',
+                icon: 'fa-water',
+                definition: 'Large Pool은 Shared Pool에서 처리하기에는 큰 메모리 할당을 위해 사용하는 선택적 SGA 영역입니다. Shared Server 환경의 UGA, 병렬 실행 메시지 버퍼, RMAN I/O slave 버퍼, 일부 deferred insert 버퍼 등에 사용될 수 있습니다.',
+                dba_note: 'Shared Server, Parallel Query, RMAN 백업/복구 작업이 많은 환경에서는 Large Pool을 별도로 확보하면 Shared Pool 단편화와 ORA-04031 위험을 줄이는 데 도움이 됩니다. ASMM 사용 시 LARGE_POOL_SIZE는 최소값 역할을 할 수 있습니다.',
+                structures: [
+                    { name: 'UGA for Shared Server', desc: 'Shared Server 구성에서는 세션 메모리인 UGA가 Large Pool에 위치할 수 있습니다. Large Pool이 없으면 Shared Pool을 사용할 수 있습니다.' },
+                    { name: 'Parallel Execution Message Buffers', desc: '병렬 실행 프로세스 간 메시지 교환에 필요한 버퍼를 Large Pool에서 할당할 수 있습니다.' },
+                    { name: 'RMAN I/O Buffers', desc: 'RMAN 백업과 복구 작업에서 I/O slave 버퍼 용도로 Large Pool이 사용될 수 있습니다.' }
+                ]
+            },
+            'streams-pool': {
+                title: 'Streams Pool',
+                category: 'Optional SGA Memory Component',
+                icon: 'fa-right-left',
+                definition: 'Streams Pool은 Oracle Streams 계열 기능과 관련된 메모리 요구를 처리하기 위한 SGA 영역입니다. 19c Reference 기준으로 Oracle GoldenGate, XStream, Advanced Queuing, Oracle Data Pump 등이 Streams Pool을 사용할 수 있습니다.',
+                dba_note: 'GoldenGate Integrated Capture/Apply, XStream, AQ, Data Pump 사용 환경에서는 STREAMS_POOL_SIZE 또는 SGA_TARGET 기반 자동 조정 상태를 확인해야 합니다. 사용하지 않는 환경에서는 표시만 해두고 “선택적 영역”으로 설명하는 것이 초보자 교육에 적합합니다.',
+                structures: [
+                    { name: 'STREAMS_POOL_SIZE', desc: 'Streams Pool 크기 또는 자동 메모리 관리 시 최소값을 지정하는 초기화 파라미터입니다.' },
+                    { name: 'GoldenGate / XStream', desc: '캡처와 적용 프로세스가 변경 데이터 처리에 필요한 SGA 메모리를 사용할 수 있습니다.' },
+                    { name: 'Advanced Queuing / Data Pump', desc: 'AQ 메시징과 Data Pump 작업에서도 Streams Pool 메모리가 사용될 수 있습니다.' }
+                ]
+            },
+            'proc-dbw': {
+                title: 'DBWn (Database Writer)',
+                category: 'Background Process',
+                icon: 'fa-gears',
+                definition: 'DBWn은 Database Buffer Cache의 dirty buffer를 data file에 기록하는 백그라운드 프로세스입니다. 여러 Database Writer 프로세스가 동작할 수 있어 DBWn으로 표기합니다.',
+                dba_note: 'COMMIT이 발생했다고 해서 DBWn이 즉시 해당 data block을 data file에 쓰는 것은 아닙니다. DBWn은 clean buffer가 필요하거나 checkpoint 등 특정 조건이 발생할 때 dirty buffer를 기록합니다.',
+                structures: [
+                    { name: 'Dirty Buffer', desc: '메모리에서 변경되었지만 아직 data file에 기록되지 않은 데이터 블록의 복사본입니다.' },
+                    { name: 'Write Conditions', desc: '사용 가능한 clean buffer가 부족하거나 checkpoint가 진행되는 경우 등 여러 조건에서 DBWn이 dirty buffer를 data file에 씁니다.' }
+                ]
+            },
+            'proc-lgwr': {
+                title: 'LGWR (Log Writer)',
+                category: 'Background Process',
+                icon: 'fa-gears',
+                definition: 'LGWR는 Redo Log Buffer의 redo entry를 online redo log file에 순차적으로 기록하는 백그라운드 프로세스입니다.',
+                dba_note: 'COMMIT 시 LGWR가 관련 redo를 online redo log file에 기록하면 트랜잭션은 커밋 완료로 처리됩니다. 이때 변경된 data block이 반드시 data file에 기록된 것은 아니며, 이 구조가 Oracle의 fast commit 동작을 가능하게 합니다.',
+                structures: [
+                    { name: 'COMMIT Write', desc: '사용자가 COMMIT하면 해당 트랜잭션의 redo가 online redo log file에 기록되어야 commit 성공을 반환할 수 있습니다.' },
+                    { name: 'Write Triggers', desc: 'COMMIT 발생, redo log buffer 사용량 증가, 일정 시간 경과, DBWn 쓰기 전 등 다양한 조건에서 LGWR가 동작합니다.' }
+                ]
+            },
+            'proc-ckpt': {
+                title: 'CKPT (Checkpoint Process)',
+                category: 'Background Process',
+                icon: 'fa-gears',
+                definition: 'CKPT는 checkpoint 정보를 control file과 data file header에 기록하고, DBW가 필요한 블록을 디스크에 기록하도록 신호하는 백그라운드 프로세스입니다.',
+                dba_note: 'CKPT는 data block이나 redo block을 직접 기록하지 않습니다. Checkpoint 정보에는 recovery를 시작할 redo 위치, SCN 등이 포함되며, checkpoint 주기는 instance recovery 시간과 I/O 부하에 영향을 줄 수 있습니다.',
+                structures: [
+                    { name: 'Checkpoint Information', desc: 'Checkpoint position, SCN, recovery 시작 위치 등 복구에 필요한 메타데이터입니다.' },
+                    { name: 'DBW Signal', desc: 'CKPT는 DBW에 쓰기를 지시할 수 있지만, 실제 dirty buffer를 data file에 쓰는 작업은 DBW가 수행합니다.' }
+                ]
+            },
+            'proc-pmon': {
+                title: 'PMON (Process Monitor)',
+                category: 'Background Process',
+                icon: 'fa-gears',
+                definition: 'PMON은 비정상 종료된 프로세스의 정리와 관련된 작업을 수행하는 백그라운드 프로세스 그룹입니다. 19c 문서에서는 PMON, CLMN, CLnn 등이 다른 프로세스의 모니터링과 정리를 담당하는 PMON group으로 설명됩니다.',
+                dba_note: '비정상 종료된 세션이나 프로세스가 남긴 리소스 정리에 관여합니다. 단, 19c에서 리스너 동적 등록은 PMON이 아니라 LREG가 담당하므로 교육 자료에서는 PMON과 LREG 역할을 분리해서 설명하는 것이 좋습니다.',
+                structures: [
+                    { name: 'Process Cleanup', desc: '비정상 종료된 프로세스가 남긴 리소스를 정리하는 역할입니다.' },
+                    { name: 'LREG와의 구분', desc: '12c 이전에는 PMON이 리스너 등록을 수행했지만, 19c에서는 LREG가 데이터베이스 인스턴스와 dispatcher 정보를 리스너에 등록합니다.' }
+                ]
+            },
+            'proc-smon': {
+                title: 'SMON (System Monitor)',
+                category: 'Background Process',
+                icon: 'fa-gears',
+                definition: 'SMON은 인스턴스 시작 시 필요한 instance recovery를 수행하고, 일부 임시 세그먼트 정리 같은 시스템 수준의 유지 작업을 수행하는 백그라운드 프로세스입니다.',
+                dba_note: 'Instance recovery에서는 online redo log의 redo를 적용하여 committed change를 data file에 반영하고, 커밋되지 않은 변경은 undo를 사용해 정리합니다. 복구 시간은 checkpoint 진행 상태와 redo 적용량의 영향을 받습니다.',
+                structures: [
+                    { name: 'Instance Recovery', desc: '비정상 종료 후 데이터베이스를 다시 열 때 redo와 undo를 사용해 일관성 있는 상태로 복구하는 과정입니다.' },
+                    { name: 'Temporary Segment Cleanup', desc: '사용이 끝난 임시 세그먼트 등 일부 내부 리소스를 정리하는 작업입니다.' }
+                ]
+            },
+            'proc-arch': {
+                title: 'ARCn (Archiver Process)',
+                category: 'Background Process',
+                icon: 'fa-box-archive',
+                definition: 'ARCn은 ARCHIVELOG 모드에서 log switch가 발생한 뒤, 가득 찬 online redo log file을 재사용하기 전에 archived redo log file로 복사하는 백그라운드 프로세스입니다.',
+                dba_note: '운영 환경에서는 archive destination 공간 부족이 서비스 장애로 이어질 수 있습니다. ARCn이 online redo log를 제때 archive하지 못하면 다음 log switch가 지연되고, 최악의 경우 데이터베이스가 멈춘 것처럼 보일 수 있습니다. FRA 사용량, archive destination 상태, log switch 빈도를 함께 모니터링해야 합니다.',
+                structures: [
+                    { name: 'ARCHIVELOG Mode', desc: 'Online redo log가 재사용되기 전에 archived redo log로 보관되는 모드입니다. 온라인 백업과 시점 복구를 위해 운영 DB에서 일반적으로 사용합니다.' },
+                    { name: 'Log Switch', desc: 'LGWR가 현재 online redo log group 쓰기를 중지하고 다음 redo log group으로 전환하는 이벤트입니다. 전환된 이전 group은 archive 대상이 됩니다.' },
+                    { name: 'Archive Destination', desc: 'Archived redo log가 저장되는 위치입니다. LOG_ARCHIVE_DEST_n 또는 Fast Recovery Area(DB_RECOVERY_FILE_DEST)로 구성할 수 있습니다.' },
+                    { name: '운영 체크 포인트', desc: 'V$ARCHIVED_LOG, V$ARCHIVE_DEST, V$RECOVERY_FILE_DEST, alert log를 통해 archive 생성, 전송, 공간 부족 오류를 확인합니다.' }
+                ]
+            },
+            'file-init-param': {
+                title: 'Initialization Parameter File',
+                category: 'Startup Configuration',
+                icon: 'fa-sliders',
+                definition: 'Initialization parameter file은 Oracle Database 인스턴스가 시작될 때 필요한 설정 값을 제공하는 파일입니다. SGA 크기, 백그라운드 프로세스 동작, control file 위치, undo 설정, 진단 경로 등 인스턴스 동작에 영향을 주는 파라미터를 포함합니다.',
+                dba_note: '운영 환경에서는 일반적으로 SPFILE을 사용합니다. SPFILE은 서버에 존재하는 바이너리 파일이며 ALTER SYSTEM 명령으로 파라미터 변경을 영구 반영할 수 있습니다. PFILE은 텍스트 파일이므로 직접 편집할 수 있지만, 변경 사항을 적용하려면 보통 재기동 또는 SPFILE 재생성이 필요합니다.',
+                structures: [
+                    { name: 'SPFILE', desc: 'Server Parameter File입니다. Oracle 서버가 읽는 바이너리 파일이며 ALTER SYSTEM SET ... SCOPE=SPFILE 또는 SCOPE=BOTH 방식으로 변경 사항을 저장할 수 있습니다.' },
+                    { name: 'PFILE / init.ora', desc: '텍스트 형식의 초기화 파라미터 파일입니다. 사람이 직접 편집할 수 있으며, SPFILE 생성이나 장애 대응 시 자주 사용됩니다.' },
+                    { name: '주요 파라미터 예시', desc: 'SGA_TARGET, PGA_AGGREGATE_TARGET, MEMORY_TARGET, CONTROL_FILES, PROCESSES, UNDO_TABLESPACE, DB_NAME 등 인스턴스와 데이터베이스 동작을 제어하는 설정값입니다.' },
+                    { name: 'STARTUP 흐름에서의 역할', desc: 'Oracle은 시작 시 SPFILE 또는 PFILE을 읽고, 파라미터 값에 따라 SGA를 할당하고 백그라운드 프로세스를 시작한 뒤 control file을 읽어 데이터베이스를 mount합니다.' }
+                ]
+            },
+            'file-control': {
+                title: 'Control Files',
+                category: 'Database Physical File',
+                icon: 'fa-compass',
+                definition: 'Control file은 데이터베이스 이름, DBID, 생성 시각, data file과 online redo log file 정보, tablespace 정보, checkpoint 및 recovery 관련 정보를 저장하는 필수 물리 파일입니다.',
+                dba_note: 'Control file은 데이터베이스 open 및 recovery에 필수적입니다. Oracle은 장애에 대비해 여러 control file copy를 서로 다른 디스크에 유지할 것을 권장합니다.',
+                structures: [
+                    { name: 'CONTROL_FILES parameter', desc: '인스턴스 기동 시 사용할 control file 경로를 지정하는 초기화 파라미터입니다.' },
+                    { name: 'Checkpoint / Recovery Metadata', desc: 'Instance recovery가 어느 redo 위치에서 시작되어야 하는지 판단하는 데 필요한 checkpoint 정보를 포함합니다.' }
+                ]
+            },
+            'file-data': {
+                title: 'Physical Data Files',
+                category: 'Database Physical File',
+                icon: 'fa-folder-open',
+                definition: 'Data file은 테이블, 인덱스, 데이터 사전 등 영구 데이터베이스 객체가 저장되는 물리 파일입니다. 하나의 tablespace는 하나 이상의 data file로 구성됩니다.',
+                dba_note: 'SYSTEM, SYSAUX, UNDO, USERS 등 tablespace의 역할을 구분하고, ASM 또는 스토리지 구성에서 I/O 경합과 가용성을 고려해야 합니다. TEMP는 영구 data file이 아니라 temp file을 사용하므로 별도 영역으로 설명하는 것이 정확합니다.',
+                structures: [
+                    { name: 'SYSTEM Tablespace', desc: '데이터 사전과 핵심 시스템 객체를 포함하는 필수 tablespace입니다.' },
+                    { name: 'SYSAUX Tablespace', desc: 'SYSTEM tablespace의 보조 영역으로 AWR, OEM Repository 등 여러 데이터베이스 컴포넌트가 사용합니다.' },
+                    { name: 'UNDO Tablespace', desc: '트랜잭션 rollback과 read consistency를 위해 undo data를 저장하는 tablespace입니다.' },
+                    { name: 'USERS Tablespace', desc: '일반 사용자 객체를 저장하기 위해 기본적으로 제공되는 tablespace입니다.' }
+                ]
+            },
+            'file-temp': {
+                title: 'Temp Files / Temporary Tablespace',
+                category: 'Database Physical File',
+                icon: 'fa-temperature-half',
+                definition: 'Temp file은 temporary tablespace에 속하는 특수 파일입니다. 정렬, 해시 조인, 그룹화, 인덱스 생성, 임시 결과 집합 등 메모리만으로 처리하기 어려운 작업의 임시 공간으로 사용됩니다.',
+                dba_note: 'Temp file에는 영구 테이블이나 인덱스가 저장되지 않으며, 일반 data file과 달리 redo가 생성되지 않는 NOLOGGING 특성을 가집니다. TEMP 사용량 급증은 비효율 SQL, 과도한 sort/hash, PGA 부족, 병렬 쿼리 증가와 함께 점검해야 합니다.',
+                structures: [
+                    { name: 'Temporary Tablespace', desc: '세션 또는 작업 수행 중 필요한 임시 세그먼트를 저장하는 논리 공간입니다.' },
+                    { name: 'Temp Segment', desc: 'Sort, hash, global temporary table 작업 등에 의해 일시적으로 생성되고 작업 종료 후 재사용 또는 해제되는 세그먼트입니다.' },
+                    { name: 'Views', desc: 'Temp file 정보는 DBA_TEMP_FILES와 V$TEMPFILE에서 확인합니다. 일반 data file 조회용 DBA_DATA_FILES, V$DATAFILE과 구분됩니다.' }
+                ]
+            },
+            'file-archived-redo': {
+                title: 'Archived Redo Logs',
+                category: 'Database Recovery File',
+                icon: 'fa-box-archive',
+                definition: 'Archived redo log는 ARCHIVELOG 모드에서 online redo log file이 재사용되기 전에 별도 위치로 복사되어 보관된 redo log 파일입니다. 데이터 파일 백업과 함께 사용되어 media recovery와 point-in-time recovery를 가능하게 합니다.',
+                dba_note: '운영자는 archive log 생성량과 보관 기간을 반드시 관리해야 합니다. Archive destination 또는 FRA가 가득 차면 archiving이 실패하고, online redo log 재사용이 막혀 서비스 장애로 이어질 수 있습니다. 백업 정책, 삭제 정책, Data Guard 전송 상태까지 함께 관리하는 것이 중요합니다.',
+                structures: [
+                    { name: 'Online Redo Log vs Archived Redo Log', desc: 'Online redo log는 현재 또는 순환 쓰기 대상 파일이고, archived redo log는 재사용 전 복사되어 보관된 과거 redo 파일입니다.' },
+                    { name: 'Media Recovery', desc: 'Data file 손상 또는 복원 후, 백업 시점 이후의 변경 사항을 archived redo log와 online redo log를 적용해 복구합니다.' },
+                    { name: 'Point-in-Time Recovery', desc: '특정 시각, SCN, log sequence까지 redo를 적용하여 원하는 시점으로 데이터베이스를 복구할 수 있습니다.' },
+                    { name: 'Fast Recovery Area', desc: 'Archive log, backup piece, flashback log 등 복구 관련 파일을 한 위치에서 관리하기 위한 Oracle 관리 영역입니다.' }
+                ]
+            },
+            'file-redo': {
+                title: 'Online Redo Log Files',
+                category: 'Database Physical File',
+                icon: 'fa-clock-rotate-left',
+                definition: 'Online redo log file은 데이터베이스 변경 내용을 저장하는 물리 로그 파일입니다. Instance failure 이후, 아직 data file에 기록되지 않은 committed data를 복구하는 데 사용됩니다.',
+                dba_note: 'Oracle Database는 최소 두 개 이상의 online redo log file을 필요로 합니다. 가용성을 위해 redo log group의 member를 다중화하고, 가능하면 서로 다른 디스크에 배치하는 것이 좋습니다.',
+                structures: [
+                    { name: 'Redo Log Groups & Members', desc: '각 redo log group은 하나 이상의 member로 구성됩니다. 같은 group의 member는 동일한 redo 내용을 저장합니다.' },
+                    { name: 'Log Switch', desc: '현재 redo log file이 가득 차거나 수동/주기 설정에 의해 다음 redo log file로 쓰기 대상이 전환되는 이벤트입니다.' },
+                    { name: 'ARCHIVELOG Mode', desc: '가득 찬 online redo log를 덮어쓰기 전에 archived redo log로 보관하여 백업 복구와 시점 복구에 활용할 수 있게 하는 모드입니다.' }
+                ]
+            }
+        };
+
+        // Switch Tabs on Right Panel
+        function switchTab(tabId) {
+            document.getElementById('tab-inspector').classList.add('hidden');
+            document.getElementById('tab-storage').classList.add('hidden');
+            document.getElementById('btn-tab-inspector').className = "flex-1 py-3 px-4 text-xs font-bold border-b-2 border-transparent text-spharos-slate hover:text-spharos-ink focus:outline-none transition-all flex items-center justify-center gap-1.5";
+            document.getElementById('btn-tab-storage').className = "flex-1 py-3 px-4 text-xs font-bold border-b-2 border-transparent text-spharos-slate hover:text-spharos-ink focus:outline-none transition-all flex items-center justify-center gap-1.5";
+
+            document.getElementById(tabId).classList.remove('hidden');
+            if (tabId === 'tab-inspector') {
+                document.getElementById('btn-tab-inspector').className = "flex-1 py-3 px-4 text-xs font-bold border-b-2 border-spharos-navy text-spharos-navy focus:outline-none transition-all flex items-center justify-center gap-1.5";
+            } else {
+                document.getElementById('btn-tab-storage').className = "flex-1 py-3 px-4 text-xs font-bold border-b-2 border-spharos-navy text-spharos-navy focus:outline-none transition-all flex items-center justify-center gap-1.5";
+            }
+        }
+
+        // Global function to trigger specific component inspect
+        function inspect(compId) {
+            // Remove active style from any previously selected components
+            document.querySelectorAll('.component-active').forEach(el => {
+                el.classList.remove('component-active');
+            });
+
+            // If it's a valid ID in our docDB, render details
+            if (docDatabase[compId]) {
+                const data = docDatabase[compId];
+                
+                // Add active style to selected component
+                let targetDomId = "";
+                if (compId.startsWith('proc-')) {
+                    targetDomId = compId;
+                } else if (compId.startsWith('file-')) {
+                    targetDomId = compId;
+                } else {
+                    targetDomId = 'comp-' + compId;
+                }
+                const domEl = document.getElementById(targetDomId);
+                if (domEl) {
+                    domEl.classList.add('component-active');
+                }
+
+                // Render dynamic HTML content in right panel
+                document.getElementById('inspector-placeholder').classList.add('hidden');
+                const contentArea = document.getElementById('inspector-content');
+                contentArea.classList.remove('hidden');
+
+                document.getElementById('insp-category').textContent = data.category;
+                document.getElementById('insp-title').textContent = data.title;
+                document.getElementById('insp-definition').innerHTML = `<strong>정의:</strong> ${data.definition}`;
+                document.getElementById('insp-dba-note').textContent = data.dba_note;
+                
+                // Set Icon
+                document.getElementById('insp-icon').innerHTML = `<i class="fa-solid ${data.icon}"></i>`;
+
+                // Handle Sub Structures
+                const structBox = document.getElementById('insp-structures-box');
+                const structContainer = document.getElementById('insp-structures-container');
+                structContainer.innerHTML = '';
+                
+                if (data.structures && data.structures.length > 0) {
+                    structBox.classList.remove('hidden');
+                    data.structures.forEach(item => {
+                        const div = document.createElement('div');
+                        div.className = "bg-spharos-card p-2.5 rounded-md border border-spharos-line flex flex-col gap-1";
+                        div.innerHTML = `
+                            <span class="text-xs font-bold text-spharos-navy font-mono">${item.name}</span>
+                            <span class="text-xs text-spharos-body leading-relaxed">${item.desc}</span>
+                        `;
+                        structContainer.appendChild(div);
+                    });
+                } else {
+                    structBox.classList.add('hidden');
+                }
+
+                // Extra Inject for PGA Detail
+                if (compId === 'server-process') {
+                    // Inject PGA specialized interactive representation
+                    const extraPga = document.createElement('div');
+                    extraPga.className = "mt-4 bg-spharos-card p-4 rounded-md border border-spharos-navy/30 flex flex-col gap-3";
+                    extraPga.innerHTML = `
+                        <div class="flex justify-between items-center border-b border-spharos-border-blue pb-2">
+                            <span class="text-xs font-bold text-spharos-navy flex items-center gap-1.5">
+                                <i class="fa-solid fa-microchip"></i> PGA 상세 메모리 맵
+                            </span>
+                            <span class="text-[11px] text-spharos-navy">Process Private Memory</span>
+                        </div>
+                        <div class="grid grid-cols-1 gap-2 text-[11px] font-mono">
+                            <div class="p-2 bg-spharos-tint-blue border border-spharos-border-blue rounded">
+                                <strong class="text-spharos-navy block">1. SQL Work Area (정렬 및 조인용)</strong>
+                                <p class="text-spharos-body mt-0.5">정렬, 해시 조인, 비트맵 병합 등 SQL 실행 작업에 사용되는 메모리 영역</p>
+                                <div class="grid grid-cols-3 gap-1 mt-1 text-[11px] text-center">
+                                    <div class="bg-spharos-tint-blue text-spharos-navy p-1 rounded">Sort Area</div>
+                                    <div class="bg-spharos-tint-blue text-spharos-navy p-1 rounded">Hash Area</div>
+                                    <div class="bg-spharos-tint-blue text-spharos-navy p-1 rounded">Bitmap Merge</div>
+                                </div>
+                            </div>
+                            <div class="p-2 bg-spharos-tint-blue border border-spharos-border-blue rounded">
+                                <strong class="text-spharos-navy block">2. Private SQL Area (바인드 & 제어 구조)</strong>
+                                <p class="text-spharos-body mt-0.5">SQL 실행 상태, 바인드 변수 값, 런타임 정보를 저장</p>
+                                <div class="grid grid-cols-2 gap-1 mt-1 text-[11px] text-center">
+                                    <div class="bg-spharos-tint-blue text-spharos-navy p-1 rounded">Persistent Area</div>
+                                    <div class="bg-spharos-tint-blue text-spharos-navy p-1 rounded">Runtime Area</div>
+                                </div>
+                            </div>
+                            <div class="p-2 bg-spharos-tint-blue border border-spharos-border-blue rounded">
+                                <strong class="text-spharos-navy block">3. Session Memory / Stack Space</strong>
+                                <p class="text-spharos-body mt-0.5">세션 관련 정보와 프로세스 실행에 필요한 스택 공간</p>
+                            </div>
+                        </div>
+                    `;
+                    structContainer.appendChild(extraPga);
+                }
+
+                // Switch to Inspector tab automatically
+                switchTab('tab-inspector');
+            }
+        }
+
+        // TRANSACTION SIMULATION CONTROLLER (7 Steps Animation)
+        let simInterval = null;
+        let currentStep = 0;
+
+        const simulationSteps = [
+            {
+                step: 1,
+                target: 'user-process',
+                title: '1단계: 유저 프로세스의 접속 및 SQL 요청',
+                desc: '사용자가 애플리케이션에서 SQL을 실행하면 User Process가 Oracle Net을 통해 데이터베이스 접속과 SQL 처리를 요청합니다.',
+                action: () => {
+                    inspect('user-process');
+                }
+            },
+            {
+                step: 2,
+                target: 'listener',
+                title: '2단계: Listener의 접속 요청 수신',
+                desc: '리스너는 클라이언트 접속 요청을 수신하고 요청된 서비스 정보를 확인한 뒤, 서버 프로세스와 연결될 수 있도록 중개합니다. 이후 SQL 처리는 서버 프로세스가 담당합니다.',
+                action: () => {
+                    inspect('listener');
+                }
+            },
+            {
+                step: 3,
+                target: 'server-process',
+                title: '3단계: 서버 프로세스와 PGA 사용',
+                desc: 'Dedicated Server 구성에서 서버 프로세스는 자신에게 할당된 PGA를 사용해 세션 상태, 정렬/해시 작업 영역, SQL 실행 관련 정보를 관리하며 SQL 처리를 시작합니다.',
+                action: () => {
+                    inspect('server-process');
+                }
+            },
+            {
+                step: 4,
+                target: 'shared-pool',
+                title: '4단계: Shared Pool에서 SQL 파싱 및 재사용 확인',
+                desc: '서버 프로세스는 Shared Pool의 Library Cache에서 공유 가능한 SQL과 실행 계획이 있는지 확인합니다. 재사용 가능하면 soft parse로 비용을 줄이고, 없으면 hard parse를 통해 실행 계획을 생성합니다.',
+                action: () => {
+                    inspect('shared-pool');
+                }
+            },
+            {
+                step: 5,
+                target: 'buffer-cache',
+                title: '5단계: Buffer Cache 검색 및 데이터 블록 변경',
+                desc: '필요한 data block이 buffer cache에 있는지 확인합니다. 없으면 data file에서 읽어 buffer cache에 적재합니다. UPDATE가 수행되면 undo 정보와 redo 정보가 생성되고, 변경된 블록은 dirty buffer 상태가 됩니다.',
+                action: () => {
+                    inspect('buffer-cache');
+                }
+            },
+            {
+                step: 6,
+                target: 'redo-buffer',
+                title: '6단계: Redo Log Buffer 기록 및 COMMIT 처리',
+                desc: '변경 내용은 redo entry 형태로 Redo Log Buffer에 기록됩니다. 사용자가 COMMIT하면 LGWR가 관련 redo를 online redo log file에 기록하고, 기록이 완료되면 COMMIT이 성공한 것으로 처리됩니다. 이 시점에 변경된 data block이 반드시 data file에 기록된 것은 아닙니다. 이후 log switch가 발생하면 ARCHIVELOG 모드에서 ARCn이 이전 redo log group을 archived redo log로 보관합니다.',
+                action: () => {
+                    inspect('redo-buffer');
+                    setTimeout(() => { inspect('proc-lgwr'); }, 1500);
+                    setTimeout(() => { inspect('file-redo'); }, 3000);
+                }
+            },
+            {
+                step: 7,
+                target: 'proc-dbw',
+                title: '7단계: DBWn에 의한 Dirty Buffer 기록',
+                desc: 'COMMIT 이후에도 변경된 data block은 일정 시간 buffer cache에 dirty buffer로 남아 있을 수 있습니다. DBWn은 clean reusable buffer가 부족하거나 checkpoint 진행이 필요할 때 dirty buffer를 data file에 기록합니다.',
+                action: () => {
+                    inspect('proc-dbw');
+                    setTimeout(() => { inspect('file-data'); }, 1500);
+                }
+            }
+        ];
+
+        function runStep() {
+            if (currentStep >= simulationSteps.length) {
+                clearInterval(simInterval);
+                simInterval = null;
+                document.getElementById('btn-auto-play').innerHTML = '<i class="fa-solid fa-play"></i> SQL 트랜잭션 시뮬레이션 실행';
+                document.getElementById('sim-info-box').classList.add('hidden');
+                currentStep = 0;
+                return;
+            }
+
+            const activeStep = simulationSteps[currentStep];
+            
+            // Render UI Steps inside Canvas Panel
+            const infoBox = document.getElementById('sim-info-box');
+            infoBox.classList.remove('hidden');
+            document.getElementById('sim-step-badge').textContent = `Step ${activeStep.step} / 7`;
+            document.getElementById('sim-step-title').textContent = activeStep.title;
+            document.getElementById('sim-step-desc').textContent = activeStep.desc;
+
+            // Trigger action
+            activeStep.action();
+
+            currentStep++;
+        }
+
+        
+        let activeSimulation = null; // 'sql', 'startup', 'arch'
+        let simSteps = [];
+        let simIndex = 0;
+
+        function startSimulation(type, stepsArr, btnId, titleText) {
+            // Reset existing
+            resetSimulationState();
+            
+            activeSimulation = type;
+            simSteps = stepsArr;
+            simIndex = 0;
+            
+            // Show Next button
+            document.getElementById('btn-next-step').classList.remove('hidden');
+            
+            // Update starter button
+            const starter = document.getElementById(btnId);
+            starter.classList.add('opacity-50', 'pointer-events-none');
+            
+            // Execute first step immediately
+            executeNextStep();
+        }
+
+        function executeNextStep() {
+            if (!activeSimulation || simIndex >= simSteps.length) {
+                // Simulation complete
+                resetSimulationState();
+                return;
+            }
+            
+            // Execute current step
+            const stepFunc = simSteps[simIndex];
+            stepFunc();
+            
+            simIndex++;
+            
+            if (simIndex >= simSteps.length) {
+                // Change Next button to Finish
+                const nextBtn = document.getElementById('btn-next-step');
+                nextBtn.innerHTML = '<i class="fa-solid fa-check"></i> 완료 (Finish)';
+                nextBtn.classList.replace('bg-[#F9BB00]', 'bg-spharos-navy');
+                nextBtn.classList.replace('text-[#121D2A]', 'text-white');
+            }
+        }
+
+        function resetSimulationState() {
+            activeSimulation = null;
+            simSteps = [];
+            simIndex = 0;
+            
+            const nextBtn = document.getElementById('btn-next-step');
+            nextBtn.classList.add('hidden');
+            nextBtn.innerHTML = '<i class="fa-solid fa-forward-step"></i> 다음 단계 (Next)';
+            nextBtn.classList.replace('bg-spharos-navy', 'bg-[#F9BB00]');
+            nextBtn.classList.replace('text-white', 'text-[#121D2A]');
+            
+            document.getElementById('btn-auto-play').classList.remove('opacity-50', 'pointer-events-none');
+            document.getElementById('btn-startup-flow').classList.remove('opacity-50', 'pointer-events-none');
+            document.getElementById('btn-arch-flow').classList.remove('opacity-50', 'pointer-events-none');
+            
+            document.getElementById('sim-info-box').classList.add('hidden');
+            document.querySelectorAll('.component-active').forEach(el => {
+                el.classList.remove('component-active');
+            });
+            document.getElementById('inspector-content').classList.add('hidden');
+            document.getElementById('inspector-placeholder').classList.remove('hidden');
+            currentStep = 0; // Legacy
+        }
+
+        document.getElementById('btn-next-step').addEventListener('click', executeNextStep);
+
+        document.getElementById('btn-auto-play').addEventListener('click', function() {
+            const steps = [
+                () => { runStepExplicit(1); },
+                () => { runStepExplicit(2); },
+                () => { runStepExplicit(3); },
+                () => { runStepExplicit(4); },
+                () => { runStepExplicit(5); },
+                () => { runStepExplicit(6); },
+                () => { runStepExplicit(7); }
+            ];
+            startSimulation('sql', steps, 'btn-auto-play');
+        });
+
+        function runStepExplicit(stepNum) {
+            const infoBox = document.getElementById('sim-info-box');
+            infoBox.classList.remove('hidden');
+            
+            // Set content based on stepNum (1 to 7)
+            if (stepNum === 1) {
+                document.getElementById('sim-step-badge').textContent = 'STEP 1';
+                document.getElementById('sim-step-title').textContent = '1단계: 클라이언트 애플리케이션 시작 및 접속 요청';
+                document.getElementById('sim-step-desc').textContent = 'User Process가 생성되고 Oracle Net Listener로 데이터베이스 접속을 요청합니다. 리스너는 요청을 받아 처리할 Server Process를 할당하거나 생성하여 클라이언트와 연결해 줍니다.';
+                inspect('user-process');
+                document.getElementById('comp-listener').classList.add('component-active');
+            } else if (stepNum === 2) {
+                document.getElementById('sim-step-badge').textContent = 'STEP 2';
+                document.getElementById('sim-step-title').textContent = '2단계: Dedicated Server Process 할당 및 PGA 초기화';
+                document.getElementById('sim-step-desc').textContent = '클라이언트와 연결된 Server Process가 생성되며, 세션 전용 메모리인 PGA가 할당됩니다. 이후 클라이언트는 SQL 문을 Server Process로 전달합니다.';
+                inspect('server-process');
+            } else if (stepNum === 3) {
+                document.getElementById('sim-step-badge').textContent = 'STEP 3';
+                document.getElementById('sim-step-title').textContent = '3단계: Shared Pool에서 SQL 파싱 및 재사용 확인';
+                document.getElementById('sim-step-desc').textContent = '서버 프로세스는 Shared Pool의 Library Cache에서 공유 가능한 SQL과 실행 계획이 있는지 확인합니다. 재사용 가능하면 soft parse로 비용을 줄이고, 없으면 hard parse를 통해 실행 계획을 생성합니다.';
+                inspect('shared-pool');
+            } else if (stepNum === 4) {
+                document.getElementById('sim-step-badge').textContent = 'STEP 4';
+                document.getElementById('sim-step-title').textContent = '4단계: Buffer Cache 확인 및 디스크 I/O 발생';
+                document.getElementById('sim-step-desc').textContent = '실행 계획에 따라 필요한 데이터를 Database Buffer Cache에서 찾습니다. (Logical Read) 버퍼에 데이터가 없다면 Data File에서 블록을 읽어 Buffer Cache로 적재합니다. (Physical Read)';
+                inspect('buffer-cache');
+                document.getElementById('file-data').classList.add('component-active');
+            } else if (stepNum === 5) {
+                document.getElementById('sim-step-badge').textContent = 'STEP 5';
+                document.getElementById('sim-step-title').textContent = '5단계: DML 수행 및 Redo Log 생성';
+                document.getElementById('sim-step-desc').textContent = 'Buffer Cache에서 데이터 블록을 변경(Update)하기 전, 변경에 대한 기록(Redo)을 Redo Log Buffer에 먼저 기록합니다. 이후 Buffer Cache의 데이터 블록이 변경되어 Dirty Block이 됩니다.';
+                inspect('redo-buffer');
+                document.getElementById('comp-buffer-cache').classList.add('component-active');
+            } else if (stepNum === 6) {
+                document.getElementById('sim-step-badge').textContent = 'STEP 6';
+                document.getElementById('sim-step-title').textContent = '6단계: COMMIT 요청 및 LGWR의 기록 (Fast Commit)';
+                document.getElementById('sim-step-desc').textContent = '클라이언트가 COMMIT을 발행하면 LGWR(Log Writer)가 Redo Log Buffer의 내용을 디스크의 Online Redo Log File에 기록합니다. Data Block이 디스크에 기록되지 않아도 Redo가 기록되면 COMMIT은 완료됩니다.';
+                inspect('proc-lgwr');
+                document.getElementById('file-redo').classList.add('component-active');
+            } else if (stepNum === 7) {
+                document.getElementById('sim-step-badge').textContent = 'STEP 7';
+                document.getElementById('sim-step-title').textContent = '7단계: DBWn에 의한 Dirty Buffer 기록';
+                document.getElementById('sim-step-desc').textContent = 'COMMIT 이후에도 변경된 data block은 일정 시간 buffer cache에 dirty buffer로 남아 있을 수 있습니다. DBWn은 clean reusable buffer가 부족하거나 checkpoint 진행이 필요할 때 dirty buffer를 data file에 기록합니다.';
+                inspect('proc-dbw');
+                document.getElementById('file-data').classList.add('component-active');
+            }
+        }
+
+        document.getElementById('btn-startup-flow').addEventListener('click', function() {
+            const steps = [
+                () => {
+                    const infoBox = document.getElementById('sim-info-box');
+                    infoBox.classList.remove('hidden');
+                    document.getElementById('sim-step-badge').textContent = 'STARTUP';
+                    document.getElementById('sim-step-title').textContent = '인스턴스 STARTUP 구성 흐름 - 파라미터 파일';
+                    document.getElementById('sim-step-desc').textContent = 'Oracle은 SPFILE 또는 PFILE을 읽어 초기화 파라미터를 확인한 뒤 SGA를 할당하고 백그라운드 프로세스를 시작합니다.';
+                    inspect('file-init-param');
+                },
+                () => {
+                    document.getElementById('sim-step-desc').textContent = '할당된 주요 SGA 영역(Shared Pool 등)과 활성화된 프로세스를 점검합니다.';
+                    inspect('shared-pool');
+                },
+                () => {
+                    document.getElementById('sim-step-desc').textContent = '이후 CONTROL_FILES 파라미터에 지정된 control file을 읽어 데이터베이스를 mount합니다.';
+                    inspect('file-control');
+                },
+                () => {
+                    document.getElementById('sim-step-desc').textContent = 'control file의 정보를 기반으로 data file과 redo log file을 확인한 뒤 open 단계로 진행합니다.';
+                    inspect('file-data');
+                }
+            ];
+            startSimulation('startup', steps, 'btn-startup-flow');
+        });
+
+        document.getElementById('btn-arch-flow').addEventListener('click', function() {
+            const steps = [
+                () => {
+                    const infoBox = document.getElementById('sim-info-box');
+                    infoBox.classList.remove('hidden');
+                    document.getElementById('sim-step-badge').textContent = 'ARCH';
+                    document.getElementById('sim-step-title').textContent = 'ARCHIVELOG 및 복구 파일 흐름 - Redo 기록';
+                    document.getElementById('sim-step-desc').textContent = 'LGWR가 online redo log에 변경 내용을 기록합니다.';
+                    inspect('proc-lgwr');
+                },
+                () => {
+                    document.getElementById('sim-step-desc').textContent = 'Log switch가 발생하면 ARCHIVELOG 모드에서 로그 전환이 일어납니다.';
+                    inspect('file-redo');
+                },
+                () => {
+                    document.getElementById('sim-step-desc').textContent = 'ARCn이 백그라운드에서 이전 redo log group을 archived redo log로 복사하기 시작합니다.';
+                    inspect('proc-arch');
+                },
+                () => {
+                    document.getElementById('sim-step-desc').textContent = '생성된 Archived redo log는 백업 이후 변경분을 적용하는 media recovery와 point-in-time recovery에 사용됩니다.';
+                    inspect('file-archived-redo');
+                }
+            ];
+            startSimulation('arch', steps, 'btn-arch-flow');
+        });
+
+        document.getElementById('btn-reset').addEventListener('click', resetSimulationState);
+</script>
+</body>
+</html>

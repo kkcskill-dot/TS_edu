@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Oracle 19c Partitioning Simulator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            spharos: {
+              navy: '#002A5B',
+              ink: '#121D2A',
+              yellow: '#F9BB00',
+              bg: '#FFFFFF',
+              gray: '#EFEFEF',
+              card: '#F7F8FA',
+              'tint-blue': '#E6EDF7',
+              'border-blue': '#BBD0F2',
+              line: '#CBD5E1',
+              body: '#424A57',
+              slate: '#64748B',
+              muted: '#8A93A3',
+            }
+          },
+          fontFamily: {
+            sans: ['Pretendard', 'Noto Sans KR', 'sans-serif'],
+            mono: ['Consolas', 'Fira Code', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+    body{font-family:'Pretendard', 'Noto Sans KR', sans-serif;background:#FFFFFF}.code{font-family:'Fira Code',monospace}pre{white-space:pre-wrap}
+    @keyframes glow{0%,100%{box-shadow:0 0 6px rgba(0,42,91,.15)}50%{box-shadow:0 0 25px rgba(0,42,91,.3);border-color:#002A5B}}
+    .active{animation:glow 1.25s infinite;background:#E6EDF7!important;border-color:#002A5B!important}.bad{animation:glow 1.25s infinite;background:#FFE9A6!important;border-color:#F9BB00!important}
+    #packet{transition:all .8s cubic-bezier(.25,1,.5,1);z-index:50}.scroll{max-height:735px;overflow:auto}::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:#FFFFFF}::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:3px}
+  
+    .logicalRange{border:1px solid #BBD0F2;background:#F7F8FA;border-radius:14px;padding:14px;position:relative}
+    .logicalRange::before{content:'LOGICAL RANGE PARTITION';position:absolute;top:-10px;left:12px;background:#E6EDF7;border:1px solid #BBD0F2;color:#002A5B;font-size:11px;font-weight:900;padding:2px 7px;border-radius:999px}
+    .subGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}
+    .logicalBadge{font-size:11px;color:#121D2A;background:#FFE9A6;border:1px solid #F9BB00;padding:2px 6px;border-radius:999px;font-family:'Fira Code',monospace;font-weight:800}
+    .physicalBadge{font-size:11px;color:#002A5B;background:#E6EDF7;border:1px solid #BBD0F2;padding:2px 6px;border-radius:999px;font-family:'Fira Code',monospace;font-weight:800}
+
+  </style>
+</head>
+<body class="text-spharos-ink min-h-screen">
+<main class="grid grid-cols-1 xl:grid-cols-12 gap-6 p-6">
+<section class="xl:col-span-7 space-y-4">
+  <div class="grid grid-cols-3 gap-2 bg-white border border-spharos-line rounded-md p-2">
+    <button id="tab-routing" onclick="tab('routing')" class="tab py-2.5 rounded-md text-xs font-bold bg-spharos-navy text-white"><i class="fa-solid fa-route mr-1"></i>라우팅/프루닝</button>
+    <button id="tab-index" onclick="tab('index')" class="tab py-2.5 rounded-md text-xs font-bold text-spharos-slate"><i class="fa-solid fa-magnifying-glass-chart mr-1"></i>파티션 인덱스</button>
+    <button id="tab-ddl" onclick="tab('ddl')" class="tab py-2.5 rounded-md text-xs font-bold text-spharos-slate"><i class="fa-solid fa-screwdriver-wrench mr-1"></i>DDL 영향</button>
+  </div>
+  <div id="canvas" class="relative min-h-[720px] bg-spharos-card border border-spharos-line rounded-md p-6 overflow-hidden">
+    <div id="packet" class="absolute hidden px-3 py-1.5 rounded-full border bg-spharos-tint-blue border-spharos-navy text-spharos-navy text-xs code font-bold shadow-sm"><i class="fa-solid fa-cube animate-spin mr-1"></i><span id="packetText">ROW</span></div>
+    <div id="pane-routing" class="pane space-y-5">
+      <div class="grid grid-cols-12 gap-4">
+        <div class="col-span-5 bg-white/60 border border-spharos-line rounded-md p-4">
+          <h3 class="text-xs font-bold border-b border-spharos-line pb-2 mb-3"><i class="fa-solid fa-filter text-spharos-navy mr-1"></i>파티션 방식</h3>
+          <div class="grid grid-cols-3 gap-2">
+            <button onclick="ptype('RANGE')" id="p-RANGE" class="pbtn px-2 py-2 rounded-md text-xs font-bold bg-spharos-navy text-white">Range</button>
+            <button onclick="ptype('INTERVAL')" id="p-INTERVAL" class="pbtn px-2 py-2 rounded-md text-xs font-bold bg-spharos-gray text-spharos-body">Interval</button>
+            <button onclick="ptype('LIST')" id="p-LIST" class="pbtn px-2 py-2 rounded-md text-xs font-bold bg-spharos-gray text-spharos-body">List</button>
+            <button onclick="ptype('HASH')" id="p-HASH" class="pbtn px-2 py-2 rounded-md text-xs font-bold bg-spharos-gray text-spharos-body">Hash</button>
+            <button onclick="ptype('COMPOSITE')" id="p-COMPOSITE" class="pbtn px-2 py-2 rounded-md text-xs font-bold bg-spharos-gray text-spharos-body col-span-2">Composite</button>
+          </div>
+          <div id="form" class="mt-4 space-y-2"></div>
+          <div class="flex gap-2 mt-4">
+            <button id="btn-route-start" onclick="startRoute()" class="flex-1 py-2.5 rounded-md bg-spharos-navy text-white hover:bg-[#063a73] text-xs font-bold"><i class="fa-solid fa-play mr-1"></i>INSERT 라우팅</button>
+            <button id="btn-route-next" onclick="nextRoute()" class="hidden flex-1 py-2.5 rounded-md bg-[#F9BB00] text-[#121D2A] hover:bg-amber-500 text-xs font-bold"><i class="fa-solid fa-forward-step mr-1"></i>다음 단계</button>
+          </div>
+        </div>
+        <div class="col-span-7 bg-white/80 border border-spharos-line rounded-md p-4">
+          <div class="text-xs font-bold text-spharos-muted uppercase">DDL / SQL</div>
+          <pre id="sql" class="code text-xs leading-relaxed text-spharos-navy mt-2"></pre>
+        </div>
+      </div>
+      <div class="bg-white/20 border border-spharos-line rounded-md p-4">
+        <div id="logical" class="bg-white border border-spharos-line rounded-md p-3 mb-4 flex justify-between items-center"><div><b class="text-xs">SALES logical table</b><div class="text-xs text-spharos-slate">애플리케이션은 하나의 테이블처럼 접근</div></div><span class="text-[11px] code text-spharos-navy bg-spharos-tint-blue px-2 py-1 rounded">PARTITION KEY</span></div>
+        <div id="parts" class="grid grid-cols-4 gap-3"></div>
+      </div>
+      <div class="bg-white/95 border border-spharos-border-blue rounded-md p-4"><div id="infoTitle" class="text-xs font-bold text-spharos-navy mb-1">대기 중</div><p id="info" class="text-xs text-spharos-body leading-relaxed">값을 입력하고 라우팅을 실행하면 어느 파티션으로 가는지 표시합니다.</p></div>
+    </div>
+    <div id="pane-index" class="pane hidden space-y-5">
+      <div class="grid grid-cols-4 gap-2 bg-white border border-spharos-line rounded-md p-2">
+        <button onclick="imode('LP')" id="i-LP" class="ibtn py-2 rounded-md bg-spharos-navy text-white text-xs font-bold">Local Prefixed</button>
+        <button onclick="imode('LNP')" id="i-LNP" class="ibtn py-2 rounded-md text-spharos-slate text-xs font-bold">Local Nonprefixed</button>
+        <button onclick="imode('GP')" id="i-GP" class="ibtn py-2 rounded-md text-spharos-slate text-xs font-bold">Global Partitioned</button>
+        <button onclick="imode('GN')" id="i-GN" class="ibtn py-2 rounded-md text-spharos-slate text-xs font-bold">Global Nonpartitioned</button>
+      </div>
+      <div class="grid grid-cols-12 gap-4">
+        <div class="col-span-6 bg-white/80 border border-spharos-line rounded-md p-4">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-spharos-muted uppercase">Base Table Definition</span>
+            <span class="text-[11px] code text-spharos-navy bg-spharos-tint-blue px-2 py-1 rounded">RANGE PARTITIONED TABLE</span>
+          </div>
+          <pre id="base-table-ddl" class="code text-xs leading-relaxed text-spharos-body mt-2"></pre>
+        </div>
+        <div class="col-span-6 bg-white/80 border border-spharos-line rounded-md p-4">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-spharos-muted uppercase">Selected Index Definition</span>
+            <span id="index-kind-badge" class="text-[11px] code text-spharos-navy bg-spharos-tint-blue px-2 py-1 rounded">LOCAL</span>
+          </div>
+          <pre id="index-sql" class="code text-xs leading-relaxed text-spharos-navy mt-2"></pre>
+        </div>
+      </div>
+
+      <div class="bg-white/80 border border-spharos-line rounded-md p-4">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-spharos-muted uppercase">Example Query for Visualization</span>
+          <span id="query-access-badge" class="text-[11px] code text-spharos-navy bg-spharos-tint-blue px-2 py-1 rounded">ACCESS PATH</span>
+        </div>
+        <pre id="query-sql" class="code text-xs leading-relaxed text-spharos-navy mt-2"></pre>
+        <p id="query-desc" class="text-[11px] text-spharos-slate leading-relaxed mt-2"></p>
+      </div>
+
+      <div class="bg-white/20 border border-spharos-line rounded-md p-4">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <div class="text-xs font-bold text-spharos-slate uppercase">Segment Mapping Image</div>
+            <div id="index-map-subtitle" class="text-xs text-spharos-muted mt-1">테이블 파티션과 인덱스 파티션/세그먼트 관계</div>
+          </div>
+          <div class="flex gap-2">
+            <button id="btn-scan-start" onclick="startScan()" class="bg-spharos-navy text-white hover:bg-[#063a73] text-xs font-bold px-4 py-2 rounded-md"><i class="fa-solid fa-magnifying-glass mr-1"></i> 스캔 시각화</button>
+            <button id="btn-scan-next" onclick="nextScan()" class="hidden bg-[#F9BB00] text-[#121D2A] hover:bg-amber-500 text-xs font-bold px-4 py-2 rounded-md"><i class="fa-solid fa-forward-step mr-1"></i> 다음 단계</button>
+          </div>
+        </div>
+        <div class="grid grid-cols-12 gap-4">
+          <div class="col-span-6">
+            <div class="text-xs font-bold text-spharos-navy mb-2 uppercase">Table Partitions</div>
+            <div id="table-partitions" class="grid grid-cols-1 gap-2"></div>
+          </div>
+          <div class="col-span-6">
+            <div class="text-xs font-bold text-spharos-navy mb-2 uppercase">Index Structure</div>
+            <div id="index-partitions" class="grid grid-cols-1 gap-2"></div>
+          </div>
+        </div>
+      </div>
+      <div id="index-info" class="bg-white/95 border border-spharos-line rounded-md p-4">
+        <div class="text-xs font-bold text-spharos-navy mb-1" id="index-info-title">인덱스 설명</div>
+        <p id="index-info-desc" class="text-xs text-spharos-body leading-relaxed"></p>
+      </div>
+    </div>
+    <div id="pane-ddl" class="pane hidden space-y-5">
+      <div class="grid grid-cols-4 gap-2"><button onclick="dmode('ADD')" id="d-ADD" class="dbtn p-3 rounded-md border border-spharos-navy bg-spharos-tint-blue text-xs font-bold"><i class="fa-solid fa-plus text-spharos-navy block mb-1"></i>ADD</button><button onclick="dmode('SPLIT')" id="d-SPLIT" class="dbtn p-3 rounded-md border border-spharos-line bg-white text-xs font-bold"><i class="fa-solid fa-scissors text-spharos-navy block mb-1"></i>SPLIT</button><button onclick="dmode('DROP')" id="d-DROP" class="dbtn p-3 rounded-md border border-spharos-line bg-white text-xs font-bold"><i class="fa-solid fa-trash text-spharos-navy block mb-1"></i>DROP</button><button onclick="dmode('EXCHANGE')" id="d-EXCHANGE" class="dbtn p-3 rounded-md border border-spharos-line bg-white text-xs font-bold"><i class="fa-solid fa-shuffle text-spharos-navy block mb-1"></i>EXCHANGE</button></div>
+      <div class="grid grid-cols-12 gap-4"><div class="col-span-6 bg-white/80 border border-spharos-line rounded-md p-4"><pre id="ddlSql" class="code text-xs text-spharos-navy leading-relaxed"></pre><div id="ddlOpt" class="mt-3"></div>
+      <div class="flex gap-2 mt-4">
+        <button id="btn-ddl-start" onclick="startDdl()" class="flex-1 py-2.5 rounded-md bg-spharos-navy text-white hover:bg-[#063a73] text-xs font-bold"><i class="fa-solid fa-play mr-1"></i>DDL 영향 시각화</button>
+        <button id="btn-ddl-next" onclick="nextDdl()" class="hidden flex-1 py-2.5 rounded-md bg-[#F9BB00] text-[#121D2A] hover:bg-amber-500 text-xs font-bold"><i class="fa-solid fa-forward-step mr-1"></i>다음 단계</button>
+      </div>
+      </div><div class="col-span-6 bg-white/20 border border-spharos-line rounded-md p-4"><div id="ddlState" class="grid grid-cols-2 gap-3"></div><div id="gidx" class="mt-4 bg-spharos-card border border-spharos-line rounded-md p-3"><div class="text-xs text-spharos-muted font-bold">GLOBAL INDEX STATUS</div><div class="flex gap-3 items-center mt-2"><i id="gicon" class="fa-solid fa-shield-halved text-xl text-spharos-navy"></i><div><div id="gstat" class="text-sm font-black text-spharos-navy">VALID</div><div class="text-xs text-spharos-muted">IDX_ORDERS_GLOBAL</div></div></div><button id="rebuild" onclick="rebuild()" disabled class="mt-3 w-full py-2 rounded-md bg-spharos-gray text-spharos-muted cursor-not-allowed text-xs font-bold">ALTER INDEX REBUILD</button></div></div></div>
+      <div class="bg-white border border-spharos-line rounded-md p-4"><div id="ddlTitle" class="text-xs font-bold text-spharos-navy mb-1"></div><p id="ddlInfo" class="text-xs text-spharos-body leading-relaxed"></p></div>
+    </div>
+  </div>
+</section>
+<section class="xl:col-span-5 bg-white border border-spharos-line rounded-md overflow-hidden">
+  <div class="grid grid-cols-3 bg-spharos-card/50 border-b border-spharos-line"><button onclick="doc('concept')" id="doc-concept" class="doc py-3 text-xs font-bold border-b-2 border-spharos-navy text-spharos-navy">개념</button><button onclick="doc('ddl')" id="doc-ddl" class="doc py-3 text-xs font-bold text-spharos-slate">DDL</button><button onclick="doc('check')" id="doc-check" class="doc py-3 text-xs font-bold text-spharos-slate">운영 체크</button></div>
+  <div id="docpane-concept" class="docpane scroll p-6 space-y-4"><h2 class="text-lg font-black">Partitioning 핵심 개념</h2><p class="text-xs text-spharos-body leading-relaxed">파티셔닝은 큰 테이블과 인덱스를 작고 관리 가능한 단위인 partition으로 나누는 기능입니다. 각 partition은 독립 이름과 저장 속성을 가질 수 있고, 애플리케이션은 하나의 테이블처럼 접근합니다.</p><div class="grid grid-cols-2 gap-3 text-[11px]"><div class="card"><b class="text-spharos-navy">Range</b><p>VALUES LESS THAN 상한값 기준. 상한값은 미만입니다.</p></div><div class="card"><b class="text-spharos-navy">Interval</b><p>Range의 확장. transition point 이후 INSERT 시 필요한 interval partition이 자동 생성됩니다.</p></div><div class="card"><b class="text-spharos-navy">List</b><p>명시적 값 목록 기준. 예외값 처리를 위해 DEFAULT partition을 둘 수 있습니다.</p></div><div class="card"><b class="text-spharos-navy">Hash</b><p>Oracle 내부 해시로 분산. 2의 거듭제곱은 권장될 수 있으나 필수라고 설명하지 않습니다.</p></div></div><div class="card"><b class="text-spharos-navy">Composite 지원 조합 요약</b><table class="w-full mt-2 text-xs"><tr class="text-spharos-slate"><th class="text-left">버전/계열</th><th class="text-left">조합</th></tr><tr><td class="code text-spharos-navy">8i</td><td>Range-Hash</td></tr><tr><td class="code text-spharos-navy">9i</td><td>Range-List</td></tr><tr><td class="code text-spharos-navy">11g+</td><td>Range-Range, List-Hash, List-List, List-Range</td></tr><tr><td class="code text-spharos-navy">11g+ / 19c</td><td>Interval-Range, Interval-Hash, Interval-List</td></tr></table><p class="mt-2 text-spharos-slate">19c 문법은 PARTITION BY { HASH | RANGE [ INTERVAL ] | LIST } 다음에 SUBPARTITION BY 절을 붙이는 구조로 설명할 수 있습니다.</p></div><div class="card code text-xs leading-relaxed"><b class="text-spharos-navy">Composite Range-Hash 이미지</b><br>SALES<br>├─ P_2026_H1 by RANGE(sales_date)<br>│&nbsp;&nbsp;├─ SP_H1_1 by HASH(customer_id)<br>│&nbsp;&nbsp;└─ SP_H1_2 by HASH(customer_id)<br>└─ P_2026_H2 by RANGE(sales_date)<br>&nbsp;&nbsp;&nbsp;├─ SP_H2_1 by HASH(customer_id)<br>&nbsp;&nbsp;&nbsp;└─ SP_H2_2 by HASH(customer_id)</div></div>
+  <div id="docpane-ddl" class="docpane hidden scroll p-6 space-y-4"><h2 class="text-lg font-black">DDL 예시</h2><pre class="code text-xs text-spharos-navy bg-spharos-card border border-spharos-line rounded-md p-4">CREATE TABLE sales_interval (
+  sales_id NUMBER, sales_date DATE, amount NUMBER
+)
+PARTITION BY RANGE (sales_date)
+INTERVAL (NUMTOYMINTERVAL(1, 'MONTH')) (
+  PARTITION p_before_2026 VALUES LESS THAN (DATE '2026-01-01')
+);
+
+CREATE TABLE sales_comp (
+  sales_id NUMBER, sales_date DATE, customer_id NUMBER, amount NUMBER
+)
+PARTITION BY RANGE (sales_date)
+SUBPARTITION BY HASH (customer_id)
+SUBPARTITIONS 4 (
+  PARTITION p_2026_h1 VALUES LESS THAN (DATE '2026-07-01'),
+  PARTITION p_2026_h2 VALUES LESS THAN (MAXVALUE)
+);
+
+CREATE TABLE sales_interval_hash (
+  sales_id NUMBER, sales_date DATE, customer_id NUMBER, amount NUMBER
+)
+PARTITION BY RANGE (sales_date)
+INTERVAL (NUMTOYMINTERVAL(1, 'MONTH'))
+SUBPARTITION BY HASH (customer_id)
+SUBPARTITIONS 4 (
+  PARTITION p0 VALUES LESS THAN (DATE '2026-01-01')
+);</pre></div>
+  <div id="docpane-check" class="docpane hidden scroll p-6 space-y-4"><h2 class="text-lg font-black">운영 체크</h2><div class="warn"><b>Global Partitioned Index</b><p>Global index 전체에는 nonpartitioned global index도 포함됩니다. 하지만 global partitioned index는 인덱스 파티션 키가 인덱스 컬럼의 left prefix인 prefixed 구조로 설명하는 것이 정확합니다.</p></div><div class="warn"><b>Interval partition</b><p>자동 생성 partition 이름은 시스템 생성 이름일 수 있습니다. USER_TAB_PARTITIONS로 실제 이름, high value, interval 여부를 확인하세요.</p></div><div class="warn"><b>PMOP와 Global Index</b><p>DROP/TRUNCATE 등 partition maintenance operation은 global index를 UNUSABLE로 만들 수 있으므로 UPDATE INDEXES / UPDATE GLOBAL INDEXES와 비용을 검토하세요.</p></div><div class="card code text-xs">USER_TAB_PARTITIONS<br>USER_TAB_SUBPARTITIONS<br>USER_IND_PARTITIONS<br>USER_INDEXES<br>DBA_SEGMENTS</div></div>
+</section>
+</main>
+<script>
+let currentTab='routing', currentP='RANGE', currentI='LP', currentD='ADD', gvalid=true, dropped=false;
+const data={RANGE:[['p_2026_q1','< 2026-04-01'],['p_2026_q2','< 2026-07-01'],['p_2026_q3','< 2026-10-01'],['p_2026_max','< MAXVALUE']],INTERVAL:[['p_before_2026','< 2026-01-01'],['SYS_P_JAN','2026-01 interval'],['SYS_P_FEB','2026-02 interval'],['SYS_P_MAR','2026-03 interval']],LIST:[['p_asia','KR JP CN'],['p_america','US CA BR'],['p_europe','UK FR DE'],['p_other','DEFAULT']],HASH:[['hash_p0','internal hash'],['hash_p1','internal hash'],['hash_p2','internal hash'],['hash_p3','internal hash']],COMPOSITE:[['p_2026_h1_sp1','H1 / hash subpartition 1','p_2026_h1','< DATE 2026-07-01'],['p_2026_h1_sp2','H1 / hash subpartition 2','p_2026_h1','< DATE 2026-07-01'],['p_2026_h1_sp3','H1 / hash subpartition 3','p_2026_h1','< DATE 2026-07-01'],['p_2026_h1_sp4','H1 / hash subpartition 4','p_2026_h1','< DATE 2026-07-01'],['p_2026_h2_sp1','H2 / hash subpartition 1','p_2026_h2','< MAXVALUE'],['p_2026_h2_sp2','H2 / hash subpartition 2','p_2026_h2','< MAXVALUE'],['p_2026_h2_sp3','H2 / hash subpartition 3','p_2026_h2','< MAXVALUE'],['p_2026_h2_sp4','H2 / hash subpartition 4','p_2026_h2','< MAXVALUE']]};
+function css(){document.querySelectorAll('.card').forEach(e=>e.className='bg-spharos-card p-3 rounded-md border border-spharos-line text-spharos-body leading-relaxed');document.querySelectorAll('.warn').forEach(e=>e.className='bg-[#FFE9A6] p-4 rounded-md border border-[#F9BB00] text-xs text-[#121D2A] leading-relaxed font-medium')}
+function tab(t){currentTab=t;document.querySelectorAll('.pane').forEach(e=>e.classList.add('hidden'));document.getElementById('pane-'+t).classList.remove('hidden');document.querySelectorAll('.tab').forEach(e=>e.className='tab py-2.5 rounded-md text-xs font-bold text-spharos-slate');document.getElementById('tab-'+t).className='tab py-2.5 rounded-md text-xs font-bold bg-spharos-navy text-white';clear(); if(t==='routing')renderP(); if(t==='index')renderI(); if(t==='ddl')renderD()}
+function doc(t){document.querySelectorAll('.docpane').forEach(e=>e.classList.add('hidden'));document.getElementById('docpane-'+t).classList.remove('hidden');document.querySelectorAll('.doc').forEach(e=>e.className='doc py-3 text-xs font-bold text-spharos-slate');document.getElementById('doc-'+t).className='doc py-3 text-xs font-bold border-b-2 border-spharos-navy text-spharos-navy'}
+function ptype(p){currentP=p;renderP()}function input(id,label,type,val){return `<label class="text-xs text-spharos-slate font-bold">${label}</label><input id="${id}" type="${type}" value="${val}" class="w-full bg-spharos-card border border-spharos-line rounded-md px-3 py-1.5 text-xs text-spharos-ink code">`}
+function renderP(){
+  document.querySelectorAll('.pbtn').forEach(e=>e.className='pbtn px-2 py-2 rounded-md text-xs font-bold bg-spharos-gray text-spharos-body');
+  document.getElementById('p-'+currentP).className='pbtn px-2 py-2 rounded-md text-xs font-bold bg-spharos-navy text-white';
+  let f='',s='';
+  if(currentP==='RANGE'){
+    f=input('sales_date','sales_date','date','2026-05-15');
+    s=`CREATE TABLE sales_range (...)
+PARTITION BY RANGE (sales_date) (
+  PARTITION p_2026_q1 VALUES LESS THAN (DATE '2026-04-01'),
+  PARTITION p_2026_q2 VALUES LESS THAN (DATE '2026-07-01'),
+  PARTITION p_2026_max VALUES LESS THAN (MAXVALUE)
+);`;
+  }else if(currentP==='INTERVAL'){
+    f=input('sales_date','sales_date','date','2026-03-15');
+    s=`CREATE TABLE sales_interval (...)
+PARTITION BY RANGE (sales_date)
+INTERVAL (NUMTOYMINTERVAL(1, 'MONTH')) (
+  PARTITION p_before_2026 VALUES LESS THAN (DATE '2026-01-01')
+);
+-- transition point 이후 interval partition 자동 생성`;
+  }else if(currentP==='LIST'){
+    f=input('region','region_code','text','KR');
+    s=`CREATE TABLE sales_list (...)
+PARTITION BY LIST (region_code) (
+  PARTITION p_asia VALUES ('KR','JP','CN'),
+  PARTITION p_other VALUES (DEFAULT)
+);`;
+  }else if(currentP==='HASH'){
+    f=input('cust','customer_id','number','7829');
+    s=`CREATE TABLE sales_hash (...)
+PARTITION BY HASH (customer_id) PARTITIONS 4;
+-- 실제 배정은 Oracle 내부 해시 함수가 결정`;
+  }else{
+    f=input('sales_date','sales_date','date','2026-08-15')+input('cust','customer_id','number','7829');
+    s=`CREATE TABLE sales_comp (...)
+PARTITION BY RANGE (sales_date)
+SUBPARTITION BY HASH (customer_id)
+SUBPARTITIONS 4 (
+  PARTITION p_2026_h1 VALUES LESS THAN (DATE '2026-07-01'),
+  PARTITION p_2026_h2 VALUES LESS THAN (MAXVALUE)
+);
+
+-- 상위 RANGE partition은 논리적 경계 역할
+-- 실제 데이터 segment는 최하위 HASH subpartition 4개 단위로 생성`;
+  }
+  document.getElementById('form').innerHTML=f;
+  document.getElementById('sql').textContent=s;
+
+  if(currentP==='COMPOSITE'){
+    document.getElementById('parts').className='grid grid-cols-1 gap-4';
+    const groups=[
+      {id:'p_2026_h1',name:'PARTITION p_2026_h1',desc:'RANGE(sales_date) < DATE 2026-07-01',rows:data.COMPOSITE.filter(x=>x[2]==='p_2026_h1')},
+      {id:'p_2026_h2',name:'PARTITION p_2026_h2',desc:'RANGE(sales_date) < MAXVALUE',rows:data.COMPOSITE.filter(x=>x[2]==='p_2026_h2')}
+    ];
+    let h='';
+    groups.forEach(g=>{
+      h+=`<div id="part-${g.id}" class="logicalRange">
+        <div class="flex justify-between items-start pt-1">
+          <div>
+            <b class="text-xs code text-spharos-navy">${g.name}</b>
+            <div class="text-xs code text-spharos-slate mt-1">${g.desc}</div>
+          </div>
+          <span class="logicalBadge">NO DATA SEGMENT</span>
+        </div>
+        <p class="text-xs text-spharos-muted mt-2 leading-relaxed">상위 Range partition은 라우팅과 관리의 논리 경계입니다. Range-Hash composite에서는 실제 row가 저장되는 물리 segment가 아래 Hash subpartition 단위로 존재합니다.</p>
+        <div class="subGrid">
+          ${g.rows.map(x=>`<div id="part-${x[0]}" class="bg-white/80 border border-spharos-line rounded-md p-3 min-h-[98px]">
+            <div class="flex justify-between"><b class="text-xs code text-spharos-ink">${x[0]}</b><i class="fa-solid fa-hard-drive text-spharos-navy text-xs"></i></div>
+            <div class="text-[11px] text-spharos-slate code mt-2">${x[1]}</div>
+            <div class="mt-3 flex justify-between items-center"><span class="physicalBadge">SEGMENT</span><span class="text-[11px] text-spharos-navy font-bold">ONLINE</span></div>
+          </div>`).join('')}
+        </div>
+      </div>`;
+    });
+    document.getElementById('parts').innerHTML=h;
+    return;
+  }
+
+  document.getElementById('parts').className='grid grid-cols-4 gap-3';
+  let h='';
+  data[currentP].forEach((x,i)=>h+=`<div id="part-${x[0]}" class="bg-white/80 border border-spharos-line rounded-md p-3 min-h-[95px]"><div class="flex justify-between"><b class="text-xs code">${x[0]}</b><i class="fa-solid fa-hard-drive text-slate-600"></i></div><div class="text-[11px] text-spharos-slate code mt-2">${x[1]}</div><div class="text-[11px] text-spharos-navy font-bold mt-3">ONLINE</div></div>`);
+  document.getElementById('parts').innerHTML=h;
+}
+
+let routeStep = 0;
+let routeTargetId = null;
+
+function startRoute() {
+    clear();
+    routeStep = 1;
+    document.getElementById('btn-route-start').classList.add('hidden');
+    document.getElementById('btn-route-next').classList.remove('hidden');
+    document.getElementById('btn-route-next').innerHTML = '<i class="fa-solid fa-forward-step mr-1"></i>다음 단계';
+    
+    // Step 1: Show packet at evaluation phase
+    const p = document.getElementById('packet');
+    const v = document.getElementById('canvas');
+    p.classList.remove('hidden');
+    
+    // Find target
+    let target=data[currentP][1][0],desc='',parent='';
+    if(currentP==='RANGE'){
+      let d=document.getElementById('sales_date').value;
+      target=d<'2026-04-01'?'p_2026_q1':d<'2026-07-01'?'p_2026_q2':'p_2026_max';
+      desc=`${d}는 VALUES LESS THAN 상한값 기준으로 ${target}에 저장됩니다.`;
+    }else if(currentP==='INTERVAL'){
+      let d=document.getElementById('sales_date').value;
+      target=d<'2026-01-01'?'p_before_2026':d<'2026-02-01'?'SYS_P_JAN':d<'2026-03-01'?'SYS_P_FEB':'SYS_P_MAR';
+      desc=`${d}가 transition point 이후라면 Oracle이 interval 정의에 따라 필요한 partition을 자동 생성하고 ${target}로 라우팅합니다.`;
+    }else if(currentP==='LIST'){
+      let r=document.getElementById('region').value.toUpperCase();
+      target=['KR','JP','CN'].includes(r)?'p_asia':'p_other';
+      desc=`${r} 값이 명시 목록과 매칭되며, 없으면 DEFAULT partition으로 갑니다.`;
+    }else if(currentP==='HASH'){
+      let c=parseInt(document.getElementById('cust').value||0);
+      target='hash_p'+Math.abs(c%4);
+      desc='화면은 교육용 MOD 예시입니다. 실제 Oracle은 내부 해시 함수로 partition을 결정합니다.';
+    }else{
+      let d=document.getElementById('sales_date').value,c=parseInt(document.getElementById('cust').value||0);
+      parent=d<'2026-07-01'?'p_2026_h1':'p_2026_h2';
+      target=parent+'_sp'+(Math.abs(c%4)+1);
+      desc=`먼저 sales_date=${d}로 상위 Range partition ${parent}을 선택합니다. 그 다음 customer_id 해시 결과로 ${target} subpartition을 선택합니다. 상위 Range는 논리 경계이고 실제 저장 segment는 최하위 Hash subpartition입니다.`;
+      const parentEl=document.getElementById('part-'+parent);
+      if(parentEl) parentEl.classList.add('active');
+    }
+    
+    routeTargetId = 'part-'+target;
+    
+    document.getElementById('infoTitle').textContent=target+' 선택';
+    document.getElementById('info').textContent=desc;
+    
+    let vr = v.getBoundingClientRect();
+    // Start somewhere at the top
+    p.style.top = '10px';
+    p.style.left = (vr.width/2 - 50) + 'px';
+    document.getElementById('packetText').textContent = '파티션 키 평가...';
+}
+
+function nextRoute() {
+    routeStep++;
+    const p = document.getElementById('packet');
+    const v = document.getElementById('canvas');
+    const b = document.getElementById(routeTargetId);
+    
+    if (routeStep === 2) {
+        let vr = v.getBoundingClientRect();
+        let br = b.getBoundingClientRect();
+        p.style.top = (br.top - vr.top + br.height/2 - 14) + 'px';
+        p.style.left = (br.left - vr.left + br.width/2 - 50) + 'px';
+        document.getElementById('packetText').textContent = '라우팅 진행 중';
+        
+        document.getElementById('btn-route-next').innerHTML = '<i class="fa-solid fa-check mr-1"></i>완료';
+    } else {
+        if(b) b.classList.add('active');
+        p.classList.add('hidden');
+        document.getElementById('btn-route-start').classList.remove('hidden');
+        document.getElementById('btn-route-next').classList.add('hidden');
+        routeStep = 0;
+    }
+}
+
+function imode(m){idxMode=m;renderI()}
+
+function renderI(){
+  ['LP','LNP','GP','GN'].forEach(m=>{
+    const b=document.getElementById('i-'+m);
+    if(!b)return;
+    b.className=m===idxMode?'ibtn py-2 rounded-md bg-spharos-navy text-white text-xs font-bold':'ibtn py-2 rounded-md text-spharos-slate text-xs font-bold';
+  });
+
+  document.getElementById('base-table-ddl').textContent=`CREATE TABLE orders (
+  order_id     NUMBER NOT NULL,
+  customer_id  NUMBER NOT NULL,
+  sales_date   DATE   NOT NULL,
+  amount       NUMBER
+)
+PARTITION BY RANGE (sales_date) (
+  PARTITION p_2026_q1  VALUES LESS THAN (DATE '2026-04-01'),
+  PARTITION p_2026_q2  VALUES LESS THAN (DATE '2026-07-01'),
+  PARTITION p_2026_max VALUES LESS THAN (MAXVALUE)
+);`;
+
+  let sql='',title='',desc='',badge='',subtitle='',query='',qdesc='',qbadge='';
+  if(idxMode==='LP'){
+    sql=`CREATE INDEX idx_orders_lp
+ON orders (sales_date, order_id)
+LOCAL;
+
+-- Local Prefixed
+-- 선두 컬럼 = 테이블 파티션 키(sales_date)`;
+    title='Local Prefixed Index';
+    desc='Local index는 테이블 파티션과 1:1로 대응되는 equipartitioned 구조입니다. Prefixed는 인덱스 선두 컬럼이 테이블 파티션 키인 경우입니다. sales_date 조건이 있으면 필요한 테이블 파티션과 해당 로컬 인덱스 파티션만 접근하는 구조를 표현했습니다.';
+    badge='LOCAL / PREFIXED';
+    subtitle='테이블 파티션 1개 ↔ 로컬 인덱스 파티션 1개가 같은 범위로 대응';
+    query=`SELECT /* Local prefixed example */ *
+FROM orders
+WHERE sales_date >= DATE '2026-04-01'
+  AND sales_date <  DATE '2026-07-01'
+  AND order_id = 45902;`;
+    qbadge='PSTART/PSTOP = p_2026_q2';
+    qdesc='sales_date 조건으로 테이블 파티션 p_2026_q2가 pruning되고, 인덱스도 같은 범위의 로컬 인덱스 파티션 IDX_LP_P2만 접근하는 예시입니다.';
+  }else if(idxMode==='LNP'){
+    sql=`CREATE INDEX idx_orders_lnp
+ON orders (customer_id)
+LOCAL;
+
+-- Local Nonprefixed
+-- 선두 컬럼 != 테이블 파티션 키`;
+    title='Local Nonprefixed Index';
+    desc='Local Nonprefixed index도 지원됩니다. 인덱스 파티션은 테이블 파티션과 1:1로 대응되지만 선두 컬럼이 파티션 키가 아니므로, 파티션 키 조건이 없는 검색은 여러 로컬 인덱스 파티션을 탐색할 수 있습니다.';
+    badge='LOCAL / NONPREFIXED';
+    subtitle='로컬 구조는 유지하지만 파티션 키 조건이 없으면 여러 index partition probe 가능';
+    query=`SELECT /* Local nonprefixed example */ *
+FROM orders
+WHERE customer_id = 1029;`;
+    qbadge='Multiple local index partitions';
+    qdesc='조건에 테이블 파티션 키 sales_date가 없으므로 특정 테이블 파티션을 바로 pruning하기 어렵습니다. Local index 구조는 유지되지만, customer_id 검색을 위해 여러 로컬 인덱스 파티션을 probe할 수 있음을 시각화합니다.';
+  }else if(idxMode==='GP'){
+    sql=`CREATE INDEX idx_orders_gp
+ON orders (order_id)
+GLOBAL PARTITION BY RANGE (order_id) (
+  PARTITION g_100k VALUES LESS THAN (100000),
+  PARTITION g_200k VALUES LESS THAN (200000),
+  PARTITION g_max  VALUES LESS THAN (MAXVALUE)
+);
+
+-- Global Partitioned Prefixed
+-- 인덱스 파티션 키(order_id)가 인덱스 컬럼의 left prefix`;
+    title='Global Partitioned Index';
+    desc='Global partitioned index는 테이블 파티션 구조와 독립적으로 인덱스 자체의 파티션 기준을 가집니다. Oracle 공식 분류상 global partitioned index는 prefixed 구조로 설명되며, 인덱스 파티션 키가 인덱스 컬럼의 left prefix입니다.';
+    badge='GLOBAL PARTITIONED / PREFIXED';
+    subtitle='테이블은 sales_date 기준, 인덱스는 order_id 기준으로 독립 파티션';
+    query=`SELECT /* Global partitioned example */ *
+FROM orders
+WHERE order_id = 150000;`;
+    qbadge='Index partition G_200K';
+    qdesc='테이블 파티션 키 sales_date 조건이 없어도, global partitioned index는 order_id 기준으로 인덱스 파티션 G_200K를 먼저 찾고 ROWID를 통해 테이블 블록으로 접근하는 흐름을 보여줍니다.';
+  }else{
+    sql=`CREATE UNIQUE INDEX idx_orders_pk
+ON orders (order_id);
+
+-- Global Nonpartitioned Index
+-- 파티션되지 않은 단일 인덱스 세그먼트`;
+    title='Global Nonpartitioned Index';
+    desc='Global nonpartitioned index는 파티션 테이블 위에 생성되는 단일 인덱스 세그먼트입니다. 인덱스 자체가 파티션되지 않았으므로 prefixed/nonprefixed partitioned index 분류와는 별개입니다.';
+    badge='GLOBAL / NONPARTITIONED';
+    subtitle='테이블은 파티션되어 있지만 인덱스는 하나의 global segment';
+    query=`SELECT /* Global nonpartitioned example */ *
+FROM orders
+WHERE order_id = 45902;`;
+    qbadge='One global index segment';
+    qdesc='인덱스 자체는 파티션되지 않은 단일 세그먼트입니다. order_id 단건 조회 시 하나의 global index segment를 탐색하고 ROWID로 해당 테이블 파티션의 row를 찾는 구조를 표현합니다.';
+  }
+
+  document.getElementById('index-sql').textContent=sql;
+  document.getElementById('index-kind-badge').textContent=badge;
+  document.getElementById('query-sql').textContent=query;
+  document.getElementById('query-access-badge').textContent=qbadge;
+  document.getElementById('query-desc').textContent=qdesc;
+  document.getElementById('index-map-subtitle').textContent=subtitle;
+  document.getElementById('index-info-title').textContent=title;
+  document.getElementById('index-info-desc').textContent=desc;
+  drawIndexMap();
+}
+
+function drawIndexMap(){
+  const t=document.getElementById('table-partitions'), i=document.getElementById('index-partitions');
+  t.innerHTML=''; i.innerHTML='';
+  [['tbl-p1','TABLE PARTITION p_2026_q1','sales_date < 2026-04-01'],['tbl-p2','TABLE PARTITION p_2026_q2','sales_date < 2026-07-01'],['tbl-pmax','TABLE PARTITION p_2026_max','sales_date < MAXVALUE']].forEach(x=>{
+    t.innerHTML+=`<div id="${x[0]}" class="bg-white border border-spharos-border-blue rounded-md p-3 min-h-[76px]"><div class="text-xs code font-bold text-spharos-navy">${x[1]}</div><div class="text-[11px] code text-spharos-slate mt-1">${x[2]}</div><div class="text-[11px] text-spharos-navy font-bold mt-2">TABLE SEGMENT</div></div>`;
+  });
+
+  if(idxMode==='LP'||idxMode==='LNP'){
+    const prefix=idxMode==='LP'?'IDX_LP':'IDX_LNP';
+    const key=idxMode==='LP'?'(sales_date, order_id)':'(customer_id)';
+    [['idx-p1',prefix+'_P1','matches p_2026_q1'],['idx-p2',prefix+'_P2','matches p_2026_q2'],['idx-pmax',prefix+'_PMAX','matches p_2026_max']].forEach(x=>{
+      i.innerHTML+=`<div id="${x[0]}" class="bg-white border border-spharos-border-blue rounded-md p-3 min-h-[76px]"><div class="text-xs code font-bold text-spharos-navy">${x[1]}</div><div class="text-[11px] code text-spharos-slate mt-1">${key} · ${x[2]}</div><div class="text-[11px] text-spharos-navy font-bold mt-2">LOCAL INDEX PARTITION</div></div>`;
+    });
+  }else if(idxMode==='GP'){
+    [['idx-g1','G_100K','order_id < 100000'],['idx-g2','G_200K','order_id < 200000'],['idx-gmax','G_MAX','order_id < MAXVALUE']].forEach(x=>{
+      i.innerHTML+=`<div id="${x[0]}" class="bg-white border border-spharos-border-blue rounded-md p-3 min-h-[76px]"><div class="text-xs code font-bold text-spharos-navy">${x[1]}</div><div class="text-[11px] code text-spharos-slate mt-1">${x[2]}</div><div class="text-[11px] text-spharos-navy font-bold mt-2">GLOBAL INDEX PARTITION</div></div>`;
+    });
+  }else{
+    i.innerHTML=`<div id="idx-global-one" class="bg-white border border-spharos-border-blue rounded-md p-4 min-h-[235px] flex flex-col justify-center items-center text-center"><i class="fa-solid fa-database text-spharos-navy text-2xl mb-3"></i><div class="text-xs code font-bold text-spharos-navy">IDX_ORDERS_PK</div><div class="text-[11px] code text-spharos-slate mt-2">ON orders(order_id)</div><div class="text-[11px] text-spharos-navy font-bold mt-3">ONE GLOBAL NONPARTITIONED INDEX SEGMENT</div></div>`;
+  }
+}
+
+
+let scanSteps = [];
+let scanIndex = 0;
+
+function startScan() {
+    clear();
+    scanSteps = [];
+    scanIndex = 0;
+    
+    if(idxMode==='LP'){
+        scanSteps.push(() => {
+            move('idx-p2','tbl-p2','LOCAL PREFIXED');
+            document.getElementById('idx-p2')?.classList.add('active');
+            document.getElementById('tbl-p2')?.classList.add('active');
+        });
+    }else if(idxMode==='LNP'){
+        scanSteps.push(() => { document.getElementById('idx-p1')?.classList.add('active'); });
+        scanSteps.push(() => { document.getElementById('idx-p2')?.classList.add('active'); });
+        scanSteps.push(() => { document.getElementById('idx-pmax')?.classList.add('active'); });
+        scanSteps.push(() => { 
+            document.getElementById('tbl-p2')?.classList.add('active');
+            move('idx-p1','tbl-p2','LOCAL NONPREFIXED');
+        });
+    }else if(idxMode==='GP'){
+        if(!gvalid){
+            document.getElementById('idx-g2')?.classList.add('bad');
+            document.getElementById('index-info-title').textContent='Global Index UNUSABLE';
+            document.getElementById('index-info-desc').textContent='Global partitioned index가 UNUSABLE이면 해당 인덱스 스캔을 사용할 수 없습니다.';
+            return;
+        }
+        scanSteps.push(() => {
+            move('idx-g2','tbl-p2','GLOBAL PARTITIONED');
+            document.getElementById('idx-g2')?.classList.add('active');
+            document.getElementById('tbl-p2')?.classList.add('active');
+        });
+    }else{
+        if(!gvalid){
+            document.getElementById('idx-global-one')?.classList.add('bad');
+            document.getElementById('index-info-title').textContent='Global Index UNUSABLE';
+            document.getElementById('index-info-desc').textContent='Global nonpartitioned index도 partition maintenance 작업 영향으로 UNUSABLE이 될 수 있습니다.';
+            return;
+        }
+        scanSteps.push(() => {
+            move('idx-global-one','tbl-p2','GLOBAL NONPARTITIONED');
+            document.getElementById('idx-global-one')?.classList.add('active');
+            document.getElementById('tbl-p2')?.classList.add('active');
+        });
+    }
+    
+    if (scanSteps.length > 0) {
+        document.getElementById('btn-scan-start').classList.add('hidden');
+        document.getElementById('btn-scan-next').classList.remove('hidden');
+        document.getElementById('btn-scan-next').innerHTML = '<i class="fa-solid fa-forward-step mr-1"></i> 다음 단계';
+        nextScan(); // execute first step
+    }
+}
+
+function nextScan() {
+    if (scanIndex < scanSteps.length) {
+        scanSteps[scanIndex]();
+        scanIndex++;
+    }
+    
+    if (scanIndex >= scanSteps.length) {
+        document.getElementById('btn-scan-next').innerHTML = '<i class="fa-solid fa-check mr-1"></i> 완료';
+        // change onclick so next click resets
+        document.getElementById('btn-scan-next').onclick = function() {
+            document.getElementById('btn-scan-start').classList.remove('hidden');
+            document.getElementById('btn-scan-next').classList.add('hidden');
+            document.getElementById('btn-scan-next').onclick = nextScan;
+            const p=document.getElementById('packet');
+            if(p) p.classList.add('hidden');
+        };
+    }
+}
+
+function move(from,to,text) {
+    const p=document.getElementById('packet');
+    const v=document.getElementById('canvas');
+    const a=document.getElementById(from);
+    const b=document.getElementById(to);
+    if(!p || !v || !a || !b) return;
+    
+    document.getElementById('packetText').textContent=text;
+    let vr=v.getBoundingClientRect();
+    let ar=a.getBoundingClientRect();
+    let br=b.getBoundingClientRect();
+    
+    p.classList.remove('hidden');
+    // Start at 'from'
+    p.style.top=(ar.top-vr.top+ar.height/2-14)+'px';
+    p.style.left=(ar.left-vr.left+ar.width/2-50)+'px';
+    
+    // Animate to 'to'
+    setTimeout(()=>{
+        p.style.top=(br.top-vr.top+br.height/2-14)+'px';
+        p.style.left=(br.left-vr.left+br.width/2-50)+'px';
+    }, 50);
+}
+
+function dmode(m){currentD=m;renderD()}function renderD(){document.querySelectorAll('.dbtn').forEach(e=>e.className='dbtn p-3 rounded-md border border-spharos-line bg-white text-xs font-bold');document.getElementById('d-'+currentD).className='dbtn p-3 rounded-md border border-spharos-navy bg-spharos-tint-blue text-xs font-bold';let sql='',info='';if(currentD==='ADD'){sql=`ALTER TABLE sales ADD PARTITION p_2027_q1 VALUES LESS THAN (DATE '2027-04-01');`;info='MAXVALUE partition이 이미 있으면 단순 ADD가 아니라 SPLIT을 검토합니다.'}else if(currentD==='SPLIT'){sql=`ALTER TABLE sales SPLIT PARTITION p_max AT (DATE '2027-01-01') INTO (PARTITION p_2026_q4, PARTITION p_future);`;info='MAXVALUE partition을 새 경계값 기준으로 나눌 때 사용합니다.'}else if(currentD==='DROP'){sql=`ALTER TABLE sales DROP PARTITION p_2026_q1 UPDATE GLOBAL INDEXES;`;info='오래된 데이터 제거에 유용하지만 global index 유지 비용과 잠금을 검토합니다.'}else{sql=`ALTER TABLE sales EXCHANGE PARTITION p_2026_q1 WITH TABLE sales_stage INCLUDING INDEXES WITHOUT VALIDATION;`;info='데이터 복사 없이 segment 교환. 컬럼/인덱스/제약조건 정합성이 중요합니다.'}document.getElementById('ddlSql').textContent=sql;document.getElementById('ddlInfo').textContent=info;document.getElementById('ddlTitle').textContent=currentD;document.getElementById('ddlOpt').innerHTML=currentD==='DROP'?`<label class="text-xs text-spharos-body"><input id="upidx" type="checkbox" checked class="accent-teal-500 mr-1">UPDATE GLOBAL INDEXES 사용</label>`:'';drawState()}
+function drawState(){document.getElementById('ddlState').innerHTML=['p_2026_q1','p_2026_q2','p_max','sales_stage'].map((x,i)=>`<div id="st${i}" class="bg-spharos-card border border-spharos-line rounded-md p-3 text-center"><b class="text-xs code">${x}</b><div class="text-[11px] text-spharos-muted">ONLINE</div></div>`).join('');document.getElementById('gstat').textContent=gvalid?'VALID':'UNUSABLE';document.getElementById('gstat').className='text-sm font-black '+(gvalid?'text-spharos-navy':'text-spharos-yellow');document.getElementById('gicon').className='fa-solid '+(gvalid?'fa-shield-halved text-xl text-spharos-navy':'fa-circle-xmark text-xl text-spharos-yellow');document.getElementById('rebuild').disabled=gvalid;document.getElementById('rebuild').className=gvalid?'mt-3 w-full py-2 rounded-md bg-spharos-gray text-spharos-muted cursor-not-allowed text-xs font-bold':'mt-3 w-full py-2 rounded-md bg-spharos-navy text-white text-xs font-bold'}
+let ddlSteps = [];
+let ddlIndex = 0;
+
+function startDdl() {
+    clear();
+    ddlSteps = [];
+    ddlIndex = 0;
+    
+    if (currentD === 'DROP') {
+        ddlSteps.push(() => {
+            document.getElementById('st0').classList.add('bad');
+        });
+        ddlSteps.push(() => {
+            if (!document.getElementById('upidx').checked) {
+                gvalid = false;
+                drawState();
+                document.getElementById('gidx').classList.add('bad');
+            }
+        });
+    } else if (currentD === 'EXCHANGE') {
+        ddlSteps.push(() => {
+            document.getElementById('st0').classList.add('active');
+            document.getElementById('st3').classList.add('active');
+        });
+        ddlSteps.push(() => {
+            gvalid = false;
+            drawState();
+            document.getElementById('gidx').classList.add('bad');
+        });
+    } else if (currentD === 'SPLIT') {
+        ddlSteps.push(() => {
+            document.getElementById('st2').classList.add('active');
+        });
+        ddlSteps.push(() => {
+            gvalid = false;
+            drawState();
+            document.getElementById('gidx').classList.add('bad');
+        });
+    } else {
+        // ADD
+        ddlSteps.push(() => {
+            document.getElementById('st2').classList.add('active');
+        });
+    }
+    
+    if (ddlSteps.length > 0) {
+        document.getElementById('btn-ddl-start').classList.add('hidden');
+        document.getElementById('btn-ddl-next').classList.remove('hidden');
+        document.getElementById('btn-ddl-next').innerHTML = '<i class="fa-solid fa-forward-step mr-1"></i> 다음 단계';
+        nextDdl(); // Execute step 1
+    }
+}
+
+function nextDdl() {
+    if (ddlIndex < ddlSteps.length) {
+        ddlSteps[ddlIndex]();
+        ddlIndex++;
+    }
+    
+    if (ddlIndex >= ddlSteps.length) {
+        document.getElementById('btn-ddl-next').innerHTML = '<i class="fa-solid fa-check mr-1"></i> 완료';
+        document.getElementById('btn-ddl-next').onclick = function() {
+            document.getElementById('btn-ddl-start').classList.remove('hidden');
+            document.getElementById('btn-ddl-next').classList.add('hidden');
+            document.getElementById('btn-ddl-next').onclick = nextDdl;
+        };
+    }
+}
+function rebuild(){gvalid=true;drawState();document.getElementById('gidx').classList.remove('bad')}
+
+function clear(){document.querySelectorAll('.active,.bad').forEach(e=>e.classList.remove('active','bad'))}
+window.onload=()=>{css();renderP();renderI();renderD();tab('routing')};
+</script>
+</body></html>

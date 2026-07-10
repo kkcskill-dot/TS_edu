@@ -191,6 +191,14 @@
             <div class="ts-study-desc">핵심 이론 및 실전 튜닝 지식을 테스트하고 모니터링합니다.</div>
             <div class="ts-study-cta" style="color: var(--accent-yellow);">평가 응시 ➔</div>
           </div>
+
+          <div class="ts-side-title" style="margin-top:24px;">기술서비스</div>
+          <div class="ts-study" style="border: 1px dashed var(--accent-emerald); background: rgba(16, 185, 129, 0.02);" data-name="찾아가는 기술서비스" data-enter="nav-btn-visit-service" data-course="visit-service">
+            <div class="ts-study-name" style="color: var(--accent-emerald);">찾아가는 기술서비스</div>
+            <div class="ts-study-sub">Visiting Tech Service</div>
+            <div class="ts-study-desc">현업 부서로 직접 찾아가 DB 성능 및 아키텍처 관련 기술적 애로사항을 해결합니다.</div>
+            <div class="ts-study-cta" style="color: var(--accent-emerald);">서비스 안내 ➔</div>
+          </div>
         </aside>
       </div>`;
 
