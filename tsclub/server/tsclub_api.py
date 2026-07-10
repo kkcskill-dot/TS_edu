@@ -121,7 +121,8 @@ class TSClubRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        parsed = urlparse(self.path)
+        clean_path = re.sub(r'^/+', '/', self.path)
+        parsed = urlparse(clean_path)
         path = parsed.path
         qs = parse_qs(parsed.query)
 
@@ -177,7 +178,8 @@ class TSClubRequestHandler(BaseHTTPRequestHandler):
         self._respond_json(404, {"error": "Not Found"})
 
     def do_POST(self):
-        parsed = urlparse(self.path)
+        clean_path = re.sub(r'^/+', '/', self.path)
+        parsed = urlparse(clean_path)
         path = parsed.path
         
         content_length = int(self.headers.get("Content-Length", 0))
@@ -315,7 +317,8 @@ class TSClubRequestHandler(BaseHTTPRequestHandler):
 
     def do_DELETE(self):
         if not self.check_auth(): return
-        parsed = urlparse(self.path)
+        clean_path = re.sub(r'^/+', '/', self.path)
+        parsed = urlparse(clean_path)
         path = parsed.path
 
         # DELETE /groups/<id>
@@ -369,7 +372,8 @@ class TSClubRequestHandler(BaseHTTPRequestHandler):
 
     def do_PUT(self):
         if not self.check_auth(): return
-        parsed = urlparse(self.path)
+        clean_path = re.sub(r'^/+', '/', self.path)
+        parsed = urlparse(clean_path)
         path = parsed.path
         
         content_length = int(self.headers.get("Content-Length", 0))
