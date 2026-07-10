@@ -58,8 +58,6 @@ function showDetail(group) {
     currentGroupId = group.id;
     document.getElementById('detail-title').textContent = group.title;
     document.getElementById('detail-desc').textContent = group.description;
-    currentGroupId = groupId;
-    document.getElementById('detail-title').textContent = title;
     
     loadNotices();
     loadPolls();
@@ -85,7 +83,7 @@ async function loadGroups() {
             card.onclick = (e) => {
                 // Don't trigger if clicking delete button
                 if(e.target.closest('.delete-group-btn')) return;
-                openGroupDetail(g.id, g.title);
+                showDetail(g);
             };
             
             let adminHtml = '';
@@ -95,9 +93,9 @@ async function loadGroups() {
 
             card.innerHTML = `
                 ${adminHtml}
-                <div class="club-title">${g.title}</div>
-                <div class="club-desc">${g.description || '설명이 없습니다.'}</div>
-                <div class="club-meta">
+                <h3 class="club-card-title">${g.title}</h3>
+                <div class="club-card-desc">${g.description || '설명이 없습니다.'}</div>
+                <div class="club-card-meta">
                     <span>👤 등록: ${g.creator_name}</span>
                     <span>👥 참석 예상: ${g.participants_count}명</span>
                 </div>
