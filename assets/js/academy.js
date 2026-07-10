@@ -171,6 +171,10 @@
           </div>
         </div>
         <aside class="ts-home-side">
+          <div class="ts-roadmap-head">
+            <h3>비정규과정</h3>
+            <p>정규과정 외 별도 과정입니다.</p>
+          </div>
           <div class="ts-study-grid">
             ${ACADEMY.studies.map(s => `
             <div class="ts-study" data-name="${s.name}" data-enter="${s.enter}" data-course="${s.course}">
