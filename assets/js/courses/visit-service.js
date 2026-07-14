@@ -50,6 +50,18 @@
           mdText = mdText.replace(/>\s*\[!IMPORTANT\]/g, '> ❗ **IMPORTANT:**');
           
           viewer.innerHTML = `<div class="markdown-body" style="animation: fade-in 0.3s ease;">${window.marked.parse(mdText)}</div>`;
+          const mermaidBlocks = viewer.querySelectorAll('pre code.language-mermaid');
+          if (mermaidBlocks.length > 0 && window.mermaid) {
+            mermaidBlocks.forEach((block) => {
+              const pre = block.parentElement;
+              const div = document.createElement('div');
+              div.className = 'mermaid';
+              div.textContent = block.textContent;
+              pre.parentNode.replaceChild(div, pre);
+            });
+            mermaid.initialize({ startOnLoad: false, theme: 'dark' });
+            try { mermaid.run({ nodes: viewer.querySelectorAll('.mermaid') }); } catch(e) { console.error(e); }
+          }
         } else {
           viewer.innerHTML = `<pre style="white-space:pre-wrap;font-family:inherit;">${cache[id]}</pre>`;
         }
