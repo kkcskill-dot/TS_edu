@@ -56,28 +56,17 @@ flowchart TD
     BC[(Buffer Cache)]
     Undo[(Undo Block)]
     Redo[(Redo Log Buffer)]
-    LGWR[LGWR Process]
-    RLF[(Redo Log File)]
-    DBWn[DBWn Process]
-    DF[(Data File)]
 
     UP -->|"1. INSERT 요청"| SP
     SP -->|"2. 파싱"| SPool
     SP -->|"3. 여유 블록 확보<br/>6. 블록 수정 - Dirty"| BC
     SP -->|"4. 롤백용 RowID 저장"| Undo
     SP -->|"5. Redo 데이터 생성 - Data, Undo"| Redo
-    UP -->|"7. COMMIT"| SP
-    SP -->|8. 기록 요청| LGWR
-    LGWR -->|9. 동기식 기록| RLF
-    BC -.->|10. 백그라운드 기록 - Checkpoint| DBWn
-    DBWn -.->|11. 물리적 저장| DF
 
     classDef process fill:#f8fafc,stroke:#0ea5e9,stroke-width:2px,color:#0f172a;
     classDef mem fill:#f0fdf4,stroke:#10b981,stroke-width:2px,color:#0f172a;
-    classDef disk fill:#fef2f2,stroke:#ef4444,stroke-width:2px,color:#0f172a;
-    class UP,SP,LGWR,DBWn process;
+    class UP,SP process;
     class SPool,BC,Undo,Redo mem;
-    class RLF,DF disk;
 ```
 
 ---
@@ -99,7 +88,6 @@ flowchart TD
     BC -->|"3. Physical Read - 필요시"| DF
     SP -->|"4. 변경 전 데이터 저장"| Undo
     SP -->|"5. Redo 데이터 생성 - Data, Undo"| Redo
-    UP -->|"7. COMMIT"| SP
 
     classDef process fill:#f8fafc,stroke:#0ea5e9,stroke-width:2px,color:#0f172a;
     classDef mem fill:#f0fdf4,stroke:#10b981,stroke-width:2px,color:#0f172a;
@@ -121,21 +109,66 @@ flowchart TD
     BC[(Buffer Cache)]
     Undo[(Undo Block)]
     Redo[(Redo Log Buffer)]
-    LGWR[LGWR Process]
-    RLF[(Redo Log File)]
 
     UP -->|"1. DELETE 요청"| SP
     SP -->|"2. 삭제 대상 식별<br/>5. 행 삭제 마킹 - Dirty"| BC
     SP -->|"3. 삭제할 로우 전체 저장"| Undo
     SP -->|"4. Redo 데이터 생성"| Redo
-    UP -->|"6. COMMIT"| SP
-    SP -->|7. 동기화 요청| LGWR
-    LGWR -->|8. 디스크 기록| RLF
+
+    classDef process fill:#f8fafc,stroke:#0ea5e9,stroke-width:2px,color:#0f172a;
+    classDef mem fill:#f0fdf4,stroke:#10b981,stroke-width:2px,color:#0f172a;
+    class UP,SP process;
+    class BC,Undo,Redo mem;
+```
+
+---
+
+## 5. COMMIT 실행 흐름
+트랜잭션을 확정(COMMIT)하면, 버퍼 캐시의 데이터 기록 여부와 무관하게 **Redo Log Buffer**의 내용을 **Redo Log File**에 우선 기록하여 데이터 유실을 방지합니다(Fast Commit). 이후 DBWn 백그라운드 프로세스가 비동기적으로(또는 체크포인트 시점에) Dirty Buffer를 데이터 파일에 기록합니다.
+
+```mermaid
+flowchart TD
+    UP([User Process])
+    SP([Server Process])
+    LGWR[LGWR Process]
+    RLF[(Redo Log File)]
+    DBWn[DBWn Process]
+    DF[(Data File)]
+
+    UP -->|"1. COMMIT 요청"| SP
+    SP -->|"2. 동기화 요청"| LGWR
+    LGWR -->|"3. Redo 기록 (Write-Ahead Logging)"| RLF
+    LGWR -.->|"4. 기록 완료 통보"| SP
+    SP -->|"5. 성공 반환"| UP
+    
+    DBWn -.->|"비동기/체크포인트 시<br/>Dirty Buffer 기록"| DF
 
     classDef process fill:#f8fafc,stroke:#0ea5e9,stroke-width:2px,color:#0f172a;
     classDef mem fill:#f0fdf4,stroke:#10b981,stroke-width:2px,color:#0f172a;
     classDef disk fill:#fef2f2,stroke:#ef4444,stroke-width:2px,color:#0f172a;
-    class UP,SP,LGWR process;
-    class BC,Undo,Redo mem;
-    class RLF disk;
+    class UP,SP,LGWR,DBWn process;
+    class RLF,DF disk;
+```
+
+---
+
+## 6. ROLLBACK 실행 흐름
+작업을 취소(ROLLBACK)하면, **Undo 영역**에 저장된 과거 데이터를 사용하여 수정되었던 버퍼 캐시의 원본 데이터를 원래 상태로 되돌립니다. (메모리 상에서 복구 수행)
+
+```mermaid
+flowchart TD
+    UP([User Process])
+    SP([Server Process])
+    BC[(Buffer Cache)]
+    Undo[(Undo Block)]
+
+    UP -->|"1. ROLLBACK 요청"| SP
+    SP -->|"2. Undo 블록 참조"| Undo
+    SP -->|"3. 변경된(Dirty) 데이터 원상 복구"| BC
+    SP -->|"4. 취소 완료 반환"| UP
+
+    classDef process fill:#f8fafc,stroke:#0ea5e9,stroke-width:2px,color:#0f172a;
+    classDef mem fill:#f0fdf4,stroke:#10b981,stroke-width:2px,color:#0f172a;
+    class UP,SP process;
+    class BC,Undo mem;
 ```
