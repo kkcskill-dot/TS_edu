@@ -8,7 +8,8 @@
     { id: "plan", title: "실행계획", file: "execution_plan.md" },
     { id: "join", title: "조인", file: "join.md" },
     { id: "architecture", title: "오라클 아키텍처", file: "architecture.md" },
-    { id: "partitioning", title: "파티셔닝", file: "partitioning.md" }
+    { id: "partitioning", title: "파티셔닝", file: "partitioning.md" },
+    { id: "execution_flow", title: "아키텍쳐 순서도", file: "sql_execution_flow.md" }
   ];
 
   // ── 학습자료 (탭 + 마크다운 렌더) ──
