@@ -5,7 +5,7 @@
 ---
 
 ## 1. SELECT 실행 흐름
-데이터를 조회할 때는 파싱(Parsing) 후 메모리(Buffer Cache)에서 데이터를 찾으며, 없을 경우에만 디스크(Data File)에서 읽어옵니다. 변경 작업이 없으므로 Redo/Undo 영역은 사용되지 않습니다.
+데이터를 조회할 때는 파싱 후 버퍼 캐시에서 데이터를 찾으며, 미적재 시 디스크에서 읽어옵니다. 단, 조회 시점에 다른 세션이 데이터를 변경 중이거나 변경한 내역이 있다면, **읽기 일관성(Read Consistency)**을 보장하기 위해 **Undo 영역**의 과거 데이터를 참조(CR Read)하여 데이터를 읽습니다.
 
 ```mermaid
 flowchart TD
@@ -16,6 +16,7 @@ flowchart TD
     PGA[PGA]
     SPool[(Shared Pool)]
     BC[(Buffer Cache)]
+    Undo[(Undo Block)]
     DF[(Data File)]
 
     %% 흐름 연결
@@ -28,15 +29,17 @@ flowchart TD
     SP -->|6. 데이터 블록 탐색| BC
     BC -->|7. Miss 시 Physical Read| DF
     DF -->|8. 블록 적재| BC
-    BC -->|9. Logical Read| SP
-    SP -->|10. Fetch 및 결과 반환| UP
+    BC -->|9. 변경 발견 시 CR 카피 생성| Undo
+    Undo -.->|10. 읽기 일관성 확보| SP
+    BC -->|11. Logical Read| SP
+    SP -->|12. Fetch 및 결과 반환| UP
 
     %% 스타일 설정
     classDef process fill:#f8fafc,stroke:#0ea5e9,stroke-width:2px,color:#0f172a;
     classDef mem fill:#f0fdf4,stroke:#10b981,stroke-width:2px,color:#0f172a;
     classDef disk fill:#fef2f2,stroke:#ef4444,stroke-width:2px,color:#0f172a;
     class UP,SP,L process;
-    class PGA,SPool,BC mem;
+    class PGA,SPool,BC,Undo mem;
     class DF disk;
 ```
 
@@ -61,11 +64,11 @@ flowchart TD
     SP -->|2. 파싱| SPool
     SP -->|3. 여유 블록 확보| BC
     BC -->|4. Redo 데이터 생성| Redo
-    SP -->|5. 블록 수정 (Dirty Buffer)| BC
+    SP -->|5. 블록 수정 - Dirty| BC
     UP -->|6. COMMIT| SP
     SP -->|7. 기록 요청| LGWR
     LGWR -->|8. 동기식 기록| RLF
-    BC -.->|9. 백그라운드 기록 (Checkpoint)| DBWn
+    BC -.->|9. 백그라운드 기록 - Checkpoint| DBWn
     DBWn -.->|10. 물리적 저장| DF
 
     classDef process fill:#f8fafc,stroke:#0ea5e9,stroke-width:2px,color:#0f172a;
@@ -88,14 +91,14 @@ flowchart TD
     BC[(Buffer Cache)]
     Undo[(Undo Block)]
     Redo[(Redo Log Buffer)]
-    DF[(Data/Undo File)]
+    DF[(Data, Undo File)]
 
     UP -->|1. UPDATE 요청| SP
     SP -->|2. 대상 블록 찾기| BC
-    BC -->|3. Physical Read (필요시)| DF
+    BC -->|3. Physical Read - 필요시| DF
     SP -->|4. 변경 전 데이터 저장| Undo
-    SP -->|5. Redo 데이터 생성 (Data+Undo)| Redo
-    SP -->|6. 블록 수정 (Dirty Buffer)| BC
+    SP -->|5. Redo 데이터 생성 - Data, Undo| Redo
+    SP -->|6. 블록 수정 - Dirty| BC
     UP -->|7. COMMIT| SP
 
     classDef process fill:#f8fafc,stroke:#0ea5e9,stroke-width:2px,color:#0f172a;
@@ -125,7 +128,7 @@ flowchart TD
     SP -->|2. 삭제 대상 식별| BC
     SP -->|3. 삭제할 로우 전체 저장| Undo
     SP -->|4. Redo 데이터 생성| Redo
-    SP -->|5. 행 삭제 마킹 (Dirty)| BC
+    SP -->|5. 행 삭제 마킹 - Dirty| BC
     UP -->|6. COMMIT| SP
     SP -->|7. 동기화 요청| LGWR
     LGWR -->|8. 디스크 기록| RLF
