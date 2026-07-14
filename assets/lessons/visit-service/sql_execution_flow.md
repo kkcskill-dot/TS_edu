@@ -61,13 +61,12 @@ flowchart TD
     DBWn[DBWn Process]
     DF[(Data File)]
 
-    UP -->|1. INSERT 요청| SP
-    SP -->|2. 파싱| SPool
-    SP -->|3. 여유 블록 확보| BC
-    SP -->|4. 롤백용 RowID 저장| Undo
-    SP -->|5. Redo 데이터 생성 - Data, Undo| Redo
-    SP -->|6. 블록 수정 - Dirty| BC
-    UP -->|7. COMMIT| SP
+    UP -->|"1. INSERT 요청"| SP
+    SP -->|"2. 파싱"| SPool
+    SP -->|"3. 여유 블록 확보<br/>6. 블록 수정 - Dirty"| BC
+    SP -->|"4. 롤백용 RowID 저장"| Undo
+    SP -->|"5. Redo 데이터 생성 - Data, Undo"| Redo
+    UP -->|"7. COMMIT"| SP
     SP -->|8. 기록 요청| LGWR
     LGWR -->|9. 동기식 기록| RLF
     BC -.->|10. 백그라운드 기록 - Checkpoint| DBWn
@@ -95,13 +94,12 @@ flowchart TD
     Redo[(Redo Log Buffer)]
     DF[(Data, Undo File)]
 
-    UP -->|1. UPDATE 요청| SP
-    SP -->|2. 대상 블록 찾기| BC
-    BC -->|3. Physical Read - 필요시| DF
-    SP -->|4. 변경 전 데이터 저장| Undo
-    SP -->|5. Redo 데이터 생성 - Data, Undo| Redo
-    SP -->|6. 블록 수정 - Dirty| BC
-    UP -->|7. COMMIT| SP
+    UP -->|"1. UPDATE 요청"| SP
+    SP -->|"2. 대상 블록 찾기<br/>6. 블록 수정 - Dirty"| BC
+    BC -->|"3. Physical Read - 필요시"| DF
+    SP -->|"4. 변경 전 데이터 저장"| Undo
+    SP -->|"5. Redo 데이터 생성 - Data, Undo"| Redo
+    UP -->|"7. COMMIT"| SP
 
     classDef process fill:#f8fafc,stroke:#0ea5e9,stroke-width:2px,color:#0f172a;
     classDef mem fill:#f0fdf4,stroke:#10b981,stroke-width:2px,color:#0f172a;
@@ -126,12 +124,11 @@ flowchart TD
     LGWR[LGWR Process]
     RLF[(Redo Log File)]
 
-    UP -->|1. DELETE 요청| SP
-    SP -->|2. 삭제 대상 식별| BC
-    SP -->|3. 삭제할 로우 전체 저장| Undo
-    SP -->|4. Redo 데이터 생성| Redo
-    SP -->|5. 행 삭제 마킹 - Dirty| BC
-    UP -->|6. COMMIT| SP
+    UP -->|"1. DELETE 요청"| SP
+    SP -->|"2. 삭제 대상 식별<br/>5. 행 삭제 마킹 - Dirty"| BC
+    SP -->|"3. 삭제할 로우 전체 저장"| Undo
+    SP -->|"4. Redo 데이터 생성"| Redo
+    UP -->|"6. COMMIT"| SP
     SP -->|7. 동기화 요청| LGWR
     LGWR -->|8. 디스크 기록| RLF
 
