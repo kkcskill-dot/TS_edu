@@ -59,7 +59,8 @@
               div.textContent = block.textContent;
               pre.parentNode.replaceChild(div, pre);
             });
-            mermaid.initialize({ startOnLoad: false, theme: 'dark' });
+            const isLight = document.body.classList.contains('light-theme');
+            mermaid.initialize({ startOnLoad: false, theme: isLight ? 'default' : 'dark' });
             try { mermaid.run({ nodes: viewer.querySelectorAll('.mermaid') }); } catch(e) { console.error(e); }
           }
         } else {
