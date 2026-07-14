@@ -20,13 +20,13 @@ button:disabled{opacity:.4;cursor:not-allowed}
 .flow-dot{animation:pulse 1s infinite}
 
 /* Light theme overrides */
-.light-theme{background:#f8fafc !important;color:#0f172a !important}
-.light-theme header{background:#ffffffee !important;border-color:#cbd5e1 !important}
-.light-theme .text-slate-100,.light-theme .text-slate-300,.light-theme .text-slate-400,.light-theme .text-slate-500,.light-theme .text-slate-600{color:#334155 !important}
-.light-theme .bg-slate-900,.light-theme .bg-slate-900\/90,.light-theme .bg-slate-950,.light-theme .bg-slate-800{background:#ffffff !important}
-.light-theme .border-slate-800,.light-theme .border-slate-700,.light-theme .border-cyan-900\/60,.light-theme .border-emerald-900,.light-theme .border-violet-900{border-color:#cbd5e1 !important}
-.light-theme .bg-cyan-950\/10,.light-theme .bg-sky-950\/5,.light-theme .bg-emerald-950\/5,.light-theme .bg-red-600\/10,.light-theme .bg-sky-500\/10,.light-theme .bg-amber-500\/10,.light-theme .bg-violet-950,.light-theme .bg-emerald-950,.light-theme .bg-slate-800{background:#f8fafc !important}
-.light-theme .text-cyan-300,.light-theme .text-cyan-400,.light-theme .text-emerald-300,.light-theme .text-emerald-400,.light-theme .text-sky-300,.light-theme .text-sky-400,.light-theme .text-red-500,.light-theme .text-violet-400,.light-theme .text-amber-400{color:#0f172a !important}
+.light-theme{background:#FFFFFF !important;color:#121D2A !important}
+.light-theme header{background:#FFFFFFee !important;border-color:#CBD5E1 !important}
+.light-theme .text-slate-100,.light-theme .text-slate-300,.light-theme .text-slate-400,.light-theme .text-slate-500,.light-theme .text-slate-600{color:#424A57 !important}
+.light-theme .bg-slate-900,.light-theme .bg-slate-900\/90,.light-theme .bg-slate-950,.light-theme .bg-slate-800{background:#FFFFFF !important}
+.light-theme .border-slate-800,.light-theme .border-slate-700,.light-theme .border-cyan-900\/60,.light-theme .border-emerald-900,.light-theme .border-violet-900{border-color:#CBD5E1 !important}
+.light-theme .bg-cyan-950\/10,.light-theme .bg-sky-950\/5,.light-theme .bg-emerald-950\/5,.light-theme .bg-red-600\/10,.light-theme .bg-sky-500\/10,.light-theme .bg-amber-500\/10,.light-theme .bg-violet-950,.light-theme .bg-emerald-950,.light-theme .bg-slate-800{background:#F7F8FA !important}
+.light-theme .text-cyan-300,.light-theme .text-cyan-400,.light-theme .text-emerald-300,.light-theme .text-emerald-400,.light-theme .text-sky-300,.light-theme .text-sky-400,.light-theme .text-red-500,.light-theme .text-violet-400,.light-theme .text-amber-400{color:#002A5B !important}
 .light-theme .component-active{border-color:#0284c7 !important;box-shadow:0 0 18px rgba(2,132,199,.25) !important}
 .light-theme .inspect-selected{border-color:#d97706 !important;box-shadow:0 0 14px rgba(217,119,6,.20) !important}
 .light-theme #progress-bar{background:#0284c7 !important}
@@ -276,6 +276,6 @@ function toggleTheme(){
  const next=document.body.classList.contains('light-theme')?'dark':'light';
  applyTheme(next);
 }
-window.addEventListener('beforeunload',stopTimer);try{applyTheme(localStorage.getItem('oracleArchTheme')||'light');}catch(e){applyTheme('light');}selectFlow('sql');
+window.addEventListener('beforeunload',stopTimer);try{applyTheme('light');}catch(e){applyTheme('light');}selectFlow('sql');
 </script>
 </body></html>
