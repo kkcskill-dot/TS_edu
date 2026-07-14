@@ -746,9 +746,9 @@ function toggleTheme(){
 
 window.addEventListener('beforeunload',stopTimer);
 try{
- applyTheme(localStorage.getItem('oracleSqlPathTheme')||'dark');
+ applyTheme(localStorage.getItem('oracleSqlPathTheme')||'light');
 }catch(e){
- applyTheme('dark');
+ applyTheme('light');
 }
 selectSqlMode('SELECT');
 </script>

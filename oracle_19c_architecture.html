@@ -276,6 +276,6 @@ function toggleTheme(){
  const next=document.body.classList.contains('light-theme')?'dark':'light';
  applyTheme(next);
 }
-window.addEventListener('beforeunload',stopTimer);try{applyTheme(localStorage.getItem('oracleArchTheme')||'dark');}catch(e){applyTheme('dark');}selectFlow('sql');
+window.addEventListener('beforeunload',stopTimer);try{applyTheme(localStorage.getItem('oracleArchTheme')||'light');}catch(e){applyTheme('light');}selectFlow('sql');
 </script>
 </body></html>
