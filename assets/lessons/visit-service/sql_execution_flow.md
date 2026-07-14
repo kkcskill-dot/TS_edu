@@ -46,7 +46,7 @@ flowchart TD
 ---
 
 ## 2. INSERT 실행 흐름
-새로운 데이터를 삽입할 때는 빈 블록을 찾고, 변경 사항을 복구하기 위해 Redo를 생성한 뒤 블록을 수정(Dirty)합니다.
+새로운 데이터를 삽입할 때는 빈 블록을 찾고, 롤백에 대비하여 **Undo 영역**에 삽입된 행의 식별자(RowID)를 저장합니다. 이후 트랜잭션 복구를 위한 Redo 데이터를 생성(Undo+Data)한 뒤 실제 데이터 블록을 수정(Dirty)합니다.
 
 ```mermaid
 flowchart TD
@@ -54,6 +54,7 @@ flowchart TD
     SP([Server Process])
     SPool[(Shared Pool)]
     BC[(Buffer Cache)]
+    Undo[(Undo Block)]
     Redo[(Redo Log Buffer)]
     LGWR[LGWR Process]
     RLF[(Redo Log File)]
@@ -63,19 +64,20 @@ flowchart TD
     UP -->|1. INSERT 요청| SP
     SP -->|2. 파싱| SPool
     SP -->|3. 여유 블록 확보| BC
-    BC -->|4. Redo 데이터 생성| Redo
-    SP -->|5. 블록 수정 - Dirty| BC
-    UP -->|6. COMMIT| SP
-    SP -->|7. 기록 요청| LGWR
-    LGWR -->|8. 동기식 기록| RLF
-    BC -.->|9. 백그라운드 기록 - Checkpoint| DBWn
-    DBWn -.->|10. 물리적 저장| DF
+    SP -->|4. 롤백용 RowID 저장| Undo
+    SP -->|5. Redo 데이터 생성 - Data, Undo| Redo
+    SP -->|6. 블록 수정 - Dirty| BC
+    UP -->|7. COMMIT| SP
+    SP -->|8. 기록 요청| LGWR
+    LGWR -->|9. 동기식 기록| RLF
+    BC -.->|10. 백그라운드 기록 - Checkpoint| DBWn
+    DBWn -.->|11. 물리적 저장| DF
 
     classDef process fill:#f8fafc,stroke:#0ea5e9,stroke-width:2px,color:#0f172a;
     classDef mem fill:#f0fdf4,stroke:#10b981,stroke-width:2px,color:#0f172a;
     classDef disk fill:#fef2f2,stroke:#ef4444,stroke-width:2px,color:#0f172a;
     class UP,SP,LGWR,DBWn process;
-    class SPool,BC,Redo mem;
+    class SPool,BC,Undo,Redo mem;
     class RLF,DF disk;
 ```
 
