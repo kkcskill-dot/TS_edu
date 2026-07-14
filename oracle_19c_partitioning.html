@@ -485,9 +485,9 @@ function toggleTheme(){
   applyTheme(document.body.classList.contains('light') ? 'dark' : 'light');
 }
 try{
-  applyTheme(localStorage.getItem('partitionSimulatorTheme') || 'dark');
+  applyTheme('light');
 }catch(e){
-  applyTheme('dark');
+  applyTheme('light');
 }
 init();
 </script>

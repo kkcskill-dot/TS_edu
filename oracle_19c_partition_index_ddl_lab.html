@@ -264,9 +264,8 @@ function toggleTheme(){
   try{localStorage.setItem('ptlabTheme',light?'light':'dark')}catch(e){}
 }
 function applySavedTheme(){
-  let theme='dark';
-  try{theme=localStorage.getItem('ptlabTheme')||'dark'}catch(e){}
-  if(theme==='light'){document.body.classList.add('light');document.getElementById('themeBtn').textContent='☾ 블랙 모드';}
+  document.body.classList.add('light');
+  if(document.getElementById('themeBtn')) document.getElementById('themeBtn').textContent='☾ 블랙 모드';
 }
 document.querySelectorAll('.nav-btn').forEach(b=>b.addEventListener('click',()=>render(b.dataset.file)));
 document.getElementById('searchBox').addEventListener('input',e=>{
