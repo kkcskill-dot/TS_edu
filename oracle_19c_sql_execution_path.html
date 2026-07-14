@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Oracle 19c SQL 실행 흐름과 논리·물리 읽기 · 개발자와 서비스 운영자 과정</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap');
+body{font-family:'Noto Sans KR','Malgun Gothic',sans-serif;background:#0b0f19}
+.code-font{font-family:'Fira Code',monospace}
+@keyframes glow{0%,100%{box-shadow:0 0 5px rgba(14,165,233,.2);border-color:#1e293b}50%{box-shadow:0 0 22px rgba(14,165,233,.65);border-color:#0ea5e9}}
+.active-node{animation:glow 1.4s infinite ease-in-out;background:rgba(15,23,42,.95)!important}
+#data-packet{transition:all .7s cubic-bezier(.25,1,.5,1);z-index:100}
+button:disabled{opacity:.45;cursor:not-allowed}
+</style>
+<style>
+/* Theme toggle */
+.theme-toggle{
+  display:inline-flex;
+  align-items:center;
+  gap:.45rem;
+  border:1px solid #334155;
+  background:#1e293b;
+  color:#cbd5e1;
+  padding:.45rem .75rem;
+  border-radius:999px;
+  font-size:.75rem;
+  font-weight:700;
+  cursor:pointer;
+}
+.theme-toggle:hover{background:#334155}
+
+/* Light mode overrides */
+body.light-theme{
+  background:#f8fafc !important;
+  color:#0f172a !important;
+}
+body.light-theme header{
+  background:rgba(255,255,255,.95) !important;
+  border-color:#cbd5e1 !important;
+}
+body.light-theme .bg-slate-950,
+body.light-theme .bg-slate-900,
+body.light-theme .bg-slate-900\/90,
+body.light-theme .bg-slate-800{
+  background:#ffffff !important;
+}
+body.light-theme .border-slate-800,
+body.light-theme .border-slate-700,
+body.light-theme .border-emerald-950,
+body.light-theme .border-sky-950,
+body.light-theme .border-sky-500\/20,
+body.light-theme .border-emerald-700,
+body.light-theme .border-amber-700,
+body.light-theme .border-violet-700{
+  border-color:#cbd5e1 !important;
+}
+body.light-theme .text-slate-100,
+body.light-theme .text-slate-200,
+body.light-theme .text-slate-300,
+body.light-theme .text-slate-400,
+body.light-theme .text-slate-500{
+  color:#334155 !important;
+}
+body.light-theme .text-sky-300,
+body.light-theme .text-sky-400,
+body.light-theme .text-emerald-300,
+body.light-theme .text-emerald-400,
+body.light-theme .text-red-400{
+  color:#0f172a !important;
+}
+body.light-theme .bg-emerald-950\/5,
+body.light-theme .bg-sky-950\/5,
+body.light-theme .bg-sky-600\/10,
+body.light-theme .bg-slate-900\/90,
+body.light-theme .bg-emerald-950,
+body.light-theme .bg-amber-950,
+body.light-theme .bg-violet-950,
+body.light-theme .bg-sky-500\/10{
+  background:#f8fafc !important;
+}
+body.light-theme .node{
+  background:#ffffff !important;
+  border-color:#cbd5e1 !important;
+}
+body.light-theme .node:hover{
+  border-color:#94a3b8 !important;
+}
+body.light-theme .active-node{
+  background:#f0f9ff !important;
+  border-color:#0284c7 !important;
+  box-shadow:0 0 20px rgba(2,132,199,.28) !important;
+}
+body.light-theme #data-packet{
+  background:#e0f2fe !important;
+  color:#075985 !important;
+  border-color:#38bdf8 !important;
+}
+body.light-theme #progress-bar{
+  background:#0284c7 !important;
+}
+body.light-theme .theme-toggle{
+  background:#ffffff;
+  color:#334155;
+  border-color:#cbd5e1;
+}
+body.light-theme .theme-toggle:hover{
+  background:#f1f5f9;
+}
+</style>
+
+
+<style>
+:root{
+  --lab-bg:#08111f;
+  --lab-panel:#101b2d;
+  --lab-panel2:#0b1526;
+  --lab-line:#253653;
+  --lab-text:#e8eef8;
+  --lab-muted:#9fb0c7;
+  --lab-teal:#2dd4bf;
+  --lab-blue:#60a5fa;
+  --lab-amber:#fbbf24;
+  --lab-red:#fb7185;
+  --lab-green:#4ade80;
+  --lab-purple:#c084fc;
+}
+body.light-theme{
+  --lab-bg:#f3f6fb;
+  --lab-panel:#ffffff;
+  --lab-panel2:#f8fafc;
+  --lab-line:#cbd5e1;
+  --lab-text:#172033;
+  --lab-muted:#5f6f85;
+  --lab-teal:#0f766e;
+  --lab-blue:#2563eb;
+  --lab-amber:#b45309;
+  --lab-red:#be123c;
+  --lab-green:#15803d;
+  --lab-purple:#7e22ce;
+}
+body{
+  background:
+    radial-gradient(circle at 18% 0,rgba(37,99,235,.16),transparent 31%),
+    linear-gradient(180deg,var(--lab-bg),#050a12) !important;
+}
+body.light-theme{
+  background:linear-gradient(180deg,#eef3f9,#f8fafc) !important;
+}
+header{
+  box-shadow:0 8px 28px rgba(0,0,0,.16);
+}
+.control-panel,.sql-panel,.architecture-panel,.detail-panel{
+  background:linear-gradient(180deg,rgba(16,27,45,.97),rgba(8,17,31,.97)) !important;
+  border-color:var(--lab-line) !important;
+  box-shadow:0 16px 40px rgba(0,0,0,.20);
+}
+body.light-theme .control-panel,
+body.light-theme .sql-panel,
+body.light-theme .architecture-panel,
+body.light-theme .detail-panel{
+  background:linear-gradient(180deg,#ffffff,#f8fafc) !important;
+  box-shadow:0 14px 34px rgba(15,23,42,.08);
+}
+.sql-panel{
+}
+#sql-display-box{
+  color:#bfdbfe !important;
+  font-size:.82rem;
+  line-height:1.65;
+}
+body.light-theme #sql-display-box{
+  color:#1d4ed8 !important;
+}
+.zone{
+  position:relative;
+  overflow:hidden;
+}
+.zone-client{
+  border-color:rgba(45,212,191,.38) !important;
+  background:linear-gradient(135deg,rgba(45,212,191,.08),rgba(8,17,31,.28)) !important;
+}
+.zone-sga{
+  border-color:rgba(96,165,250,.42) !important;
+  background:linear-gradient(135deg,rgba(96,165,250,.08),rgba(8,17,31,.28)) !important;
+}
+body.light-theme .zone-client{
+  background:linear-gradient(135deg,#ecfdf5,#ffffff) !important;
+}
+body.light-theme .zone-sga{
+  background:linear-gradient(135deg,#eff6ff,#ffffff) !important;
+}
+.node{
+  border-color:#32445e !important;
+  background:#0a1423 !important;
+  transition:.22s ease;
+}
+.node:hover{
+  transform:translateY(-2px);
+  border-color:#6285b2 !important;
+  box-shadow:0 8px 18px rgba(0,0,0,.14);
+}
+body.light-theme .node{
+  background:#ffffff !important;
+  border-color:#cbd5e1 !important;
+}
+body.light-theme .node:hover{
+  border-color:#64748b !important;
+}
+#node-user,#node-listener,#node-server,#node-result{
+}
+#node-pga,#node-temp{
+}
+#node-shared-pool,#node-buffer-cache{
+}
+#node-redo-buffer,#node-lgwr,#node-redolog,#node-arch,#node-archfile{
+}
+#node-undo{
+}
+#node-dbw,#node-datafile,#node-tempfile{
+}
+@keyframes labGlow{
+  0%,100%{
+    box-shadow:0 0 7px rgba(45,212,191,.22);
+    border-color:var(--lab-teal);
+  }
+  50%{
+    box-shadow:0 0 26px rgba(45,212,191,.62);
+    border-color:#5eead4;
+  }
+}
+.active-node{
+  animation:labGlow 1.35s infinite ease-in-out !important;
+  background:#0b2a2b !important;
+  transform:scale(1.025);
+}
+body.light-theme .active-node{
+  background:#ecfdf5 !important;
+  border-color:#0f766e !important;
+  box-shadow:0 0 20px rgba(15,118,110,.25) !important;
+}
+.detail-panel{
+  max-height:calc(100vh - 7rem);
+  overflow-y:auto;
+}
+.detail-box{
+  background:#07101d !important;
+  border-color:var(--lab-line) !important;
+}
+body.light-theme .detail-box{
+  background:#ffffff !important;
+}
+.detail-principle{
+}
+.detail-checkpoint{
+  background:#07101d !important;
+}
+body.light-theme .detail-checkpoint{
+  background:#ffffff !important;
+}
+.detail-progress{
+}
+.detail-checkpoint .text-red-400{
+  color:var(--lab-amber) !important;
+}
+#current-step-label{
+  background:rgba(45,212,191,.12) !important;
+  color:#5eead4 !important;
+  border-color:rgba(45,212,191,.35) !important;
+}
+body.light-theme #current-step-label{
+  background:#ecfdf5 !important;
+  color:#0f766e !important;
+  border-color:#99f6e4 !important;
+}
+#sql-badge{
+  background:#0c2037 !important;
+  color:#bfdbfe !important;
+  border-color:#28506a !important;
+}
+body.light-theme #sql-badge{
+  background:#eff6ff !important;
+  color:#1d4ed8 !important;
+  border-color:#bfdbfe !important;
+}
+#progress-bar{
+  background:linear-gradient(90deg,var(--lab-teal),var(--lab-blue)) !important;
+}
+.mode-btn{
+  transition:.18s ease;
+}
+.mode-btn:hover{
+  transform:translateY(-1px);
+}
+#data-packet{
+  border-color:var(--lab-teal) !important;
+  background:#0b2a2b !important;
+  color:#99f6e4 !important;
+  box-shadow:0 8px 22px rgba(45,212,191,.24) !important;
+}
+body.light-theme #data-packet{
+  background:#ecfdf5 !important;
+  color:#0f766e !important;
+  border-color:#5eead4 !important;
+}
+#state-badge{
+  font-weight:800;
+}
+body.light-theme .text-slate-300{color:#334155 !important}
+body.light-theme .text-slate-400{color:#64748b !important}
+body.light-theme .text-slate-500{color:#64748b !important}
+</style>
+
+
+<style>
+/* Plain card style: no accent stripes */
+.control-panel,.sql-panel,.architecture-panel,.detail-panel,.detail-box,.zone,.node{
+  border-width:1px !important;
+  border-style:solid !important;
+}
+.zone,.node,.detail-box{
+  box-shadow:none !important;
+}
+.node:hover{
+  box-shadow:0 6px 14px rgba(0,0,0,.10) !important;
+}
+body.light-theme .node:hover{
+  box-shadow:0 6px 14px rgba(15,23,42,.06) !important;
+}
+</style>
+
+
+<style>
+.read-guide .read-card{
+  background:#0a1423 !important;
+  border:1px solid var(--lab-line) !important;
+  box-shadow:none !important;
+}
+body.light-theme .read-guide .read-card{
+  background:#ffffff !important;
+  border-color:#cbd5e1 !important;
+}
+.read-guide b{color:var(--lab-text)}
+body.light-theme .read-guide b{color:#172033}
+</style>
+
+</head>
+<body class="text-slate-100 min-h-screen">
+<header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur px-6 py-4 sticky top-0 z-50">
+  <div class="max-w-[1600px] mx-auto flex items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <div class="p-2 bg-sky-600/10 text-sky-400 rounded-lg border border-sky-500/20"><i class="fa-solid fa-circle-nodes text-xl"></i></div>
+      <div>
+        <h1 class="font-extrabold text-lg">ORACLE 19c SQL EXECUTION FLOW <span class="text-sky-400 font-normal text-sm">논리·물리 읽기 포함</span></h1>
+        <p class="text-xs text-slate-400">자동 재생 · 일시정지/재개 · 이전/다음 단계 수동 진행</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="index.html" class="theme-toggle no-underline" aria-label="Oracle 19c 교육 홈으로 이동"><i class="fa-solid fa-house"></i><span>교육 홈</span></a>
+      <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" aria-label="배경 테마 변경">
+        <i id="theme-icon" class="fa-regular fa-sun"></i>
+        <span id="theme-label">화이트 모드</span>
+      </button>
+      <span id="state-badge" class="text-xs px-3 py-1 rounded-full border border-slate-700 bg-slate-800 text-slate-300">대기</span>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 p-6">
+<section class="lg:col-span-7 flex flex-col gap-4">
+  <div class="control-panel bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center gap-2 flex-wrap">
+      <span class="text-xs font-bold text-slate-400 uppercase mr-1">SQL 선택:</span>
+      <button id="btn-select" onclick="selectSqlMode('SELECT')" class="mode-btn px-4 py-2 rounded-lg text-xs font-bold border">SELECT</button>
+      <button id="btn-insert" onclick="selectSqlMode('INSERT')" class="mode-btn px-4 py-2 rounded-lg text-xs font-bold border">INSERT</button>
+      <button id="btn-update" onclick="selectSqlMode('UPDATE')" class="mode-btn px-4 py-2 rounded-lg text-xs font-bold border">UPDATE</button>
+      <button id="btn-delete" onclick="selectSqlMode('DELETE')" class="mode-btn px-4 py-2 rounded-lg text-xs font-bold border">DELETE</button>
+    </div>
+  </div>
+
+  <div class="sql-panel bg-slate-900/90 border border-slate-800 rounded-xl p-4">
+    <span class="text-[10px] text-slate-500 uppercase font-bold">Active SQL Statement</span>
+    <div id="sql-display-box" class="code-font text-xs text-sky-300 mt-2 whitespace-pre-wrap"></div>
+  </div>
+
+  <div class="read-guide grid grid-cols-1 md:grid-cols-2 gap-3">
+    <div class="read-card bg-slate-900 border border-slate-800 rounded-xl p-4">
+      <div class="text-xs font-black text-sky-400">Logical Read</div>
+      <p class="text-[11px] text-slate-400 leading-relaxed mt-2">
+        Server Process가 <b>Buffer Cache에 있는 Oracle Block을 접근</b>하는 동작입니다.
+        Cache Hit뿐 아니라 Physical Read로 적재된 블록을 이후 처리하는 과정도 Logical Read에 포함됩니다.
+      </p>
+    </div>
+    <div class="read-card bg-slate-900 border border-slate-800 rounded-xl p-4">
+      <div class="text-xs font-black text-amber-400">Physical Read</div>
+      <p class="text-[11px] text-slate-400 leading-relaxed mt-2">
+        필요한 블록이 Buffer Cache에 없을 때 <b>Data File에서 블록을 읽는 I/O</b>입니다.
+        일반적인 Buffered Read에서는 읽은 블록을 Buffer Cache에 적재한 뒤 처리합니다.
+      </p>
+    </div>
+  </div>
+
+  <div id="animation-viewport" class="architecture-panel bg-slate-950 border border-slate-800 rounded-2xl p-5 relative min-h-[700px] flex flex-col gap-5">
+    <div id="data-packet" class="absolute hidden items-center gap-2 px-3 py-1.5 border text-xs font-bold rounded-full shadow-lg whitespace-nowrap">
+      <i id="data-packet-icon" class="fa-solid fa-cube"></i><span id="data-packet-text">데이터</span>
+    </div>
+
+    <div class="zone zone-client border border-emerald-950 rounded-2xl p-4 bg-emerald-950/5">
+      <p class="text-[9px] text-emerald-400 font-bold mb-3">클라이언트 / 서버 프로세스</p>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div id="node-user" class="node bg-slate-900 border border-slate-800 rounded-xl p-3"><b class="text-xs">User Process</b><p class="text-[9px] text-slate-400 mt-1">애플리케이션 요청</p></div>
+        <div id="node-listener" class="node bg-slate-900 border border-slate-800 rounded-xl p-3"><b class="text-xs">Listener</b><p class="text-[9px] text-slate-400 mt-1">신규 접속 중개</p></div>
+        <div id="node-server" class="node bg-slate-900 border border-slate-800 rounded-xl p-3"><b class="text-xs">Server Process</b><p class="text-[9px] text-slate-400 mt-1">SQL 실행 주체</p></div>
+        <div id="node-result" class="node bg-slate-900 border border-slate-800 rounded-xl p-3"><b class="text-xs">SQL Result</b><p class="text-[9px] text-slate-400 mt-1">결과/처리 건수</p></div>
+      </div>
+    </div>
+
+    <div id="node-pga" class="node bg-slate-900 border border-slate-800 rounded-xl p-3"><b class="text-xs">PGA / Work Area</b><p class="text-[9px] text-slate-400 mt-1">Private SQL Area · Sort · Hash</p></div>
+
+    <div class="zone zone-sga border border-sky-950 rounded-2xl p-4 bg-sky-950/5">
+      <p class="text-[9px] text-sky-400 font-bold mb-3">SGA 공유 메모리</p>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div id="node-shared-pool" class="node bg-slate-900 border border-slate-800 rounded-xl p-3"><b class="text-xs">Shared Pool</b><p class="text-[9px] text-slate-400 mt-1">Parse · Execution Plan</p></div>
+        <div id="node-buffer-cache" class="node bg-slate-900 border border-slate-800 rounded-xl p-3"><b class="text-xs">Buffer Cache</b><p class="text-[9px] text-slate-400 mt-1">Logical Read · Clean / Dirty Buffer</p></div>
+        <div id="node-redo-buffer" class="node bg-slate-900 border border-slate-800 rounded-xl p-3"><b class="text-xs">Redo Log Buffer</b><p class="text-[9px] text-slate-400 mt-1">Redo Entry</p></div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3">
+      <div id="node-undo" class="node bg-slate-900 border border-slate-800 rounded-xl p-3"><b class="text-xs">Undo Data</b><p class="text-[9px] text-slate-400 mt-1">Rollback · Read Consistency</p></div>
+      <div id="node-temp" class="node bg-slate-900 border border-slate-800 rounded-xl p-3"><b class="text-xs">Temporary Space</b><p class="text-[9px] text-slate-400 mt-1">Sort/Hash Spill</p></div>
+    </div>
+
+    <div class="grid grid-cols-3 gap-3">
+      <div id="node-dbw" class="node bg-slate-900 border border-slate-800 rounded-xl p-3"><b class="text-xs">DBWn</b></div>
+      <div id="node-lgwr" class="node bg-slate-900 border border-slate-800 rounded-xl p-3"><b class="text-xs">LGWR</b></div>
+      <div id="node-arch" class="node bg-slate-900 border border-slate-800 rounded-xl p-3"><b class="text-xs">ARCn</b></div>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div id="node-datafile" class="node bg-slate-900 border border-slate-800 rounded-xl p-3"><b class="text-xs">Data Files</b><p class="text-[9px] text-slate-400 mt-1">Physical Read 원본</p></div>
+      <div id="node-tempfile" class="node bg-slate-900 border border-slate-800 rounded-xl p-3"><b class="text-xs">Temp Files</b></div>
+      <div id="node-redolog" class="node bg-slate-900 border border-slate-800 rounded-xl p-3"><b class="text-xs">Online Redo Logs</b></div>
+      <div id="node-archfile" class="node bg-slate-900 border border-slate-800 rounded-xl p-3"><b class="text-xs">Archived Redo Logs</b></div>
+    </div>
+  </div>
+</section>
+
+<section class="lg:col-span-5">
+  <div class="detail-panel bg-slate-900 border border-slate-800 rounded-xl p-6 sticky top-24">
+    <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+      <div>
+        <span id="current-step-label" class="text-[10px] font-bold px-2 py-1 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20">단계 0 / 0</span>
+        <h2 id="current-step-title" class="text-lg font-black mt-2">시뮬레이션 대기 중</h2>
+      </div>
+      <span id="sql-badge" class="bg-slate-800 text-slate-300 font-mono text-xs font-bold px-3 py-1 rounded border border-slate-700">SELECT</span>
+    </div>
+    <div class="grid grid-cols-2 xl:grid-cols-4 gap-2 mb-4" aria-label="시뮬레이션 단계 조작">
+      <button id="btn-prev" onclick="previousStep()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-2 rounded-lg text-xs font-bold"><i class="fa-solid fa-chevron-left"></i> 이전</button>
+      <button id="btn-action" onclick="toggleAnimation()" class="bg-teal-700 hover:bg-teal-600 px-4 py-2 rounded-lg text-xs font-bold"><i class="fa-solid fa-play"></i> 시뮬레이션 시작</button>
+      <button id="btn-next" onclick="nextStep()" class="bg-teal-700 hover:bg-teal-600 px-4 py-2 rounded-lg text-xs font-bold">다음 <i class="fa-solid fa-chevron-right"></i></button>
+      <button onclick="resetSimulation()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-2 rounded-lg text-xs font-bold"><i class="fa-solid fa-rotate-left"></i> 초기화</button>
+    </div>
+    <div class="detail-box detail-principle bg-slate-950 p-4 rounded-xl border border-slate-800 min-h-[210px]">
+      <span class="text-[10px] text-sky-400 font-bold uppercase">상세 동작 원리</span>
+      <p id="current-step-desc" class="text-xs text-slate-300 leading-relaxed mt-3">SQL 유형을 선택하고 시작 또는 다음 버튼을 누르세요.</p>
+    </div>
+    <div class="detail-box detail-checkpoint bg-slate-950 p-4 rounded-xl border border-slate-800 mt-4">
+      <div class="text-red-400 font-bold text-xs"><i class="fa-solid fa-triangle-exclamation mr-2"></i>체크포인트</div>
+      <p id="dba-note-text" class="text-[11px] text-slate-400 leading-relaxed mt-2">각 단계가 CPU, 메모리, I/O, Undo, Redo에 미치는 영향을 확인하세요.</p>
+    </div>
+    <div class="detail-box detail-progress bg-slate-950 p-4 rounded-xl border border-slate-800 mt-4">
+      <div class="flex justify-between text-[10px] text-slate-400 mb-2"><span>진행률</span><span id="progress-text">0%</span></div>
+      <div class="h-2 bg-slate-800 rounded-full overflow-hidden"><div id="progress-bar" class="h-full bg-sky-500 transition-all duration-300" style="width:0%"></div></div>
+      <p class="text-[10px] text-slate-500 mt-3">Space: 시작/일시정지 · →: 다음 · ←: 이전 · R: 초기화</p>
+    </div>
+  </div>
+</section>
+</main>
+
+<script>
+'use strict';
+
+let currentMode = 'SELECT';
+let currentIndex = -1;
+let playState = 'idle'; // idle | playing | paused | completed
+let timerId = null;
+const STEP_DELAY = 4200;
+
+const sqlExamples = {
+ SELECT: `SELECT employee_id, last_name, salary\nFROM employees\nWHERE department_id = :department_id;`,
+ INSERT: `INSERT INTO employees\n  (employee_id, last_name, salary, department_id)\nVALUES (:id, :name, :salary, :dept_id);\nCOMMIT;`,
+ UPDATE: `UPDATE employees\nSET salary = salary * 1.1\nWHERE employee_id = :employee_id;\nCOMMIT;`,
+ DELETE: `DELETE FROM employees\nWHERE employee_id = :employee_id;\nCOMMIT;`
+};
+
+const common = label => [
+ step('user','User Process가 SQL 요청 생성','클라이언트 애플리케이션이 SQL과 바인드 값을 준비해 데이터베이스에 요청합니다.','커넥션 풀을 사용하고 요청마다 신규 접속을 만들지 않도록 합니다.',label+' 요청','fa-paper-plane'),
+ step('listener','Listener가 신규 접속 중개','Listener는 신규 접속을 서비스에 연결되도록 중개합니다. 연결 이후 실제 SQL 처리는 Server Process가 담당합니다.','Listener 장애는 주로 신규 접속에 영향을 줍니다.','접속','fa-tower-broadcast'),
+ step('server','Server Process가 SQL 처리 시작','Server Process가 Parse, Execute, Fetch와 DML 처리를 수행합니다.','동시 세션 증가 시 프로세스와 PGA 사용량도 함께 증가합니다.','Server Process','fa-user-gear'),
+ step('shared-pool','Parse / Optimize / Execution Plan','문법과 권한을 확인하고 Optimizer가 실행 계획을 선택합니다. 공유 가능한 커서가 있으면 재사용할 수 있습니다.','바인드 변수는 Hard Parse와 SQL 문자열 폭증을 줄이는 데 도움이 됩니다.','Parse & Plan','fa-sitemap')
+];
+
+function step(node,title,desc,note,packetText,icon){return{node,title,desc,note,packetText,icon};}
+
+const selectTail = [
+ step('buffer-cache','Buffer Cache 확인 · Logical Read 시도','Server Process는 필요한 Oracle Block이 Buffer Cache에 있는지 먼저 확인합니다. 메모리에 블록이 있으면 Data File I/O 없이 바로 접근합니다. Buffer Cache의 블록을 접근하는 동작을 Logical Read라고 합니다.','Logical Read가 많다는 것은 메모리에서 처리했다는 뜻이지만, 지나치게 많은 Logical Read는 SQL이 불필요하게 많은 블록을 탐색했다는 신호일 수도 있습니다.','Logical Read','fa-magnifying-glass'),
+ step('datafile','Cache Miss · Physical Read','필요한 블록이 Buffer Cache에 없으면 Data File에서 Oracle Block을 읽습니다. 디스크 또는 스토리지에서 블록을 읽어오는 동작을 Physical Read라고 합니다.','Physical Read는 저장장치 I/O를 동반하므로 대량 발생 시 응답시간과 스토리지 부하에 영향을 줄 수 있습니다.','Physical Read','fa-hard-drive'),
+ step('buffer-cache','읽은 블록을 Buffer Cache에 적재','Data File에서 읽은 블록은 일반적인 Buffered Read 경로에서 Buffer Cache에 적재됩니다. 이후 Server Process는 메모리에 올라온 블록을 대상으로 행 검색과 조건 평가를 수행합니다.','기본 교육 흐름은 Data File → Buffer Cache입니다. 다만 Direct Path Read, 일부 Parallel Query와 대량 Scan은 Buffer Cache를 우회할 수 있습니다.','Cache Fill','fa-arrow-rotate-left'),
+ step('buffer-cache','Buffer Cache 블록 처리 · Logical Read','Buffer Cache에 적재된 블록을 다시 접근해 필요한 행을 찾고 WHERE 조건을 평가합니다. Physical Read가 발생했더라도 실제 블록 처리는 일반적으로 Buffer Cache에서의 Logical Read로 이어집니다.','Cache Miss 흐름은 Buffer Cache 확인 → Data File Physical Read → Buffer Cache 적재 → Logical Read 처리로 이해하면 됩니다.','Block Processing','fa-filter'),
+ step('undo','Undo를 이용한 Read Consistency','조회 시점 이후 다른 트랜잭션이 블록을 변경했다면 Undo를 이용해 필요한 과거 이미지를 구성할 수 있습니다.','장시간 SELECT와 대량 DML이 겹치면 필요한 Undo가 덮어써져 ORA-01555가 발생할 수 있습니다.','Consistent Read','fa-clock-rotate-left'),
+ step('pga','PGA Work Area 사용','정렬, 해시 조인, Bitmap 처리 같은 작업은 PGA Work Area를 사용할 수 있습니다.','메모리가 부족하면 작업이 TEMP로 내려가 디스크 I/O가 증가할 수 있습니다.','Work Area','fa-microchip'),
+ step('temp','필요 시 Temporary Space 사용','큰 Sort 또는 Hash 작업이 PGA에서 완료되지 않으면 Temp File을 사용합니다.','TEMP 급증 시 원인 SQL, PGA 크기, 병렬도와 실행계획을 함께 확인합니다.','TEMP Spill','fa-temperature-half'),
+ step('result','Fetch 결과 반환','조건 평가와 필요한 연산이 끝나면 결과 행을 클라이언트에 반환합니다.','Fetch Size, 왕복 횟수, 불필요하게 많은 결과 행도 전체 응답시간에 영향을 줍니다.','Result Set','fa-table-list')
+];
+
+function dmlTail(kind){
+ return [
+  step('buffer-cache',`${kind} 대상 블록 확인`,'대상 데이터 및 인덱스 블록을 Buffer Cache에서 찾습니다.','WHERE 조건과 인덱스 설계가 처리 블록 수를 좌우합니다.','Target Block','fa-crosshairs'),
+  step('undo',`${kind} 취소용 Undo 생성`,'Rollback과 Read Consistency를 위해 Undo 정보가 생성됩니다.','긴 트랜잭션은 Undo와 Lock 유지 시간을 늘립니다.','Undo','fa-rotate-left'),
+  step('buffer-cache',`${kind}로 Buffer 변경`,'Buffer Cache의 데이터 및 인덱스 블록을 변경하고 Dirty Buffer로 표시합니다.','인덱스가 많을수록 DML 비용도 증가합니다.','Dirty Buffer','fa-pen'),
+  step('redo-buffer','Redo Entry 생성','데이터와 Undo 블록 변경 내용을 Redo Log Buffer에 기록합니다.','Redo 발생량은 저장장치와 Data Guard 부하에 영향을 줄 수 있습니다.','Redo Entry','fa-receipt'),
+  step('lgwr','COMMIT 요청과 LGWR 기록','COMMIT 시 LGWR가 Commit Record를 포함한 Redo를 Online Redo Log에 기록합니다.','한 건마다 COMMIT하면 log file sync 대기가 증가할 수 있습니다.','Commit Flush','fa-pen-nib'),
+  step('redolog','COMMIT 완료','Redo 기록 완료 후 COMMIT 성공이 반환됩니다. Data File 기록 완료를 기다리는 것은 아닙니다.','업무적으로 일관된 트랜잭션 단위로 COMMIT합니다.','Committed','fa-check'),
+  step('result','DML 처리 결과 반환','처리 건수와 성공 결과가 애플리케이션에 반환됩니다.','Row Count와 예외 처리를 반드시 확인합니다.','DML Result','fa-reply'),
+  step('dbw','DBWn이 Dirty Buffer 기록','DBWn은 별도 조건에 따라 Dirty Buffer를 Data File에 기록합니다.','이 동작은 COMMIT과 비동기입니다.','DBWn Write','fa-gears'),
+  step('datafile','Data File에 블록 반영','변경 블록이 디스크 Data File에 기록됩니다.','Redo가 먼저 기록되어 있으므로 이전 단계에서도 장애 복구가 가능합니다.','Data File Write','fa-file'),
+  step('arch','Log Switch 후 ARCn 동작','ARCHIVELOG 모드에서 Log Switch 후 ARCn이 Redo Log를 복사합니다.','Archive Destination 용량 부족을 모니터링해야 합니다.','Archive','fa-box-archive'),
+  step('archfile','Archived Redo Log 생성','Archived Redo Log는 Media Recovery와 시점 복구에 사용됩니다.','Archive Log는 백업 자체가 아니라 복구에 필요한 변경 이력입니다.','Archived Redo','fa-file-zipper')
+ ];
+}
+
+const paths = {
+ SELECT:[...common('SELECT'),...selectTail],
+ INSERT:[...common('INSERT'),...dmlTail('INSERT')],
+ UPDATE:[...common('UPDATE'),...dmlTail('UPDATE')],
+ DELETE:[...common('DELETE'),...dmlTail('DELETE')]
+};
+
+function selectSqlMode(mode){
+ stopTimer();
+ currentMode=mode;
+ currentIndex=-1;
+ playState='idle';
+ resetVisuals();
+ renderIdle();
+ updateModeButtons();
+ updateControls();
+}
+
+function toggleAnimation(){
+ if(playState==='playing'){
+  stopTimer();
+  playState='paused';
+  updateControls();
+  return;
+ }
+ if(playState==='completed' || currentIndex>=paths[currentMode].length-1){
+  currentIndex=-1;
+  resetVisuals();
+ }
+ playState='playing';
+ if(currentIndex<0) advanceStep();
+ scheduleNext();
+ updateControls();
+}
+
+function scheduleNext(){
+ stopTimer();
+ if(playState!=='playing') return;
+ timerId=setTimeout(()=>{
+  if(currentIndex>=paths[currentMode].length-1){
+   finishSimulation();
+   return;
+  }
+  advanceStep();
+  scheduleNext();
+ },STEP_DELAY);
+}
+
+function nextStep(){
+ stopTimer();
+ if(playState==='playing') playState='paused';
+ if(currentIndex>=paths[currentMode].length-1){
+  finishSimulation();
+  return;
+ }
+ advanceStep();
+ if(currentIndex>=paths[currentMode].length-1) playState='completed';
+ else if(playState==='idle') playState='paused';
+ updateControls();
+}
+
+function previousStep(){
+ stopTimer();
+ if(playState==='playing') playState='paused';
+ if(currentIndex<=0){
+  currentIndex=-1;
+  resetVisuals();
+  renderIdle();
+  playState='idle';
+ }else{
+  currentIndex--;
+  renderStep(currentIndex);
+  playState='paused';
+ }
+ updateControls();
+}
+
+function advanceStep(){
+ currentIndex++;
+ renderStep(currentIndex);
+}
+
+function renderStep(index){
+ const path=paths[currentMode];
+ const item=path[index];
+ resetVisuals();
+ const node=document.getElementById('node-'+item.node);
+ if(node){
+  node.classList.add('active-node');
+  movePacket(node,item);
+ }
+ document.getElementById('current-step-label').textContent=`단계 ${index+1} / ${path.length}`;
+ document.getElementById('current-step-title').textContent=item.title;
+ document.getElementById('current-step-desc').textContent=item.desc;
+ document.getElementById('dba-note-text').textContent=item.note;
+ updateProgress();
+}
+
+function movePacket(node,item){
+ const packet=document.getElementById('data-packet');
+ const view=document.getElementById('animation-viewport');
+ const nr=node.getBoundingClientRect(), vr=view.getBoundingClientRect();
+ packet.className='absolute flex items-center gap-2 px-3 py-1.5 border border-sky-500 bg-sky-950/95 text-sky-200 text-xs font-bold rounded-full shadow-lg whitespace-nowrap';
+ document.getElementById('data-packet-text').textContent=item.packetText;
+ document.getElementById('data-packet-icon').className='fa-solid '+item.icon;
+ packet.style.left=Math.max(8,nr.left-vr.left+nr.width/2-45)+'px';
+ packet.style.top=Math.max(8,nr.top-vr.top-10)+'px';
+}
+
+function finishSimulation(){
+ stopTimer();
+ playState='completed';
+ currentIndex=paths[currentMode].length-1;
+ updateControls();
+ updateProgress();
+}
+
+function resetSimulation(){
+ stopTimer();
+ currentIndex=-1;
+ playState='idle';
+ resetVisuals();
+ renderIdle();
+ updateControls();
+}
+
+function resetVisuals(){
+ document.querySelectorAll('.active-node').forEach(el=>el.classList.remove('active-node'));
+ document.getElementById('data-packet').classList.add('hidden');
+}
+
+function renderIdle(){
+ const length=paths[currentMode].length;
+ document.getElementById('sql-badge').textContent=currentMode;
+ document.getElementById('sql-display-box').textContent=sqlExamples[currentMode];
+ document.getElementById('current-step-label').textContent=`단계 0 / ${length}`;
+ document.getElementById('current-step-title').textContent='시뮬레이션 대기 중';
+ document.getElementById('current-step-desc').textContent='시작 버튼은 자동 재생하며, 다음 버튼은 한 단계씩 진행합니다. 일시정지 후 다시 누르면 현재 단계 다음부터 이어서 재생합니다.';
+ document.getElementById('dba-note-text').textContent='Space 키로 시작/일시정지, 방향키로 이전/다음 단계를 사용할 수 있습니다.';
+ updateProgress();
+}
+
+function updateModeButtons(){
+ ['SELECT','INSERT','UPDATE','DELETE'].forEach(mode=>{
+  const b=document.getElementById('btn-'+mode.toLowerCase());
+  b.className='mode-btn px-4 py-2 rounded-lg text-xs font-bold border '+(mode===currentMode
+   ?'bg-teal-700 hover:bg-teal-600 border-teal-400 text-white'
+   :'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300');
+ });
+}
+
+function updateControls(){
+ const action=document.getElementById('btn-action');
+ const badge=document.getElementById('state-badge');
+ if(playState==='playing'){
+  action.innerHTML='<i class="fa-solid fa-pause"></i> 일시정지';
+  action.className='bg-amber-600 hover:bg-amber-500 px-4 py-2 rounded-lg text-xs font-bold';
+  badge.textContent='자동 재생 중'; badge.className='text-xs px-3 py-1 rounded-full border border-emerald-700 bg-emerald-950 text-emerald-300';
+ }else if(playState==='paused'){
+  action.innerHTML='<i class="fa-solid fa-play"></i> 계속 재생';
+  action.className='bg-teal-700 hover:bg-teal-600 px-4 py-2 rounded-lg text-xs font-bold';
+  badge.textContent='일시정지'; badge.className='text-xs px-3 py-1 rounded-full border border-amber-700 bg-amber-950 text-amber-300';
+ }else if(playState==='completed'){
+  action.innerHTML='<i class="fa-solid fa-rotate-right"></i> 처음부터 재생';
+  action.className='bg-violet-600 hover:bg-violet-500 px-4 py-2 rounded-lg text-xs font-bold';
+  badge.textContent='완료'; badge.className='text-xs px-3 py-1 rounded-full border border-violet-700 bg-violet-950 text-violet-300';
+ }else{
+  action.innerHTML='<i class="fa-solid fa-play"></i> 시뮬레이션 시작';
+  action.className='bg-teal-700 hover:bg-teal-600 px-4 py-2 rounded-lg text-xs font-bold';
+  badge.textContent='대기'; badge.className='text-xs px-3 py-1 rounded-full border border-slate-700 bg-slate-800 text-slate-300';
+ }
+ document.getElementById('btn-prev').disabled=currentIndex<0;
+ document.getElementById('btn-next').disabled=currentIndex>=paths[currentMode].length-1;
+}
+
+function updateProgress(){
+ const total=paths[currentMode].length;
+ const done=Math.max(0,currentIndex+1);
+ const pct=Math.round(done/total*100);
+ document.getElementById('progress-bar').style.width=pct+'%';
+ document.getElementById('progress-text').textContent=pct+'%';
+}
+
+function stopTimer(){
+ if(timerId!==null){clearTimeout(timerId);timerId=null;}
+}
+
+document.addEventListener('keydown',e=>{
+ if(e.target.matches('input,textarea,select')) return;
+ if(e.code==='Space'){e.preventDefault();toggleAnimation();}
+ else if(e.key==='ArrowRight'){e.preventDefault();nextStep();}
+ else if(e.key==='ArrowLeft'){e.preventDefault();previousStep();}
+ else if(e.key.toLowerCase()==='r'){resetSimulation();}
+});
+
+
+function applyTheme(theme){
+ const isLight=theme==='light';
+ document.body.classList.toggle('light-theme',isLight);
+ const icon=document.getElementById('theme-icon');
+ const label=document.getElementById('theme-label');
+ if(icon) icon.className=isLight?'fa-regular fa-moon':'fa-regular fa-sun';
+ if(label) label.textContent=isLight?'블랙 모드':'화이트 모드';
+ try{localStorage.setItem('oracleSqlPathTheme',theme);}catch(e){}
+}
+
+function toggleTheme(){
+ const next=document.body.classList.contains('light-theme')?'dark':'light';
+ applyTheme(next);
+}
+
+window.addEventListener('beforeunload',stopTimer);
+try{
+ applyTheme(localStorage.getItem('oracleSqlPathTheme')||'dark');
+}catch(e){
+ applyTheme('dark');
+}
+selectSqlMode('SELECT');
+</script>
+</body>
+</html>
