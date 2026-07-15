@@ -5,6 +5,8 @@ body {
     font-family: var(--sph-font);
     margin: 0;
     padding: 0;
+    overflow-y: auto !important;
+    height: auto !important;
 }
 
 .club-container {
