@@ -180,8 +180,18 @@ async function loadPolls() {
                 });
                 
                 let optionsHtml = '';
+                let maxVotes = -1;
+                let topOptions = [];
+
                 p.options.forEach(opt => {
                     const c = dateCounts[opt].count;
+                    if (c > maxVotes) {
+                        maxVotes = c;
+                        topOptions = [opt];
+                    } else if (c === maxVotes && c > 0) {
+                        topOptions.push(opt);
+                    }
+
                     const pct = totalVotes > 0 ? Math.round((c / totalVotes) * 100) : 0;
                     const votersStr = dateCounts[opt].voters.join(', ');
                     optionsHtml += `
@@ -196,6 +206,26 @@ async function loadPolls() {
                     `;
                 });
                 
+                let pollContent = '';
+                if (p.is_closed) {
+                    const topStr = topOptions.length > 0 ? `${topOptions.join(', ')} (${maxVotes}표)` : '투표자 없음';
+                    pollContent = `
+                        <div style="background:var(--sph-hl-bg); border:1px solid var(--sph-hl-border); padding:12px; border-radius:8px; margin-bottom:12px; font-size:0.95rem;">
+                            <strong style="color:var(--sph-ink);">🏆 결과:</strong> <span style="color:var(--sph-navy); font-weight:600;">${topStr}</span>
+                        </div>
+                        <button onclick="const target = this.nextElementSibling; if(target.style.display === 'none') { target.style.display = 'flex'; this.innerText = '▲ 상세 결과 숨기기'; } else { target.style.display = 'none'; this.innerText = '▼ 상세 결과 보기'; }" style="background:transparent; border:none; color:var(--sph-slate); font-size:0.85rem; font-weight:600; cursor:pointer; padding:0; margin-bottom:12px; display:inline-flex; align-items:center; gap:4px;">▼ 상세 결과 보기</button>
+                        <div class="poll-options" style="display:none; margin-top:4px;">
+                            ${optionsHtml}
+                        </div>
+                    `;
+                } else {
+                    pollContent = `
+                        <div class="poll-options">
+                            ${optionsHtml}
+                        </div>
+                    `;
+                }
+                
                 let actionHtml = '';
                 if (p.is_closed) {
                     actionHtml = `<span style="display:inline-block; padding:6px 12px; background:var(--sph-gray); color:var(--sph-muted); font-size:0.85rem; border-radius:4px; font-weight:600;">종료된 투표입니다</span>`;
@@ -207,14 +237,12 @@ async function loadPolls() {
                 }
                 
                 if (adminToken) {
-                    actionHtml = `<button class="btn-secondary" style="padding:6px 16px; font-size:0.85rem; margin-right:8px; border:color:var(--sph-gray);" onclick="deletePoll('${p.id}')">삭제</button>` + actionHtml;
+                    actionHtml = `<button class="btn-secondary" style="padding:6px 16px; font-size:0.85rem; margin-right:8px; border-color:var(--sph-line);" onclick="deletePoll('${p.id}')">삭제</button>` + actionHtml;
                 }
 
                 item.innerHTML = `
                     <div class="poll-title">${p.title} <span style="font-size:0.8rem; color:var(--sph-slate); font-weight:400; margin-left:8px;">(총 ${totalVotes}명 참여)</span></div>
-                    <div class="poll-options">
-                        ${optionsHtml}
-                    </div>
+                    ${pollContent}
                     <div style="margin-top:16px; text-align:right;">
                         ${actionHtml}
                     </div>
