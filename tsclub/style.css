@@ -1,5 +1,5 @@
 /* tsclub custom styles */
-body {
+html, body {
     background-color: var(--sph-bg);
     color: var(--sph-ink);
     font-family: var(--sph-font);
@@ -7,6 +7,7 @@ body {
     padding: 0;
     overflow-y: auto !important;
     height: auto !important;
+    min-height: 100vh;
 }
 
 .club-container {
