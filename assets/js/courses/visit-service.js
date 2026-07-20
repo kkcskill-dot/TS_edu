@@ -85,6 +85,16 @@
             }
           });
 
+          // Add Slideshow Button for SQL Tips
+          if (id === 'sqltips') {
+            const btn = document.createElement('button');
+            btn.className = 'sph-btn sph-btn--primary';
+            btn.style.cssText = 'float:right; margin: 10px 0 20px 20px; box-shadow: 0 4px 12px rgba(0,42,91,0.2); border: none; font-size:14px; position:relative; z-index:10;';
+            btn.innerHTML = '▶ 슬라이드쇼 뷰';
+            btn.onclick = () => window.startSlideshow(viewer);
+            viewer.insertBefore(btn, viewer.firstChild);
+          }
+
           const mermaidBlocks = viewer.querySelectorAll('pre code.language-mermaid');
           if (mermaidBlocks.length > 0 && window.mermaid) {
             mermaidBlocks.forEach((block) => {
@@ -113,13 +123,89 @@
       if (btn) show(btn.dataset.id);
     });
 
-    let started = false;
-    const loadFirst = () => { if (!started && SESSIONS.length) { started = true; show(SESSIONS[0].id); } };
-    const entry = document.getElementById("nav-btn-visit-service");
-    if (entry) entry.addEventListener("click", loadFirst);
-    const panel = document.getElementById("panel-visit-service");
-    if (panel && panel.classList.contains("active")) loadFirst();
+    const initHash = new URLSearchParams(window.location.search).get("lesson");
+    if (initHash) {
+      show(initHash);
+    } else if (SESSIONS.length > 0) {
+      show(SESSIONS[0].id);
+    }
   }
+
+  window.startSlideshow = function(container) {
+    const slides = [];
+    let currentSlide = null;
+    const mdBody = container.querySelector('.markdown-body');
+    if (!mdBody) return;
+    
+    Array.from(mdBody.children).forEach(node => {
+      if (node.tagName === 'H2') {
+        if (currentSlide) slides.push(currentSlide);
+        currentSlide = { title: node.innerHTML, content: [] };
+      } else if (currentSlide && node.tagName !== 'HR') {
+        currentSlide.content.push(node.outerHTML);
+      }
+    });
+    if (currentSlide) slides.push(currentSlide);
+
+    if (slides.length === 0) return alert('슬라이드를 찾을 수 없습니다.');
+
+    let currentIndex = 0;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'sph-slideshow-overlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center; animation: fade-in 0.3s ease;';
+
+    const box = document.createElement('div');
+    box.className = 'sph-slide-container';
+    box.style.cssText = 'width:1200px;max-width:95vw;height:750px;max-height:95vh;background:#fff;position:relative;border-radius:12px;overflow:hidden;font-family:var(--sph-font);box-shadow:0 20px 50px rgba(0,0,0,0.5);display:flex;flex-direction:column;';
+
+    let keydownHandler;
+
+    const renderSlide = (idx) => {
+      currentIndex = idx;
+      const slide = slides[idx];
+      box.innerHTML = `
+        <header style="padding: 40px 60px 20px 60px;">
+          <p class="sph-kicker" style="font-size:12px;font-weight:700;color:var(--sph-navy);letter-spacing:1px;text-transform:uppercase;margin:0;">SPHAROS · TECH</p>
+          <div style="margin-top:8px;font-size:28px;font-weight:700;color:var(--sph-ink);">${slide.title}</div>
+        </header>
+        <main class="markdown-body" style="padding: 0 60px; flex:1; overflow-y:auto; font-size:16px; color:var(--sph-body); line-height:1.6;">
+          ${slide.content.join('\n')}
+        </main>
+        <footer style="display:flex;align-items:center;justify-content:space-between;padding:16px 60px;background:#f7f8fa;border-top:1px solid var(--sph-line);">
+          <div style="font-size:14px;color:var(--sph-slate);font-weight:700;">${idx + 1} / ${slides.length}</div>
+          <div style="display:flex;gap:12px;">
+            <button id="sph-prev" class="sph-btn sph-btn--ghost" ${idx === 0 ? 'disabled style="opacity:0.5;"' : ''}>이전 (←)</button>
+            <button id="sph-next" class="sph-btn sph-btn--primary" ${idx === slides.length - 1 ? 'disabled style="opacity:0.5;"' : ''}>다음 (→)</button>
+            <button id="sph-close" class="sph-btn sph-btn--ghost" style="margin-left:20px;border-color:transparent;color:var(--sph-slate);">닫기 (ESC)</button>
+          </div>
+        </footer>
+      `;
+
+      box.querySelector('#sph-prev').onclick = () => { if(idx > 0) renderSlide(idx - 1); };
+      box.querySelector('#sph-next').onclick = () => { if(idx < slides.length - 1) renderSlide(idx + 1); };
+      box.querySelector('#sph-close').onclick = () => {
+        overlay.remove();
+        document.removeEventListener('keydown', keydownHandler);
+      };
+    };
+
+    renderSlide(0);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    keydownHandler = (e) => {
+      if (e.key === 'ArrowRight') {
+        if (currentIndex < slides.length - 1) renderSlide(currentIndex + 1);
+      } else if (e.key === 'ArrowLeft') {
+        if (currentIndex > 0) renderSlide(currentIndex - 1);
+      } else if (e.key === 'Escape') {
+        overlay.remove();
+        document.removeEventListener('keydown', keydownHandler);
+      }
+    };
+    document.addEventListener('keydown', keydownHandler);
+  };
 
   document.addEventListener("DOMContentLoaded", () => {
     initTextbook();
