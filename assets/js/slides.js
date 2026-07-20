@@ -164,5 +164,15 @@
   });
 
   // 외부에서 직접 열기: TSSlides.open("제목", "경로")
-  window.TSSlides = { open: openFile, openSession: open, close: close };
+  window.TSSlides = { 
+    open: openFile, 
+    openHTML: function(title, htmlString) {
+      ensure();
+      titleEl.textContent = title || "강의자료";
+      scrollEl.innerHTML = htmlString;
+      afterInject();
+    },
+    openSession: open, 
+    close: close 
+  };
 })();
