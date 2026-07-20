@@ -51,6 +51,40 @@
           mdText = mdText.replace(/>\s*\[!IMPORTANT\]/g, '> **IMPORTANT:**');
           
           viewer.innerHTML = `<div class="markdown-body" style="animation: fade-in 0.3s ease;">${window.marked.parse(mdText)}</div>`;
+          
+          // Spharos Design Card formatting for As-Is / To-Be
+          const blocks = viewer.querySelectorAll('p');
+          blocks.forEach(p => {
+            const text = p.textContent.trim();
+            if (text.startsWith('As-Is')) {
+              const pre = p.nextElementSibling;
+              if (pre && pre.tagName === 'PRE') {
+                const card = document.createElement('div');
+                card.className = 'sph-card';
+                card.style.marginBottom = '16px';
+                
+                const extraText = text.replace('As-Is', '').trim();
+                card.innerHTML = `<div style="margin-bottom:12px;"><span class="sph-tag sph-tag--gray" style="margin-right:8px;">As-Is</span> <span style="font-size:14px;font-weight:700;color:var(--sph-ink);">${extraText}</span></div>${pre.outerHTML}`;
+                p.parentNode.insertBefore(card, p);
+                p.remove();
+                pre.remove();
+              }
+            } else if (text.startsWith('To-Be')) {
+              const pre = p.nextElementSibling;
+              if (pre && pre.tagName === 'PRE') {
+                const card = document.createElement('div');
+                card.className = 'sph-card sph-card--accent';
+                card.style.marginBottom = '24px';
+                
+                const extraText = text.replace('To-Be', '').trim();
+                card.innerHTML = `<div style="margin-bottom:12px;"><span class="sph-tag sph-tag--navy" style="margin-right:8px;">To-Be</span> <span style="font-size:14px;font-weight:700;color:var(--sph-ink);">${extraText}</span></div>${pre.outerHTML}`;
+                p.parentNode.insertBefore(card, p);
+                p.remove();
+                pre.remove();
+              }
+            }
+          });
+
           const mermaidBlocks = viewer.querySelectorAll('pre code.language-mermaid');
           if (mermaidBlocks.length > 0 && window.mermaid) {
             mermaidBlocks.forEach((block) => {
