@@ -44,11 +44,11 @@
         }
         if (window.marked) {
           let mdText = cache[id];
-          mdText = mdText.replace(/>\s*\[!TIP\]/g, '> 💡 **TIP:**');
-          mdText = mdText.replace(/>\s*\[!NOTE\]/g, '> ℹ️ **NOTE:**');
-          mdText = mdText.replace(/>\s*\[!WARNING\]/g, '> ⚠️ **WARNING:**');
-          mdText = mdText.replace(/>\s*\[!CAUTION\]/g, '> 🛑 **CAUTION:**');
-          mdText = mdText.replace(/>\s*\[!IMPORTANT\]/g, '> ❗ **IMPORTANT:**');
+          mdText = mdText.replace(/>\s*\[!TIP\]/g, '> **TIP:**');
+          mdText = mdText.replace(/>\s*\[!NOTE\]/g, '> **NOTE:**');
+          mdText = mdText.replace(/>\s*\[!WARNING\]/g, '> **WARNING:**');
+          mdText = mdText.replace(/>\s*\[!CAUTION\]/g, '> **CAUTION:**');
+          mdText = mdText.replace(/>\s*\[!IMPORTANT\]/g, '> **IMPORTANT:**');
           
           viewer.innerHTML = `<div class="markdown-body" style="animation: fade-in 0.3s ease;">${window.marked.parse(mdText)}</div>`;
           const mermaidBlocks = viewer.querySelectorAll('pre code.language-mermaid');
