@@ -387,6 +387,11 @@ pre {
   grid-template-columns: 280px 1fr;
   height: 100vh;
   width: 100vw;
+  transition: grid-template-columns 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.app-container.sidebar-collapsed {
+  grid-template-columns: 0px 1fr;
 }
 
 /* Left Sidebar Navigation */
@@ -398,6 +403,17 @@ pre {
   justify-content: space-between;
   padding: 24px 16px;
   overflow-y: auto;
+  overflow-x: hidden;
+  transition: padding 0.3s ease, opacity 0.2s ease;
+  white-space: nowrap;
+}
+
+.app-container.sidebar-collapsed .sidebar {
+  padding-left: 0;
+  padding-right: 0;
+  border-right-width: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .sidebar-brand {

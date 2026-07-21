@@ -31,6 +31,7 @@ const dbaTips = [
  * ------------------------------------------------------------- */
 document.addEventListener("DOMContentLoaded", () => {
   initRouter();
+  initSidebarToggle();
 
   // Choose a random tip to start
   rotateDbaTip();
@@ -44,6 +45,25 @@ document.addEventListener("DOMContentLoaded", () => {
     initCbtSystem();
   })();
 });
+
+function initSidebarToggle() {
+  const btn = document.getElementById('sidebar-toggle-btn');
+  const container = document.querySelector('.app-container');
+  if (!btn || !container) return;
+
+  if (localStorage.getItem('sidebar_state') === 'collapsed') {
+    container.classList.add('sidebar-collapsed');
+  }
+
+  btn.addEventListener('click', () => {
+    container.classList.toggle('sidebar-collapsed');
+    if (container.classList.contains('sidebar-collapsed')) {
+      localStorage.setItem('sidebar_state', 'collapsed');
+    } else {
+      localStorage.setItem('sidebar_state', 'expanded');
+    }
+  });
+}
 
 // partial(HTML 조각)을 panel-container 끝에 주입
 function injectPartial(file) {
