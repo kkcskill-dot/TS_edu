@@ -20,6 +20,18 @@
 ### ③ Multipass 해시 조인 (Critical Danger)
 - Build Input이 메모리보다 지나치게 커서, Temp 영역을 썼다 지웠다를 **수없이 반복**하는 끔찍한 상황입니다.
 
+> [!NOTE]
+> **실행계획에서 메모리 모드를 읽는 3개 컬럼** (`DBMS_XPLAN ... 'ALLSTATS LAST'`)
+> 해시 조인 라인 오른쪽 끝에 붙는 이 컬럼들이 In-Memory/1-Pass/Multipass를 그대로 드러냅니다.
+> | 컬럼 | 의미 | 판독 |
+> |---|---|---|
+> | **OMem** | Optimal(In-Memory)로 돌기 위해 **필요한** 메모리 추정치 | 기준선 |
+> | **1Mem** | 1-Pass로 처리하는 데 필요한 메모리 | — |
+> | **Used-Mem** | 실제 사용 메모리. 뒤에 `(0)` `(1)` `(2)` 표기 | **`(0)`=Optimal, `(1)`=1-Pass, `(2+)`=Multipass** |
+> | **Used-Tmp** | 실제로 디스크(Temp)에 쓴 양 | 값이 있으면 디스크로 새어나갔다는 뜻 |
+
+---
+
 > [!CAUTION]
 > **장애 사례: "평소 10분 걸리던 야간 배치가 아침 9시가 되도록 안 끝나요!"**
 > - **원인**: 통계정보 오차로 인해 옵티마이저가 100만 건짜리 작은 테이블 대신 1억 건짜리 초대형 테이블을 Build Input(해시 맵 생성 대상)으로 덜컥 잡아버렸습니다. 
@@ -62,23 +74,59 @@ SELECT sql_id,
 
 ### Step 2. 조인 순서 뒤집기 (Before / After)
 
+**(Before) 통계 오류로 T_LARGE(1억건)가 Build Input이 된 비극의 쿼리**
+
 ```sql
--- (Before) 통계정보 오류로 T_LARGE(1억건)가 Build Input이 된 비극의 쿼리
-SELECT /*+ LEADING(l s) USE_HASH(s) */ 
+SELECT /*+ GATHER_PLAN_STATISTICS LEADING(l s) USE_HASH(s) */ 
        s.code_nm, SUM(l.amount)
   FROM t_large l, t_small s
  WHERE l.code = s.code
  GROUP BY s.code_nm;
--- V$SQL_WORKAREA 조회 결과: last_execution = 'MULTI-PASS', max_temp_mb = 15000 (15GB)
+```
 
--- (After) 작은 테이블을 먼저 읽어 해시 맵을 만들도록 통제
-SELECT /*+ LEADING(s l) USE_HASH(l) */ 
+```text
+------------------------------------------------------------------------------------------------------------
+| Id | Operation           | Name    | Starts | A-Rows |   A-Time   | Buffers | Reads | OMem | 1Mem |Used-Tmp|
+------------------------------------------------------------------------------------------------------------
+|  1 | HASH GROUP BY       |         |      1 |     50 |00:14:20.11 |    2101K|  1840K|      |      |        |
+|* 2 |  HASH JOIN          |         |      1 |    100M|00:12:55.03 |    2101K|  1840K| 1116M| 8M   | 14GB(2)|
+|  3 |   TABLE ACCESS FULL | T_LARGE |      1 |    100M|00:01:10.55 |    1120K|       |      |      |        |  ← Build
+|  4 |   TABLE ACCESS FULL | T_SMALL |      1 |     50 |00:00:00.01 |      12 |       |      |      |        |  ← Probe
+------------------------------------------------------------------------------------------------------------
+```
+
+> 🔴 **여기가 재앙의 증거**
+> - `Id 2` HASH JOIN의 **`Used-Tmp = 14GB(2)`** — 끝의 **`(2)`가 Multipass**. 디스크에 14GB를 썼다 지웠다 반복.
+> - `Reads 1840K` — 논리 I/O가 아니라 **물리 디스크 읽기**가 184만 블록 터짐(Temp 왕복).
+> - `Id 3`이 먼저(Build) 나오는데 **A-Rows=100M** — 1억 건으로 해시 맵을 만들려다 참사. `OMem=1116M`(1GB 넘게 필요)인데 PGA가 부족.
+
+**(After) 작은 테이블을 Build Input으로 강제 → In-Memory(Optimal)**
+
+```sql
+SELECT /*+ GATHER_PLAN_STATISTICS LEADING(s l) USE_HASH(l) */ 
        s.code_nm, SUM(l.amount)
   FROM t_small s, t_large l
  WHERE l.code = s.code
  GROUP BY s.code_nm;
--- V$SQL_WORKAREA 조회 결과: last_execution = 'OPTIMAL', max_temp_mb = 0 (메모리만 사용!)
 ```
+
+```text
+------------------------------------------------------------------------------------------------------------
+| Id | Operation           | Name    | Starts | A-Rows |   A-Time   | Buffers | Reads | OMem | 1Mem |Used-Mem|
+------------------------------------------------------------------------------------------------------------
+|  1 | HASH GROUP BY       |         |      1 |     50 |00:00:52.14 |    1120K|     0 |      |      |        |
+|* 2 |  HASH JOIN          |         |      1 |    100M|00:00:49.30 |    1120K|     0 | 2048K| 2048K|1832K(0)|
+|  3 |   TABLE ACCESS FULL | T_SMALL |      1 |     50 |00:00:00.01 |      12 |       |      |      |        |  ← Build
+|  4 |   TABLE ACCESS FULL | T_LARGE |      1 |    100M|00:00:41.02 |    1120K|       |      |      |        |  ← Probe
+------------------------------------------------------------------------------------------------------------
+```
+
+> ✅ **무엇이 달라졌나?**
+> - `Used-Mem = 1832K(0)` — 끝의 **`(0)`이 Optimal(In-Memory)**. `Reads=0`, `Used-Tmp` 사라짐 = 디스크 접근 0.
+> - Build가 T_SMALL(50건)로 바뀜 → 해시 맵이 2MB면 충분(`OMem=2048K`).
+> - `A-Time 14분 20초 → 52초`. **논리·물리 계획을 바꾸지 않고 Build 방향만 뒤집어** 얻은 성과.
+
+> 💡 위 플랜의 `Used-Tmp / Used-Mem` 값이 곧 아래 `V$SQL_WORKAREA`의 `last_execution`(OPTIMAL/ONE PASS/MULTI-PASS)과 일대일로 대응합니다. **플랜에서 먼저 의심하고, V$SQL_WORKAREA로 확진**하는 흐름을 익히세요.
 
 ---
 

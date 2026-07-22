@@ -27,8 +27,17 @@ SELECT sql_id,
    AND session_state = 'ON CPU'
  GROUP BY sql_id
  ORDER BY active_seconds DESC;
--- 출력 예시: sql_id '8x22kf...', active_seconds 2400 (이 쿼리가 혼자 2400초의 CPU Time을 썼음!)
 ```
+
+> **실제 출력 예시 — 5분(300초) 구간의 CPU 점유 SQL:**
+> ```text
+> SQL_ID          ACTIVE_SECONDS   CPU_PCT_SHARE
+> -------------   --------------   -------------
+> 8x22kf9d3n1a2            2,400            95.2   ← 범인! 5분 창에서 2400초의 세션-초 독식
+> 3ghd82kfl0092              78             3.1
+> 9slw01ncmz84a              43             1.7
+> ```
+> `active_seconds`는 "샘플 수 × 세션 수"라 벽시계 300초를 넘을 수 있습니다(여러 세션 동시 실행). **비중(cpu_pct_share) 95%면 나머지는 볼 것도 없이 첫 줄이 진범.**
 
 ---
 
@@ -54,7 +63,50 @@ SELECT plan_hash_value,
  ORDER BY avg_sec_per_exec ASC;
 ```
 
-> **해결책**: AWR 분석을 통해 과거의 `plan_hash_value` 중 가장 빨랐던 놈을 찾았다면, `DBMS_SPM` 패키지를 사용하거나 SQL Profile을 떠서 현재 쿼리가 무조건 그 과거의 Plan을 타도록 강제(Pinning) 해버리면 즉시 장애가 복구됩니다.
+> **위 쿼리의 실제 출력 예시 — 한 SQL이 두 개의 Plan으로 갈라진 순간:**
+> ```text
+> PLAN_HASH_VALUE   EXEC_COUNT   TOTAL_SEC   AVG_SEC_PER_EXEC
+> ---------------   ----------   ---------   ----------------
+>     2938451077        18,420      184.20              0.01   ← 어제까지 (PLAN_A, 빠름)
+>     1044852213           612    58,140.00             95.00   ← 오늘 새벽부터 (PLAN_B, 100배 느림!)
+> ```
+> `avg_sec_per_exec`가 **0.01초 → 95초**로 폭증. `plan_hash_value`가 바뀐 정확한 시점이 곧 장애 발생 시점입니다.
+
+### 두 Plan을 실제로 꺼내 비교하기
+
+과거 Plan은 AWR에 보관되므로 `DBMS_XPLAN.DISPLAY_AWR`로 직접 뽑아 무엇이 바뀌었는지 눈으로 확인합니다.
+
+```sql
+-- 빨랐던 PLAN_A 
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_AWR('8x22kf...', 2938451077, NULL, 'BASIC'));
+-- 느려진 PLAN_B
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_AWR('8x22kf...', 1044852213, NULL, 'BASIC'));
+```
+
+```text
+▶ PLAN_A (hash=2938451077) — 인덱스로 정조준, 0.01초
+-------------------------------------------------------------
+| Id | Operation                    | Name         | Rows |
+-------------------------------------------------------------
+|  0 | SELECT STATEMENT             |              |      |
+|  1 |  SORT AGGREGATE              |              |    1 |
+|  2 |   TABLE ACCESS BY INDEX ROWID| T_SALES      |   38 |
+|  3 |    INDEX RANGE SCAN          | T_SALES_IX01 |   38 |   ← 필요한 38건만 인덱스로 콕
+-------------------------------------------------------------
+
+▶ PLAN_B (hash=1044852213) — 통계 수집 후 풀스캔으로 변질, 95초
+-------------------------------------------------------------
+| Id | Operation           | Name    | Rows |
+-------------------------------------------------------------
+|  0 | SELECT STATEMENT    |         |      |
+|  1 |  SORT AGGREGATE     |         |    1 |
+|  2 |   TABLE ACCESS FULL | T_SALES |  120M|   ← 1.2억 건 전수 스캔으로 돌변
+-------------------------------------------------------------
+```
+
+> 🔍 **핵심 판독**: 같은 SQL인데 `Id 2~3`가 **`INDEX RANGE SCAN` → `TABLE ACCESS FULL`**로 바뀐 것이 100배 저하의 정체. 새벽 통계 수집으로 카디널리티 추정이 틀어져 옵티마이저가 "풀스캔이 더 싸다"고 오판한 전형적 케이스입니다.
+
+> **해결책**: AWR 분석을 통해 과거의 `plan_hash_value` 중 가장 빨랐던 놈(여기선 `2938451077`)을 찾았다면, `DBMS_SPM` 패키지로 SQL Plan Baseline을 심거나 SQL Profile을 떠서 현재 쿼리가 무조건 그 과거의 Plan을 타도록 강제(Pinning) 해버리면 즉시 장애가 복구됩니다.
 
 ---
 

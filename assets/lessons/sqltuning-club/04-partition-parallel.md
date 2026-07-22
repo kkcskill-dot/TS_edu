@@ -28,6 +28,8 @@
 
 ### Pruning 성공/실패 판독법 — 실행계획의 Pstart / Pstop
 
+파티션 테이블 플랜에는 `Pstart`(읽기 시작 파티션 번호)와 `Pstop`(끝 파티션 번호) 컬럼이 붙습니다. **이 둘의 간격이 좁을수록 Pruning 성공.**
+
 ```
 | Id | Operation                | Name    | Pstart| Pstop |
 |  1 |  PARTITION RANGE SINGLE  |         |    22 |    22 |   ← 성공: 1개만 읽음
@@ -35,6 +37,32 @@
 |  1 |  PARTITION RANGE ALL     |         |     1 |    36 |   ← 실패: 전 파티션 스캔!
 |  1 |  PARTITION RANGE (KEY)   |         |   KEY |   KEY |   ← 바인드 변수: 실행 시점 결정
 ```
+
+**성공/실패를 A-Rows·Buffers까지 붙여 나란히 보면 차이가 명확합니다** (동일 결과, 완전히 다른 비용):
+
+```text
+▶ Pruning 성공 — WHERE sale_dt BETWEEN '20231001' AND '20231031'
+------------------------------------------------------------------------------------------
+| Id | Operation                | Name    | Pstart| Pstop | Starts | A-Rows | A-Time |Buffers|
+------------------------------------------------------------------------------------------
+|  1 | SORT AGGREGATE           |         |       |       |      1 |      1 |00:00:00.09|  842 |
+|  2 |  PARTITION RANGE SINGLE  |         |    10 |    10 |      1 |    31M |00:00:00.08|  842 |
+|  3 |   TABLE ACCESS FULL      | T_SALES |    10 |    10 |      1 |    31M |00:00:00.06|  842 |
+------------------------------------------------------------------------------------------
+   → 48개 파티션 중 10번 1개만 스캔. Buffers 842.
+
+▶ Pruning 실패 — WHERE TO_CHAR(sale_dt,'YYYYMM') = :ym
+------------------------------------------------------------------------------------------
+| Id | Operation                | Name    | Pstart| Pstop | Starts | A-Rows | A-Time |Buffers|
+------------------------------------------------------------------------------------------
+|  1 | SORT AGGREGATE           |         |       |       |      1 |      1 |00:09:41.22| 41360|
+|* 2 |  PARTITION RANGE ALL     |         |     1 |    48 |      1 |    31M |00:09:40.10| 41360|
+|* 3 |   TABLE ACCESS FULL      | T_SALES |     1 |    48 |     48 |    31M |00:09:31.55| 41360|
+------------------------------------------------------------------------------------------
+   → Pstart=1/Pstop=48 전 파티션 스캔. Id 3 Starts=48(파티션마다 스캔). Buffers 41360 (약 49배!).
+```
+
+> 🔍 결과 건수(A-Rows 31M)는 **동일**한데 `Pstart/Pstop`과 `Buffers`만 폭발했습니다. 파티션 키를 `TO_CHAR()`로 가공한 순간 옵티마이저가 어느 파티션인지 판단 불가 → 전수 스캔. 바로 위 장애 사례(9시간)의 실제 플랜 모습입니다.
 
 ### Pruning을 깨뜨리는 4대 패턴 (코드 리뷰 체크리스트)
 
@@ -242,6 +270,46 @@ SELECT dfo_number, tq_id, server_type, process, num_rows
   FROM v$pq_tqstat
  ORDER BY dfo_number, tq_id, server_type, process;
 ```
+
+**③ 병렬 조인 플랜은 이렇게 생겼습니다 — TQ와 IN-OUT 컬럼 읽기:**
+
+```text
+-------------------------------------------------------------------------------------------------
+| Id | Operation                | Name    | Pstart| Pstop |    TQ  |IN-OUT| PQ Distrib | A-Rows |
+-------------------------------------------------------------------------------------------------
+|  0 | SELECT STATEMENT         |         |       |       |        |      |            |      1 |
+|  1 |  SORT AGGREGATE          |         |       |       |        |      |            |      1 |
+|  2 |   PX COORDINATOR         |         |       |       |        |      |            |      4 |
+|  3 |    PX SEND QC (RANDOM)   | :TQ10002|       |       | Q1,02  | P->S | QC (RAND)  |      4 |
+|  4 |     SORT AGGREGATE       |         |       |       | Q1,02  | PCWP |            |      4 |
+|* 5 |      HASH JOIN BUFFERED  |         |       |       | Q1,02  | PCWP |            |    12M |
+|  6 |       PX RECEIVE         |         |       |       | Q1,02  | PCWP |            |    12M |
+|  7 |        PX SEND HASH      | :TQ10000|       |       | Q1,00  | P->P | HASH       |    12M |
+|  8 |         PX BLOCK ITERATOR|         |     1 |    12 | Q1,00  | PCWC |            |    12M |
+|  9 |          TABLE ACCESS FULL| T_ORDER_P|   1 |    12 | Q1,00  | PCWP |            |    12M |
+| 10 |       PX RECEIVE         |         |       |       | Q1,02  | PCWP |            |    12M |
+| 11 |        PX SEND HASH      | :TQ10001|       |       | Q1,01  | P->P | HASH       |    12M |
+| 12 |         PX BLOCK ITERATOR|         |       |       | Q1,01  | PCWC |            |    12M |
+| 13 |          TABLE ACCESS FULL| T_TXN  |       |       | Q1,01  | PCWP |            |    12M |
+-------------------------------------------------------------------------------------------------
+```
+
+> 🔍 **PX 플랜 판독 포인트**
+> - **IN-OUT 컬럼**: `P->P`(슬레이브→슬레이브, 재분배 발생) / `P->S`(슬레이브→QC, 결과 취합) / `PCWP`(한 슬레이브 안에서 병렬) / `PCWC`(자식과 병렬). `P->P`가 보이면 **Table Queue를 통한 데이터 재분배**가 일어나는 지점.
+> - **TQ 컬럼(`Q1,00` 등)**: 같은 TQ 번호끼리 한 슬레이브 집합. `:TQ10000`/`:TQ10001`이 각자 테이블을 읽어 `HASH`로 뿌리고(`Id 7·11`), `:TQ10002`가 조인.
+> - **PQ Distrib = `HASH`**: 양쪽을 조인 키 해시로 재분배(대용량×대용량 정석). 여기를 `BROADCAST`로 바꾸면 `Id 7`이 `PX SEND BROADCAST`로 바뀌고 작은 쪽이 슬레이브 수만큼 복제됩니다.
+> - **`HASH JOIN BUFFERED`**: 병렬 해시 조인 특유의 오퍼레이션(Probe 결과를 버퍼링). 순수 `HASH JOIN`과 구분해서 볼 것.
+
+> **`V$PQ_TQSTAT` 출력으로 Skew 판독** — 같은 tq_id 안에서 process별 num_rows 편차를 봅니다:
+> ```text
+> DFO   TQ_ID  SERVER_TYPE  PROCESS  NUM_ROWS
+> ---   -----  -----------  -------  --------
+>   1     0    Producer     P002      3,001K   ← 균등 (정상 HASH 분배)
+>   1     0    Producer     P003      2,998K
+>   1     0    Consumer     P000      7,201K   ← 한 슬레이브에 60% 몰림 = Skew!
+>   1     0    Consumer     P001      1,799K
+> ```
+> Consumer 쪽 편차가 크면 조인 키 Skew. 위 [물류 시스템 사례](#)처럼 특정 값(수도권 허브)이 한 슬레이브로 쏠린 것입니다.
 
 | 관찰 항목 | ① Pruning 성공 | ② Pruning 실패 | ③ 병렬 조인 |
 |---|---|---|---|
