@@ -127,7 +127,7 @@
 
     container.innerHTML = `
       <div style="display: flex; flex-direction: column; height: 100%;">
-        <div style="padding: 16px; background: var(--bg-nav); border-bottom: 1px solid var(--border-light); display: flex; align-items: center; justify-content: space-between;">
+        <div style="padding: 16px; background: var(--bg-nav); border-bottom: 1px solid var(--border-light); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;">
           <div style="font-size: 0.9rem; font-weight: 700; color: var(--color-text);">
             <span style="color: var(--accent-cyan);">💡 내장 샘플 스키마:</span> <code>emp</code>, <code>dept</code>, <code>salgrade</code>
           </div>
@@ -136,6 +136,15 @@
             <button id="btn-freelab-plan" class="btn-secondary" style="padding: 6px 12px; font-size: 0.85rem;">🔍 실행계획 분석</button>
           </div>
         </div>
+        
+        <div style="padding: 12px 16px; background: rgba(0,0,0,0.1); border-bottom: 1px solid var(--border-light); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <span style="font-size: 0.8rem; font-weight: bold; color: var(--color-text-muted);">1강 예제 템플릿:</span>
+          <button class="btn-preset" data-sql="SELECT d.dname, d.loc&#10;  FROM dept d&#10; WHERE d.deptno IN (&#10;       SELECT e.deptno&#10;         FROM emp e&#10;        WHERE e.sal > 2000&#10; );" style="padding: 4px 8px; font-size: 0.75rem; border: 1px solid var(--border-light); border-radius: 4px; background: var(--bg-textbook); color: var(--color-text); cursor: pointer;">예제1: 서브쿼리 (Unnesting)</button>
+          <button class="btn-preset" data-sql="SELECT d.dname, e.ename, e.sal&#10;  FROM dept d,&#10;       (SELECT deptno, ename, sal&#10;          FROM emp&#10;         ORDER BY sal DESC&#10;         LIMIT 5) e&#10; WHERE d.deptno = e.deptno;" style="padding: 4px 8px; font-size: 0.75rem; border: 1px solid var(--border-light); border-radius: 4px; background: var(--bg-textbook); color: var(--color-text); cursor: pointer;">예제2: 인라인 뷰 조인</button>
+          <button class="btn-preset" data-sql="SELECT e.ename, e.sal,&#10;       (SELECT d.dname FROM dept d WHERE d.deptno = e.deptno) AS dname&#10;  FROM emp e&#10; WHERE e.job = 'MANAGER';" style="padding: 4px 8px; font-size: 0.75rem; border: 1px solid var(--border-light); border-radius: 4px; background: var(--bg-textbook); color: var(--color-text); cursor: pointer;">예제3: 스칼라 서브쿼리</button>
+          <button class="btn-preset" data-sql="SELECT *&#10;  FROM emp&#10; WHERE sal BETWEEN 1000 AND 2000;" style="padding: 4px 8px; font-size: 0.75rem; border: 1px solid var(--border-light); border-radius: 4px; background: var(--bg-textbook); color: var(--color-text); cursor: pointer;">예제4: 인덱스 vs 테이블 스캔</button>
+        </div>
+
         <div style="padding: 16px; flex-shrink: 0;">
           <textarea id="freelab-sql-input" style="width: 100%; height: 120px; font-family: monospace; padding: 12px; border: 1px solid var(--border-light); border-radius: 6px; background: var(--bg-textbook); color: var(--color-text); font-size: 14px; resize: vertical;" placeholder="여기에 SQL을 입력하세요. (예: SELECT * FROM emp a JOIN dept b ON a.deptno = b.deptno)"></textarea>
         </div>
@@ -197,6 +206,21 @@
 
       btnRun.addEventListener("click", () => executeSql('run'));
       btnPlan.addEventListener("click", () => executeSql('plan'));
+
+      // Preset buttons logic
+      const presetBtns = container.querySelectorAll(".btn-preset");
+      presetBtns.forEach(btn => {
+        btn.addEventListener("click", () => {
+          input.value = btn.getAttribute("data-sql");
+          resArea.innerHTML = `<div style="text-align:center; padding: 40px; color: var(--color-text-muted);">
+            예제가 에디터에 로드되었습니다. [SQL 실행] 또는 [실행계획 분석] 버튼을 클릭하세요.
+          </div>`;
+          // Optional: Add some visual feedback to the button
+          const originalBg = btn.style.background;
+          btn.style.background = 'rgba(0, 255, 255, 0.2)';
+          setTimeout(() => { btn.style.background = originalBg; }, 200);
+        });
+      });
 
     }).catch(err => {
       const resArea = document.getElementById("freelab-result-area");
