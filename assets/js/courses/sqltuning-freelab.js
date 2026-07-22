@@ -103,20 +103,67 @@
 
   function formatExplainPlan(r) {
     if (!r || !r.cols) return "";
-    let html = `<div style="font-family: monospace; background: #1e1e1e; color: #d4d4d4; padding: 16px; border-radius: 6px; overflow-x: auto; margin-top: 12px; font-size: 0.9rem; line-height: 1.5;">`;
-    html += `<div style="color: #569cd6; font-weight: bold; margin-bottom: 10px;">SQLite EXPLAIN QUERY PLAN (Execution Tree)</div>`;
+    let html = `<div style="font-family: monospace; background: #1e1e1e; color: #d4d4d4; padding: 16px; border-radius: 6px; overflow-x: auto; margin-top: 12px; font-size: 0.9rem; line-height: 1.5; white-space: pre;">`;
+    html += `<div style="color: #569cd6; font-weight: bold; margin-bottom: 10px;">Oracle DBMS_XPLAN Style (Emulated from SQLite)</div>`;
     
+    // Build tree from id and parent
+    const nodes = [];
     r.vals.forEach(row => {
-      // row: [id, parent, notused, detail]
-      const id = row[0];
-      const parent = row[1];
-      const detail = row[3];
-      
-      // Calculate basic indentation based on id/parent heuristic for SQLite
-      // SQLite's EXPLAIN QUERY PLAN produces a flat list, but 'detail' strings give hints or we can just print it sequentially
-      // For simplicity in SQLite, we just print the detail with a bullet, as it's already structured well enough
-      html += `<div><span style="color:#ce9178;">[ID:${id} P:${parent}]</span> <span style="color:#4ec9b0;">${esc(detail)}</span></div>`;
+      nodes.push({ id: row[0], parent: row[1], detail: row[3], children: [] });
     });
+
+    // Map by id
+    const nodeMap = {};
+    nodes.forEach(n => { nodeMap[n.id] = n; });
+
+    const roots = [];
+    nodes.forEach(n => {
+      if (n.parent === 0 || !nodeMap[n.parent]) {
+        roots.push(n);
+      } else {
+        nodeMap[n.parent].children.push(n);
+      }
+    });
+
+    let displayId = 1;
+    const flatPlan = [];
+
+    function traverse(node, depth) {
+      let op = " ".repeat(depth) + node.detail;
+      // Make it look a little more like Oracle if possible
+      op = op.replace(/SCAN TABLE (.+?) USING INDEX (.+)/i, "TABLE ACCESS BY INDEX ROWID $1\\n" + " ".repeat(depth+1) + "INDEX SCAN $2");
+      op = op.replace(/SCAN TABLE (.+)/i, "TABLE ACCESS FULL $1");
+      op = op.replace(/SEARCH TABLE (.+?) USING INDEX (.+)/i, "TABLE ACCESS BY INDEX ROWID $1\\n" + " ".repeat(depth+1) + "INDEX SCAN $2");
+      op = op.replace(/SEARCH TABLE (.+?) USING INTEGER PRIMARY KEY (.+)/i, "TABLE ACCESS BY INDEX ROWID $1 (PK)");
+      
+      const lines = op.split("\\n");
+      lines.forEach((line, idx) => {
+        flatPlan.push({
+          id: idx === 0 ? displayId++ : "",
+          operation: line
+        });
+      });
+      node.children.forEach(child => traverse(child, depth + 1));
+    }
+
+    flatPlan.push({ id: 0, operation: "SELECT STATEMENT (SQLite Emulated)" });
+    roots.forEach(r => traverse(r, 1));
+
+    // Render ASCII table
+    const lineStr = "-".repeat(80);
+    html += `<div style="color:#d4d4d4;">${lineStr}</div>`;
+    html += `<div style="color:#ce9178; font-weight:bold;">| Id  | Operation${" ".repeat(60)}|</div>`;
+    html += `<div style="color:#d4d4d4;">${lineStr}</div>`;
+    
+    flatPlan.forEach(row => {
+      const idStr = String(row.id).padStart(3, " ");
+      const opStr = String(row.operation).padEnd(69, " ");
+      // truncate if too long to maintain table layout
+      const displayOpStr = opStr.length > 69 ? opStr.substring(0, 66) + "..." : opStr;
+      html += `<div>| ${idStr} | <span style="color:#4ec9b0;">${esc(displayOpStr)}</span>|</div>`;
+    });
+
+    html += `<div style="color:#d4d4d4;">${lineStr}</div>`;
     html += `</div>`;
     return html;
   }
