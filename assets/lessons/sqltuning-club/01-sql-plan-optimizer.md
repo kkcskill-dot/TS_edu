@@ -132,18 +132,38 @@ Predicate Information (identified by operation id):
 
 ### 뷰 병합과 조인 순서 강제 제어
 
+> [!IMPORTANT]
+> **해시 조인에서 `LEADING`의 첫 테이블 = Build Input(해시 맵을 만드는 쪽)**
+> `LEADING(X Y) USE_HASH(Y)` 는 **X로 해시 맵을 만들고 Y를 스캔**하라는 뜻입니다. 해시 맵은 메모리(PGA)에 올라가므로 **반드시 작은 쪽을 먼저(리딩)** 두어야 In-Memory로 돌아갑니다. 큰 테이블을 먼저 두면 해시 맵이 메모리를 넘쳐 디스크로 새어나갑니다(1-Pass/Multipass — 2회차 참고).
+> 실행계획에서는 **HASH JOIN 바로 아래 첫 번째 자식이 Build Input**입니다. 그 자리에 작은 테이블이 오는지 항상 확인하세요.
+
 ```sql
--- 대용량 데이터 로드 시 옵티마이저의 개입을 차단하는 기법
-SELECT /*+ LEADING(A B) USE_HASH(B) */ 
+-- 집계 뷰(B, 작음)를 Build Input으로 고정 → 큰 본체 테이블(A)을 스캔
+SELECT /*+ LEADING(B A) USE_HASH(A) */ 
        A.col1, B.total
-  FROM TABLE_A A,
+  FROM TABLE_A A,                          -- 대용량 본체
        (SELECT /*+ NO_MERGE */ col1, SUM(col2) as total 
           FROM TABLE_B 
-         GROUP BY col1
+         GROUP BY col1                      -- 집계 결과라 건수가 적음 = 작은 쪽
          -- ROWNUM > 0 을 추가하면 옵티마이저가 뷰를 절대 깨지 못함 (실무 팁)
         ) B
  WHERE A.col1 = B.col1;
 ```
+
+```text
+-- 위 힌트가 먹은 실행계획 — 첫 자식(Id 2)이 작은 뷰 B여야 정상
+------------------------------------------------------------------
+| Id | Operation           | Name    | Starts | A-Rows | Buffers |
+------------------------------------------------------------------
+|  1 |  HASH JOIN          |         |      1 |   1200 |    5820 |
+|  2 |   VIEW              |         |      1 |     50 |     620 |  ← Build(작은 집계 뷰)
+|  3 |    HASH GROUP BY    |         |      1 |     50 |     620 |
+|  4 |     TABLE ACCESS FULL| TABLE_B|      1 |    50K |     620 |
+|  5 |   TABLE ACCESS FULL | TABLE_A |      1 |   1.2M |    5200 |  ← Probe(큰 본체)
+------------------------------------------------------------------
+```
+
+> ⚠️ 만약 `LEADING(A B)`로 큰 본체 A를 먼저 두면 A가 Build가 되어 해시 맵이 메모리를 초과합니다. **"작은 것을 리딩"** 원칙을 어긴 대표적 실수입니다.
 
 ---
 
@@ -217,3 +237,4 @@ SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR(NULL, NULL, 'ALLSTATS LAST'));
 - 서브쿼리 **Unnesting**이 실패하고 **FILTER**로 풀리면 대형 타임아웃 장애의 주범이 된다. `UNNEST` 힌트를 기억하자.
 - 집계(GROUP BY)나 ROWNUM이 섞인 뷰는 **View Merging**이 실패한다. 이를 역이용해 옵티마이저의 개입을 막는 것이 대용량 배치 튜닝의 핵심이다.
 - 조인 순서가 제멋대로 꼬일 때는 통계정보 갱신보다 `LEADING` 힌트로 멱살을 잡고 끌고 가는 것이 가장 빠르고 안전한 장애 조치다.
+- 해시 조인에서는 `LEADING`의 **첫 테이블이 Build Input(해시 맵)** 이다. **반드시 작은 테이블을 먼저** — `LEADING(작은것 큰것)`. 큰 테이블을 먼저 두면 해시 맵이 메모리를 넘쳐 디스크로 샌다(2회차 Multipass 참고).

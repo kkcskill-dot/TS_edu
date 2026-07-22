@@ -131,21 +131,21 @@
           note: "옵티마이저가 b.deptno=10을 자동 생성 → small_b 통계가 좋아 보여 그쪽부터 드라이빙. NL Starts 폭증."
         },
         after: {
-          hint: "LEADING(a b) USE_HASH(b)",
-          label: "LEADING(a b) USE_HASH(b)",
+          hint: "LEADING(b a) USE_HASH(a)",
+          label: "LEADING(b a) USE_HASH(a)",
           verdict: "good",
-          headline: "조인 순서·방식 고정 — 큰 테이블을 한 번에 스캔 후 해시 조인",
+          headline: "작은 테이블(SMALL_B)로 해시 맵을 만들고 큰 테이블을 스캔",
           plan: [
             { id: 0, op: "SELECT STATEMENT",  d: 0, starts: "1", erows: "",    arows: "1200", buffers: "5820" },
             { id: 1, op: "HASH JOIN",         d: 1, starts: "1", erows: "1200",arows: "1200", buffers: "5820", hot: true },
-            { id: 2, op: "TABLE ACCESS FULL", d: 2, starts: "1", erows: "1200",arows: "1200", buffers: "5808",name: "BIG_A" },
-            { id: 3, op: "TABLE ACCESS FULL", d: 2, starts: "1", erows: "8",   arows: "8",    buffers: "12",  name: "SMALL_B" },
+            { id: 2, op: "TABLE ACCESS FULL", d: 2, starts: "1", erows: "8",   arows: "8",    buffers: "12",  name: "SMALL_B" },
+            { id: 3, op: "TABLE ACCESS FULL", d: 2, starts: "1", erows: "1200",arows: "1200", buffers: "5808",name: "BIG_A" },
           ],
           metrics: { starts: 1, buffers: 5820, timeSec: 0.21 },
-          note: "LEADING으로 조인 순서를 멱살 잡아 끌고 감. NL 반복 소멸, Buffers 241,800 → 5,820."
+          note: "LEADING(b a) = 작은 SMALL_B를 Build Input(해시 맵)으로 고정. HASH JOIN 바로 아래 첫 자식이 SMALL_B인 것을 확인하라. NL 반복 소멸, Buffers 241,800 → 5,820."
         }
       },
-      takeaway: "조인 순서가 제멋대로 꼬이면 통계 갱신보다 <code>LEADING</code> 힌트로 방향을 고정하는 것이 가장 빠른 장애 조치다."
+      takeaway: "해시 조인은 <b>작은 테이블을 먼저(Build Input)</b> 리딩해야 한다. <code>LEADING(작은테이블 큰테이블)</code>으로 순서를 고정하라 — 첫 테이블이 곧 해시 맵을 만드는 쪽이다."
     }
   };
 
