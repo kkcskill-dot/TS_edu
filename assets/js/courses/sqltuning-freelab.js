@@ -104,15 +104,13 @@
   function formatExplainPlan(r) {
     if (!r || !r.cols) return "";
     let html = `<div style="font-family: monospace; background: #1e1e1e; color: #d4d4d4; padding: 16px; border-radius: 6px; overflow-x: auto; margin-top: 12px; font-size: 0.9rem; line-height: 1.5; white-space: pre;">`;
-    html += `<div style="color: #569cd6; font-weight: bold; margin-bottom: 10px;">Oracle DBMS_XPLAN Style (Emulated from SQLite)</div>`;
+    html += `<div style="color: #569cd6; font-weight: bold; margin-bottom: 10px;">Oracle DBMS_XPLAN Style (Translated)</div>`;
     
-    // Build tree from id and parent
     const nodes = [];
     r.vals.forEach(row => {
       nodes.push({ id: row[0], parent: row[1], detail: row[3], children: [] });
     });
 
-    // Map by id
     const nodeMap = {};
     nodes.forEach(n => { nodeMap[n.id] = n; });
 
@@ -125,31 +123,96 @@
       }
     });
 
-    let displayId = 1;
-    const flatPlan = [];
-
-    function traverse(node, depth) {
-      let op = " ".repeat(depth) + node.detail;
-      // Make it look a little more like Oracle if possible
-      op = op.replace(/SCAN TABLE (.+?) USING INDEX (.+)/i, "TABLE ACCESS BY INDEX ROWID $1\\n" + " ".repeat(depth+1) + "INDEX SCAN $2");
-      op = op.replace(/SCAN TABLE (.+)/i, "TABLE ACCESS FULL $1");
-      op = op.replace(/SEARCH TABLE (.+?) USING INDEX (.+)/i, "TABLE ACCESS BY INDEX ROWID $1\\n" + " ".repeat(depth+1) + "INDEX SCAN $2");
-      op = op.replace(/SEARCH TABLE (.+?) USING INTEGER PRIMARY KEY (.+)/i, "TABLE ACCESS BY INDEX ROWID $1 (PK)");
+    // 1. Group sibling SCAN/SEARCH/CO-ROUTINE into NESTED LOOPS
+    function groupJoins(n) {
+      if (!n || !n.children) return;
+      const grouped = [];
+      let currentJoin = null;
       
-      const lines = op.split("\\n");
-      lines.forEach((line, idx) => {
-        flatPlan.push({
-          id: idx === 0 ? displayId++ : "",
-          operation: line
-        });
+      n.children.forEach(c => {
+        const d = c.detail.toUpperCase();
+        const isAccess = d.startsWith("SCAN") || d.startsWith("SEARCH") || d.startsWith("CO-ROUTINE");
+        
+        if (isAccess) {
+          if (!currentJoin) {
+            currentJoin = { id: 'join', detail: "NESTED LOOPS", children: [] };
+            grouped.push(currentJoin);
+          }
+          currentJoin.children.push(c);
+        } else {
+          currentJoin = null;
+          grouped.push(c);
+        }
+        groupJoins(c);
       });
-      node.children.forEach(child => traverse(child, depth + 1));
+      
+      // Flatten single-child joins
+      for (let i = 0; i < grouped.length; i++) {
+        if (grouped[i].id === 'join' && grouped[i].children.length === 1) {
+           grouped[i] = grouped[i].children[0];
+        }
+      }
+      n.children = grouped;
     }
 
-    flatPlan.push({ id: 0, operation: "SELECT STATEMENT (SQLite Emulated)" });
-    roots.forEach(r => traverse(r, 1));
+    const dummyRoot = { id: 'root', detail: "SELECT STATEMENT", children: roots };
+    groupJoins(dummyRoot);
 
-    // Render ASCII table
+    // 2. Translate terms and flatten
+    let displayId = 0;
+    const flatPlan = [];
+
+    function traverseAndTranslate(node, depth) {
+      let d = node.detail;
+      let oracleNodes = [];
+      
+      const matchIndexScan = d.match(/SCAN TABLE (.+?) USING INDEX (.+)/i);
+      const matchIndexSearch = d.match(/SEARCH TABLE (.+?) USING INDEX (.+?)(?: \(.+\))?$/i);
+      const matchPkSearch = d.match(/SEARCH TABLE (.+?) USING INTEGER PRIMARY KEY/i);
+      const matchFullScan = d.match(/SCAN TABLE (.+)/i);
+      const matchCoroutine = d.match(/CO-ROUTINE (.+)/i);
+      const matchScanView = d.match(/^SCAN (.+)/i); // SCAN e
+      
+      if (matchIndexScan) {
+        oracleNodes.push({ op: `TABLE ACCESS BY INDEX ROWID ${matchIndexScan[1].toUpperCase()}`, d: depth });
+        oracleNodes.push({ op: `INDEX FULL SCAN ${matchIndexScan[2].toUpperCase()}`, d: depth + 1 });
+      } else if (matchIndexSearch) {
+        oracleNodes.push({ op: `TABLE ACCESS BY INDEX ROWID ${matchIndexSearch[1].toUpperCase()}`, d: depth });
+        oracleNodes.push({ op: `INDEX RANGE SCAN ${matchIndexSearch[2].toUpperCase()}`, d: depth + 1 });
+      } else if (matchPkSearch) {
+        oracleNodes.push({ op: `TABLE ACCESS BY INDEX ROWID ${matchPkSearch[1].toUpperCase()}`, d: depth });
+        oracleNodes.push({ op: `INDEX UNIQUE SCAN PK_${matchPkSearch[1].toUpperCase()}`, d: depth + 1 });
+      } else if (matchFullScan) {
+        oracleNodes.push({ op: `TABLE ACCESS FULL ${matchFullScan[1].toUpperCase()}`, d: depth });
+      } else if (matchCoroutine) {
+        oracleNodes.push({ op: `VIEW ${matchCoroutine[1].toUpperCase()}`, d: depth });
+      } else if (matchScanView && !d.startsWith("SCAN TABLE")) {
+        oracleNodes.push({ op: `TABLE ACCESS FULL ${matchScanView[1].toUpperCase()}`, d: depth });
+      } else {
+        // Handle Sort / Group By
+        if (d.includes("USE TEMP B-TREE FOR ORDER BY")) {
+          oracleNodes.push({ op: `SORT ORDER BY`, d: depth });
+        } else if (d.includes("USE TEMP B-TREE FOR GROUP BY")) {
+          oracleNodes.push({ op: `HASH GROUP BY`, d: depth });
+        } else if (d.startsWith("LIST SUBQUERY")) {
+          oracleNodes.push({ op: `FILTER`, d: depth });
+        } else {
+          oracleNodes.push({ op: d, d: depth });
+        }
+      }
+
+      oracleNodes.forEach((onode, i) => {
+        flatPlan.push({ id: displayId++, operation: " ".repeat(onode.d) + onode.op });
+        // Attach children to the LAST translated node (usually the index scan or the table scan)
+        if (i === oracleNodes.length - 1 && node.children) {
+          node.children.forEach(c => traverseAndTranslate(c, onode.d + 1));
+        }
+      });
+    }
+
+    traverseAndTranslate(dummyRoot, 0);
+
+    // 3. Render ASCII table
     const lineStr = "-".repeat(80);
     html += `<div style="color:#d4d4d4;">${lineStr}</div>`;
     html += `<div style="color:#ce9178; font-weight:bold;">| Id  | Operation${" ".repeat(60)}|</div>`;
@@ -158,7 +221,6 @@
     flatPlan.forEach(row => {
       const idStr = String(row.id).padStart(3, " ");
       const opStr = String(row.operation).padEnd(69, " ");
-      // truncate if too long to maintain table layout
       const displayOpStr = opStr.length > 69 ? opStr.substring(0, 66) + "..." : opStr;
       html += `<div>| ${idStr} | <span style="color:#4ec9b0;">${esc(displayOpStr)}</span>|</div>`;
     });
