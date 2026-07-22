@@ -6,8 +6,10 @@
 
   // 과목별 마크다운 파일 매핑
   const SESSIONS = [
-    { id: "sqltuning-session1", file: "01-architecture.md", viewer: "viewer-sqltuning-1" },
-    { id: "sqltuning-session2", file: "02-index-join.md", viewer: "viewer-sqltuning-2" }
+    { id: "sqltuning-session1", file: "01-sql-plan-optimizer.md", viewer: "viewer-sqltuning-1" },
+    { id: "sqltuning-session2", file: "02-hash-join-memory.md", viewer: "viewer-sqltuning-2" },
+    { id: "sqltuning-session3", file: "03-ash-awr-bottleneck.md", viewer: "viewer-sqltuning-3" },
+    { id: "sqltuning-session4", file: "04-partition-parallel.md", viewer: "viewer-sqltuning-4" }
   ];
 
   const cache = {};
