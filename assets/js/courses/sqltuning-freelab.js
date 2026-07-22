@@ -273,13 +273,59 @@
       const input = document.getElementById("freelab-sql-input");
       const resArea = document.getElementById("freelab-result-area");
 
+      function applyOracleHintsToSQLite(query) {
+        const hintMatch = query.match(/\/\*\+([\s\S]*?)\*\//);
+        if (!hintMatch) return query;
+        const hintText = hintMatch[1];
+        
+        const fullHints = [...hintText.matchAll(/FULL\(\s*([a-zA-Z0-9_]+)\s*\)/gi)].map(m => m[1].toLowerCase());
+        const idxHints = [...hintText.matchAll(/INDEX\(\s*([a-zA-Z0-9_]+)\s+([a-zA-Z0-9_]+)\s*\)/gi)].map(m => ({alias: m[1].toLowerCase(), idx: m[2].toLowerCase()}));
+
+        const keywords = ["WHERE", "ON", "JOIN", "INNER", "LEFT", "RIGHT", "FULL", "CROSS", "GROUP", "ORDER", "HAVING", "UNION", "SELECT", "AND", "OR", "INDEXED", "NOT"];
+
+        const tableRegex = /\b(emp|dept|salgrade)\b(?:\s+(?:AS\s+)?([a-zA-Z0-9_]+))?(?!\s*\.)/gi;
+        
+        return query.replace(tableRegex, (match, tbl, aliasGroup) => {
+          let actualAlias = tbl.toLowerCase();
+          let isKeyword = false;
+          
+          if (aliasGroup) {
+            if (keywords.includes(aliasGroup.toUpperCase())) {
+              isKeyword = true;
+            } else {
+              actualAlias = aliasGroup.toLowerCase();
+            }
+          }
+
+          if (fullHints.includes(actualAlias)) {
+            if (isKeyword) {
+              return `${tbl} NOT INDEXED ${aliasGroup}`;
+            } else {
+              return `${match} NOT INDEXED`;
+            }
+          }
+
+          const idxHint = idxHints.find(h => h.alias === actualAlias);
+          if (idxHint) {
+            if (isKeyword) {
+              return `${tbl} INDEXED BY ${idxHint.idx} ${aliasGroup}`;
+            } else {
+              return `${match} INDEXED BY ${idxHint.idx}`;
+            }
+          }
+          return match;
+        });
+      }
+
       function executeSql(mode) {
         if (!db) return;
-        const query = input.value.trim();
-        if (!query) {
+        const rawQuery = input.value.trim();
+        if (!rawQuery) {
           resArea.innerHTML = `<div style="color: var(--accent-crimson); padding: 16px; font-weight: bold;">쿼리를 입력해주세요.</div>`;
           return;
         }
+
+        const query = applyOracleHintsToSQLite(rawQuery);
 
         try {
           if (mode === 'plan') {
