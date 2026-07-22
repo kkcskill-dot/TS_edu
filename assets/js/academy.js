@@ -55,6 +55,13 @@
         desc: "온프레미스 DBA를 위한 클라우드 환경 및 성능진단 기초",
         enter: "nav-btn-cloud-textbook",
         course: "cloud-db"
+      },
+      {
+        name: "SQL튜닝",
+        sub: "SQL튜닝 소모임",
+        desc: "현업 실무 중심의 SQL 튜닝 기법과 실행계획 최적화 스터디",
+        enter: "nav-btn-sqltuning-textbook",
+        course: "sqltuning-club"
       }
     ]
   };
