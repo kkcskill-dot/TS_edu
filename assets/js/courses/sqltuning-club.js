@@ -32,14 +32,22 @@
     }
 
     if (window.marked) {
-      viewer.innerHTML = marked.parse(cache[s.id]);
+      let mdText = cache[s.id];
+      // GitHub alert style fallback
+      mdText = mdText.replace(/>\s*\[!TIP\]/g, '> 💡 **TIP:**');
+      mdText = mdText.replace(/>\s*\[!NOTE\]/g, '> ℹ️ **NOTE:**');
+      mdText = mdText.replace(/>\s*\[!WARNING\]/g, '> ⚠️ **WARNING:**');
+      mdText = mdText.replace(/>\s*\[!CAUTION\]/g, '> 🛑 **CAUTION:**');
+      mdText = mdText.replace(/>\s*\[!IMPORTANT\]/g, '> ❗ **IMPORTANT:**');
+
+      viewer.innerHTML = marked.parse(mdText);
     } else {
       viewer.innerHTML = `<pre>${cache[s.id]}</pre>`;
     }
   }
 
   function initSqltuningClub() {
-    const tabs = document.querySelectorAll("#sqltuning-tabs .ts-tab");
+    const tabs = document.querySelectorAll("#sqltuning-tabs .tbook-tab");
     if (!tabs.length) return;
 
     tabs.forEach(tab => {
@@ -49,14 +57,18 @@
         tab.classList.add("active");
 
         // Hide all contents
-        const contents = document.querySelectorAll("#panel-sqltuning-textbook .ts-tab-content");
-        contents.forEach(c => c.classList.remove("active"));
+        const contents = document.querySelectorAll("#panel-sqltuning-textbook .textbook-tab-contents");
+        contents.forEach(c => {
+          c.classList.remove("active");
+          c.style.display = "none";
+        });
 
         // Show target content
         const targetId = tab.getAttribute("data-target");
         const targetContent = document.getElementById(targetId);
         if (targetContent) {
           targetContent.classList.add("active");
+          targetContent.style.display = "block";
           renderMarkdown(targetId);
         }
       });

@@ -1,62 +1,57 @@
 <!-- SQL튜닝 소모임 Panel -->
 <section id="panel-sqltuning-textbook" class="content-panel">
-  <div class="panel-header">
+  <div class="panel-header" style="margin-bottom: 10px;">
     <h3>SQL 튜닝 소모임</h3>
     <p class="panel-desc">현업 실무 중심의 SQL 튜닝 기법과 실행계획 최적화 스터디</p>
   </div>
 
-  <div class="ts-tabs" id="sqltuning-tabs" style="display:flex; overflow-x:auto; gap:4px; padding-bottom:8px; border-bottom:1px solid var(--border-light);">
-    <button class="ts-tab active" data-target="sqltuning-session1" style="white-space:nowrap;">1회차 · SQL기본 & 플랜제어</button>
-    <button class="ts-tab" data-target="sqltuning-session2" style="white-space:nowrap;">2회차 · 해시 조인과 메모리</button>
-    <button class="ts-tab" data-target="sqltuning-session3" style="white-space:nowrap;">3회차 · ASH/AWR 역추적</button>
-    <button class="ts-tab" data-target="sqltuning-session4" style="white-space:nowrap;">4회차 · 파티셔닝 & 병렬 튜닝</button>
-  </div>
+  <div class="textbook-container bg-glass" style="height: calc(100vh - 160px); display: flex; flex-direction: column; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-light);">
+    <div class="textbook-inner-tabs" id="sqltuning-tabs" style="display: flex; border-bottom: 1px solid var(--border-light); background: var(--bg-textbook-tab); padding: 0 10px; overflow-x: auto;">
+      <button class="tbook-tab active" data-target="sqltuning-session1" style="padding: 12px 20px; background: transparent; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-weight: 700; color: var(--sph-slate); font-size: 0.82rem; white-space: nowrap;">1회차 · SQL기본 & 플랜제어</button>
+      <button class="tbook-tab" data-target="sqltuning-session2" style="padding: 12px 20px; background: transparent; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-weight: 700; color: var(--sph-slate); font-size: 0.82rem; white-space: nowrap;">2회차 · 해시 조인과 메모리</button>
+      <button class="tbook-tab" data-target="sqltuning-session3" style="padding: 12px 20px; background: transparent; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-weight: 700; color: var(--sph-slate); font-size: 0.82rem; white-space: nowrap;">3회차 · ASH/AWR 역추적</button>
+      <button class="tbook-tab" data-target="sqltuning-session4" style="padding: 12px 20px; background: transparent; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-weight: 700; color: var(--sph-slate); font-size: 0.82rem; white-space: nowrap;">4회차 · 파티셔닝 & 병렬 튜닝</button>
+    </div>
 
-  <div class="ts-tab-content active" id="sqltuning-session1">
-    <div class="sph-card" style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
-      <div>
-        <h4 style="margin:0; color:var(--sph-navy);">1회차 : SQL기본, 플랜기본 + 옵티마이저의 착각과 쿼리 변환 제어</h4>
-        <p style="margin:4px 0 0; font-size:0.85rem; color:var(--sph-slate);">서브쿼리 Unnesting, View Merging 등 옵티마이저의 동작 원리와 실패 사례 분석</p>
+    <!-- 1회차 -->
+    <div class="textbook-tab-contents active" id="sqltuning-session1" style="padding: 30px; flex-grow: 1; overflow-y: auto; background: var(--bg-textbook);">
+      <div id="viewer-sqltuning-1" class="markdown-body">
+        <div style="text-align:center;padding:40px;color:var(--color-text-muted);">
+          <div class="loader" style="margin:0 auto 10px;width:24px;height:24px;border:3px solid var(--border-light);border-top-color:var(--accent-cyan);border-radius:50%;animation:spin 1s linear infinite;"></div>
+          강의자료를 불러오는 중입니다...
+        </div>
       </div>
     </div>
-    <div id="viewer-sqltuning-1" class="markdown-body">
-      <div class="loading">강의자료를 불러오는 중입니다...</div>
-    </div>
-  </div>
 
-  <div class="ts-tab-content" id="sqltuning-session2">
-    <div class="sph-card" style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
-      <div>
-        <h4 style="margin:0; color:var(--sph-navy);">2회차 : 대용량 해시 조인과 메모리 튜닝</h4>
-        <p style="margin:4px 0 0; font-size:0.85rem; color:var(--sph-slate);">In-Memory, 1-Pass, Multipass 해시 조인과 PGA_AGGREGATE_TARGET 메모리 튜닝</p>
+    <!-- 2회차 -->
+    <div class="textbook-tab-contents" id="sqltuning-session2" style="padding: 30px; flex-grow: 1; overflow-y: auto; background: var(--bg-textbook); display: none;">
+      <div id="viewer-sqltuning-2" class="markdown-body">
+        <div style="text-align:center;padding:40px;color:var(--color-text-muted);">
+          <div class="loader" style="margin:0 auto 10px;width:24px;height:24px;border:3px solid var(--border-light);border-top-color:var(--accent-cyan);border-radius:50%;animation:spin 1s linear infinite;"></div>
+          강의자료를 불러오는 중입니다...
+        </div>
       </div>
     </div>
-    <div id="viewer-sqltuning-2" class="markdown-body">
-      <div class="loading">강의자료를 불러오는 중입니다...</div>
-    </div>
-  </div>
 
-  <div class="ts-tab-content" id="sqltuning-session3">
-    <div class="sph-card" style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
-      <div>
-        <h4 style="margin:0; color:var(--sph-navy);">3회차 : ASH와 AWR 기반 시계열 병목 역추적</h4>
-        <p style="margin:4px 0 0; font-size:0.85rem; color:var(--sph-slate);">실시간 CPU 스파이크 추적 및 AWR 스냅샷 기반의 과거 성능 지연 구간 분석</p>
+    <!-- 3회차 -->
+    <div class="textbook-tab-contents" id="sqltuning-session3" style="padding: 30px; flex-grow: 1; overflow-y: auto; background: var(--bg-textbook); display: none;">
+      <div id="viewer-sqltuning-3" class="markdown-body">
+        <div style="text-align:center;padding:40px;color:var(--color-text-muted);">
+          <div class="loader" style="margin:0 auto 10px;width:24px;height:24px;border:3px solid var(--border-light);border-top-color:var(--accent-cyan);border-radius:50%;animation:spin 1s linear infinite;"></div>
+          강의자료를 불러오는 중입니다...
+        </div>
       </div>
     </div>
-    <div id="viewer-sqltuning-3" class="markdown-body">
-      <div class="loading">강의자료를 불러오는 중입니다...</div>
-    </div>
-  </div>
 
-  <div class="ts-tab-content" id="sqltuning-session4">
-    <div class="sph-card" style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
-      <div>
-        <h4 style="margin:0; color:var(--sph-navy);">4회차 : 파티셔닝 전략과 병렬 처리 심화 튜닝</h4>
-        <p style="margin:4px 0 0; font-size:0.85rem; color:var(--sph-slate);">파티션 Pruning 분석, 로컬/글로벌 인덱스 및 Parallel Query 병목 튜닝 사례</p>
+    <!-- 4회차 -->
+    <div class="textbook-tab-contents" id="sqltuning-session4" style="padding: 30px; flex-grow: 1; overflow-y: auto; background: var(--bg-textbook); display: none;">
+      <div id="viewer-sqltuning-4" class="markdown-body">
+        <div style="text-align:center;padding:40px;color:var(--color-text-muted);">
+          <div class="loader" style="margin:0 auto 10px;width:24px;height:24px;border:3px solid var(--border-light);border-top-color:var(--accent-cyan);border-radius:50%;animation:spin 1s linear infinite;"></div>
+          강의자료를 불러오는 중입니다...
+        </div>
       </div>
     </div>
-    <div id="viewer-sqltuning-4" class="markdown-body">
-      <div class="loading">강의자료를 불러오는 중입니다...</div>
-    </div>
+
   </div>
 </section>
