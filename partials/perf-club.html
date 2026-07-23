@@ -1112,57 +1112,80 @@
         <!-- 종합진단 리포트 실습 (4회차 캡스톤) -->
         <section id="panel-report-lab" class="content-panel">
           <style>
+            /* 테마 토큰 — 기본은 다크, 아래 light-theme 블록에서 재정의.
+               사이트는 body.light-theme 를 기본 사용하므로 두 테마 모두 대응한다. */
+            #panel-report-lab {
+              --rl-surface: rgba(255,255,255,0.03);
+              --rl-surface-2: rgba(255,255,255,0.05);
+              --rl-input-bg: rgba(0,0,0,0.28);
+              --rl-row-alt: rgba(255,255,255,0.04);
+              --rl-danger: #ef4444; --rl-warn: #f97316; --rl-ok: #10b981;
+              --rl-danger-tint: rgba(239,68,68,0.14); --rl-danger-bd: rgba(239,68,68,0.35);
+              --rl-ok-tint: rgba(16,185,129,0.14); --rl-ok-bd: rgba(16,185,129,0.35);
+            }
+            body.light-theme #panel-report-lab {
+              --rl-surface: rgba(15,23,42,0.03);
+              --rl-surface-2: rgba(15,23,42,0.05);
+              --rl-input-bg: #ffffff;
+              --rl-row-alt: rgba(0,42,91,0.05);
+              --rl-danger: #dc2626; --rl-warn: #ea580c; --rl-ok: #0e7a53;
+              --rl-danger-tint: rgba(220,38,38,0.08); --rl-danger-bd: rgba(220,38,38,0.28);
+              --rl-ok-tint: rgba(14,122,83,0.08); --rl-ok-bd: rgba(14,122,83,0.28);
+            }
             #panel-report-lab .rl-hint { color: var(--color-text-muted); font-size: 0.82rem; margin: 0 0 14px; }
-            #panel-report-lab .rl-card { background: var(--bg-glass, rgba(22,30,49,0.6)); border: 1px solid var(--border-light); border-radius: 10px; padding: 18px; margin-bottom: 20px; }
-            #panel-report-lab .rl-card h4 { margin: 0 0 4px; font-size: 0.95rem; display: flex; align-items: center; gap: 8px; }
-            #panel-report-lab .rl-card h4 .n { background: var(--accent-cyan); color: #04222a; width: 22px; height: 22px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-weight: 900; font-size: 0.8rem; }
+            #panel-report-lab .rl-card { background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 12px; padding: 18px; margin-bottom: 20px; box-shadow: var(--shadow-glass); }
+            #panel-report-lab .rl-card h4 { margin: 0 0 4px; font-size: 0.95rem; display: flex; align-items: center; gap: 8px; color: var(--color-text-main); }
+            #panel-report-lab .rl-card h4 .n { background: var(--accent-cyan); color: #fff; width: 22px; height: 22px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-weight: 900; font-size: 0.8rem; }
             #panel-report-lab .rl-controls { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
             #panel-report-lab .rl-field { display: flex; flex-direction: column; gap: 5px; }
             #panel-report-lab .rl-field label { font-size: 0.72rem; color: var(--color-text-muted); font-weight: 700; }
-            #panel-report-lab select, #panel-report-lab textarea { background: rgba(0,0,0,0.28); border: 1px solid var(--border-light); color: var(--color-text-main); border-radius: 7px; padding: 8px 10px; font-family: inherit; font-size: 0.85rem; outline: none; }
-            #panel-report-lab select:focus, #panel-report-lab textarea:focus { border-color: var(--accent-cyan); }
+            #panel-report-lab select, #panel-report-lab textarea { background: var(--rl-input-bg); border: 1px solid var(--border-light); color: var(--color-text-main); border-radius: 7px; padding: 8px 10px; font-family: inherit; font-size: 0.85rem; outline: none; transition: var(--transition-smooth); }
+            #panel-report-lab select:focus, #panel-report-lab textarea:focus { border-color: var(--accent-cyan); box-shadow: 0 0 0 3px var(--border-focus); }
             #panel-report-lab .rl-legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 0.72rem; color: var(--color-text-muted); margin-top: 10px; }
             #panel-report-lab .rl-kpis { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
-            #panel-report-lab .rl-kpi { flex: 1; min-width: 130px; background: rgba(0,0,0,0.22); border: 1px solid var(--border-light); border-radius: 9px; padding: 10px 12px; }
+            #panel-report-lab .rl-kpi { flex: 1; min-width: 130px; background: var(--rl-surface); border: 1px solid var(--border-light); border-radius: 9px; padding: 10px 12px; }
             #panel-report-lab .rl-kpi .k { font-size: 0.68rem; color: var(--color-text-muted); font-weight: 700; }
-            #panel-report-lab .rl-kpi .v { font-size: 1.15rem; font-weight: 900; margin-top: 3px; }
+            #panel-report-lab .rl-kpi .v { font-size: 1.15rem; font-weight: 900; margin-top: 3px; color: var(--color-text-main); }
             #panel-report-lab .rl-scroll { overflow-x: auto; border: 1px solid var(--border-light); border-radius: 10px; }
-            #panel-report-lab table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+            #panel-report-lab table { width: 100%; border-collapse: collapse; font-size: 0.8rem; color: var(--color-text-main); }
             #panel-report-lab th, #panel-report-lab td { text-align: right; padding: 7px 9px; border-bottom: 1px solid var(--border-light); white-space: nowrap; }
             #panel-report-lab th:first-child, #panel-report-lab td:first-child { text-align: left; }
             #panel-report-lab thead th { color: var(--color-text-muted); font-weight: 700; font-size: 0.72rem; }
-            #panel-report-lab .rl-group-row td { background: rgba(255,255,255,0.03); font-weight: 800; color: var(--accent-cyan); font-size: 0.74rem; letter-spacing: .02em; }
-            #panel-report-lab .val-hi { color: #ef4444; font-weight: 800; }
-            #panel-report-lab .val-mid { color: #f97316; font-weight: 700; }
-            #panel-report-lab .val-ok { color: #10b981; }
+            #panel-report-lab .rl-group-row td { background: var(--rl-row-alt); font-weight: 800; color: var(--accent-cyan); font-size: 0.74rem; letter-spacing: .02em; }
+            #panel-report-lab .val-hi { color: var(--rl-danger); font-weight: 800; }
+            #panel-report-lab .val-mid { color: var(--rl-warn); font-weight: 700; }
+            #panel-report-lab .val-ok { color: var(--rl-ok); }
             #panel-report-lab .m-name { font-weight: 700; }
             #panel-report-lab .m-name small { color: var(--color-text-muted); font-weight: 400; font-family: var(--font-mono); font-size: 0.68rem; display: block; }
             #panel-report-lab .pill { display: inline-block; font-size: 0.66rem; font-weight: 800; padding: 2px 7px; border-radius: 999px; }
-            #panel-report-lab .pill.trap { background: rgba(239,68,68,0.14); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); }
-            #panel-report-lab .pill.key { background: rgba(16,185,129,0.14); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.3); }
+            #panel-report-lab .pill.trap { background: var(--rl-danger-tint); color: var(--rl-danger); border: 1px solid var(--rl-danger-bd); }
+            #panel-report-lab .pill.key { background: var(--rl-ok-tint); color: var(--rl-ok); border: 1px solid var(--rl-ok-bd); }
             #panel-report-lab .rl-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
             @media (max-width: 820px) { #panel-report-lab .rl-grid2 { grid-template-columns: 1fr; } }
             #panel-report-lab .rl-evi { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
             @media (max-width: 700px) { #panel-report-lab .rl-evi { grid-template-columns: 1fr; } }
-            #panel-report-lab .rl-evi-item { display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.2); border: 1px solid var(--border-light); border-radius: 7px; padding: 8px 10px; font-size: 0.78rem; cursor: pointer; }
+            #panel-report-lab .rl-evi-item { display: flex; align-items: center; gap: 8px; background: var(--rl-surface); border: 1px solid var(--border-light); border-radius: 7px; padding: 8px 10px; font-size: 0.78rem; cursor: pointer; color: var(--color-text-main); transition: var(--transition-smooth); }
+            #panel-report-lab .rl-evi-item:hover { border-color: var(--accent-cyan); }
             #panel-report-lab .rl-evi-item input { width: 16px; height: 16px; accent-color: var(--accent-cyan); }
             #panel-report-lab .rl-prio { list-style: none; margin: 0; padding: 0; }
-            #panel-report-lab .rl-prio li { display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.22); border: 1px solid var(--border-light); border-radius: 8px; padding: 9px 12px; margin-bottom: 8px; }
-            #panel-report-lab .rl-prio .rank { background: var(--accent-blue, #3b82f6); color: #fff; width: 24px; height: 24px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-weight: 900; font-size: 0.78rem; flex: none; }
+            #panel-report-lab .rl-prio li { display: flex; align-items: center; gap: 10px; background: var(--rl-surface); border: 1px solid var(--border-light); border-radius: 8px; padding: 9px 12px; margin-bottom: 8px; color: var(--color-text-main); }
+            #panel-report-lab .rl-prio .rank { background: var(--accent-blue); color: #fff; width: 24px; height: 24px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-weight: 900; font-size: 0.78rem; flex: none; }
             #panel-report-lab .rl-prio .lbl { flex: 1; font-size: 0.8rem; }
-            #panel-report-lab .rl-prio .mv button { background: rgba(255,255,255,0.06); border: 1px solid var(--border-light); color: var(--color-text-main); width: 26px; height: 26px; border-radius: 6px; cursor: pointer; font-weight: 800; }
+            #panel-report-lab .rl-prio .mv button { background: var(--rl-surface-2); border: 1px solid var(--border-light); color: var(--color-text-main); width: 26px; height: 26px; border-radius: 6px; cursor: pointer; font-weight: 800; }
+            #panel-report-lab .rl-prio .mv button:disabled { opacity: 0.35; cursor: default; }
             #panel-report-lab .rl-toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
-            #panel-report-lab .rl-btn { border: none; border-radius: 7px; padding: 9px 16px; font-weight: 800; font-size: 0.82rem; cursor: pointer; }
-            #panel-report-lab .rl-btn-primary { background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue, #3b82f6)); color: #fff; }
-            #panel-report-lab .rl-btn-emerald { background: linear-gradient(135deg, var(--accent-emerald), #34d399); color: #04241a; }
+            #panel-report-lab .rl-btn { border: none; border-radius: 7px; padding: 9px 16px; font-weight: 800; font-size: 0.82rem; cursor: pointer; transition: var(--transition-smooth); }
+            #panel-report-lab .rl-btn:hover { filter: brightness(1.06); }
+            #panel-report-lab .rl-btn-primary { background: var(--accent-cyan); color: #fff; }
+            #panel-report-lab .rl-btn-emerald { background: var(--accent-emerald); color: #fff; }
             #panel-report-lab .rl-btn-ghost { background: transparent; color: var(--color-text-muted); border: 1px solid var(--border-light); }
-            #panel-report-lab .rl-btn-warn { background: linear-gradient(135deg, #f97316, #ff8a3d); color: #fff; }
-            #panel-report-lab .rl-result { border-radius: 10px; padding: 16px; margin-top: 14px; border: 1px solid var(--border-light); }
+            #panel-report-lab .rl-btn-warn { background: var(--accent-orange); color: #fff; }
+            #panel-report-lab .rl-result { border-radius: 10px; padding: 16px; margin-top: 14px; border: 1px solid var(--border-light); background: var(--rl-surface); }
             #panel-report-lab .rl-score { font-size: 2.4rem; font-weight: 900; }
-            #panel-report-lab .rl-fb { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; font-size: 0.82rem; border-bottom: 1px dashed rgba(255,255,255,0.06); }
+            #panel-report-lab .rl-fb { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; font-size: 0.82rem; border-bottom: 1px dashed var(--border-light); color: var(--color-text-main); }
             #panel-report-lab .rl-note { font-size: 0.74rem; color: var(--color-text-muted); }
             #panel-report-lab .tag-node { font-family: var(--font-mono); font-size: 0.7rem; padding: 1px 6px; border-radius: 5px; border: 1px solid var(--border-light); }
-            #panel-report-lab .tag-node.n1 { color: #93c5fd; } #panel-report-lab .tag-node.n2 { color: #6ee7b7; }
+            #panel-report-lab .tag-node.n1 { color: var(--accent-blue); } #panel-report-lab .tag-node.n2 { color: var(--accent-emerald); }
           </style>
 
           <div class="panel-intro">
