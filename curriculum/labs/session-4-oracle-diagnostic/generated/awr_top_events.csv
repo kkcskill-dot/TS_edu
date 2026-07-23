@@ -1,0 +1,27 @@
+phase,event,wait_class,time_s,aas,pct_db_time,waits,avg_wait_ms
+B0,DB CPU,CPU,2342.4,1.3,61.9,,
+B0,db file sequential read,User I/O,791.7,0.44,20.9,98959,8
+B0,log file sync,Commit,215.9,0.12,5.7,98141,2.2
+B0,Other,User I/O,431.8,0.24,11.4,53978,8
+T1,DB CPU,CPU,1025.4,3.42,65.4,,
+T1,library cache: mutex X,Concurrency,260.6,0.87,16.6,32580,8
+T1,db file sequential read,User I/O,146.6,0.49,9.3,18326,8
+T1,Other,User I/O,135.8,0.45,8.7,16969,8
+T2,DB CPU,CPU,3222.0,6.71,60.9,,
+T2,library cache: mutex X,Concurrency,993.3,2.07,18.8,124164,8
+T2,db file sequential read,User I/O,558.7,1.16,10.6,69842,8
+T2,Other,User I/O,517.3,1.08,9.8,64669,8
+T3,DB CPU,CPU,4471.8,6.21,38.7,,
+T3,direct path read temp,User I/O,3889.0,5.4,33.7,125453,31
+T3,direct path write temp,User I/O,1414.2,1.96,12.3,45619,31
+T3,db file sequential read,User I/O,1060.6,1.47,9.2,132581,8
+T3,Other,User I/O,707.1,0.98,6.1,88387,8
+T4,DB CPU,CPU,6443.4,6.71,35.3,,
+T4,log file sync,Commit,6623.6,6.9,36.3,359977,18.4
+T4,direct path read temp,User I/O,2602.1,2.71,14.2,83939,31
+T4,db file sequential read,User I/O,1419.3,1.48,7.8,177417,8
+T4,Other,User I/O,1182.8,1.23,6.5,147847,8
+R1,DB CPU,CPU,2520.0,4.2,60.0,,
+R1,db file sequential read,User I/O,924.7,1.54,22.0,115583,8
+R1,log file sync,Commit,252.2,0.42,6.0,49447,5.1
+R1,Other,User I/O,504.4,0.84,12.0,63045,8

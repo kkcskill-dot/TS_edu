@@ -1,0 +1,9 @@
+-- Run as SYS or SYSTEM in the PERFLAB PDB. Replace passwords before shared use.
+WHENEVER SQLERROR EXIT SQL.SQLCODE
+DEFINE lab_user = PERF_LAB
+DEFINE lab_password = "PerfLab_ChangeMe_4"
+
+CREATE USER &&lab_user IDENTIFIED BY &&lab_password
+  DEFAULT TABLESPACE USERS TEMPORARY TABLESPACE TEMP QUOTA UNLIMITED ON USERS;
+GRANT CREATE SESSION, CREATE TABLE, CREATE PROCEDURE, CREATE SEQUENCE TO &&lab_user;
+PROMPT PERF_LAB user created. Now connect as PERF_LAB and run 01_schema.sql.

@@ -1,0 +1,6 @@
+2026-07-15T09:29:42+09:00 RELEASE settlement_v4 deployed; literal tenant predicate enabled
+2026-07-15T09:30:00+09:00 BATCH settlement-close concurrency=8 commit_batch=100 module=SETTLEMENT
+2026-07-15T09:43:10+09:00 ALERT TEMP usage warning 72 percent
+2026-07-15T09:55:04+09:00 ALERT commit latency warning
+2026-07-15T10:11:00+09:00 MITIGATION concurrency=2 commit_batch=5000
+2026-07-15T10:20:00+09:00 STATUS backlog decreasing; service latency recovered

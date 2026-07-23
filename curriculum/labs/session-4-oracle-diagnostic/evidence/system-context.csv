@@ -1,0 +1,7 @@
+phase,scope,cpu_cores,host_cpu_pct,run_queue,storage_single_ms,storage_temp_ms,deployment,batch_concurrency,commit_batch
+B0,host-perflab01,8,28,1.1,3.1,4.8,old_release,2,5000
+T1,host-perflab01,8,58,3.2,3.3,5.1,settlement_v4,8,100
+T2,host-perflab01,8,92,10.5,3.5,5.8,settlement_v4,8,100
+T3,host-perflab01,8,89,12.8,4.2,7.2,settlement_v4,8,100
+T4,host-perflab01,8,92,15.2,4.0,6.9,settlement_v4,8,100
+R1,host-perflab01,8,61,4.0,3.4,5.3,settlement_v4_throttled,2,5000

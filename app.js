@@ -39,7 +39,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 소모임 패널은 partials/perf-club.html 로 분리됨 → 주입 후 초기화 (index.html 경량화)
   window.__panelsReady = (async () => {
-    await injectPartial("partials/perf-club.html?v=7.5");
+    await injectPartial("partials/perf-club.html?v=8.0");
     await injectPartial("partials/sqltuning-club.html?v=1.0");
     await injectPartial("partials/cbt.html?v=7.5");
     initPerfClubLabs();
@@ -83,7 +83,7 @@ function initPerfClubLabs() {
     initDashboardMetrics, initExplainPlanPanel, initIndexSimulator, initLockSandbox,
     initChallengeArena, initAshAnalyzer, initAwrAnalyzer, initPlanDiagLab, initAdvPlanDiag,
     initAdaptiveLab, initTraceTkprofLab, initBindParseLab, initJoinLab, initPlanQuizPanel,
-    initJoinSyntaxLab, initPerfTextbook, initIndexScanEfficiencyLab
+    initJoinSyntaxLab, initPerfTextbook, initIndexScanEfficiencyLab, initReportLab
   ];
   inits.forEach(fn => { try { fn(); } catch (e) { console.error("init failed:", e); } });
 }
@@ -1302,6 +1302,326 @@ function initAwrAnalyzer() {
       });
     });
   });
+}
+
+/* -------------------------------------------------------------
+ * 종합진단 리포트 실습 (4회차 캡스톤) — panel-report-lab
+ * 데이터: window.PERFLAB_S4_SUMMARY (assets/js/courses/perf-s4-summary.js)
+ * ------------------------------------------------------------- */
+function initReportLab() {
+  const root = document.getElementById("panel-report-lab");
+  if (!root) return;
+  const D = window.PERFLAB_S4_SUMMARY;
+  const $ = (id) => document.getElementById(id);
+  if (!D) {
+    const note = $("rl-metrics-note");
+    if (note) note.textContent = "데이터 로드 실패 — perf-s4-summary.js 를 확인하세요 (build_workbook_data.py 재실행).";
+    return;
+  }
+
+  // 리포트 작성법 미니 교과서 아코디언/탭
+  bindTextbookAccordion("btn-toggle-report-textbook", "report-textbook-content", "report-textbook-toggle-icon");
+  bindTextbookTabs("report-textbook-container");
+
+  // ---- 회장님 보고서 10대 지표 정의 (4그룹) ----
+  const GROUPS = [
+    { title: "부하·활동 지표 (①~④)", metrics: [
+      { key: "host_cpu_pct", name: "① Host CPU %", col: "host_cpu_pct", dir: "up", role: "trap", warn: 70, crit: 88, fmt: (v) => v.toFixed(0) + "%", desc: "OS 전체 사용률 · Oracle 단독 아님" },
+      { key: "aas", name: "② AAS (DB Response)", col: "aas", dir: "up", role: "trap", warn: 6, crit: 10, fmt: (v) => v.toFixed(2), desc: "DB time/경과 · CPU+대기 합(결과)" },
+      { key: "wait_aas", name: "③ Wait AAS (대기)", col: "wait_aas", dir: "up", role: "support", warn: 2, crit: 5, fmt: (v) => v.toFixed(2), desc: "대기로 소비된 활동량" },
+      { key: "db_cpu_aas", name: "④ DB CPU AAS (Session)", col: "db_cpu_aas", dir: "up", role: "support", warn: 4, crit: 7, fmt: (v) => v.toFixed(2), desc: "CPU에서 활동한 세션량" },
+    ]},
+    { title: "메모리 지표 (⑤~⑥)", metrics: [
+      { key: "buffer_hit_pct", name: "⑤ Buffer Hit % (SGA)", col: "buffer_hit_pct", dir: "down", role: "trap", warn: 95, crit: 90, fmt: (v) => v.toFixed(1) + "%", desc: "하락=메모리부족 아님(분모효과)" },
+      { key: "workarea_multipass_s", name: "⑥ Workarea multipass/s", col: "workarea_multipass_s", dir: "up", role: "key", warn: 5, crit: 30, fmt: (v) => Math.round(v).toLocaleString(), desc: "다중패스=심한 PGA 부족" },
+      { key: "temp_gb_h", name: "⑥ TEMP 사용량(GB/h)", col: "temp_gb_h", dir: "up", role: "support", warn: 5, crit: 20, fmt: (v) => v.toFixed(1), desc: "TEMP spill 규모" },
+      { key: "pga_cache_hit_pct", name: "⑥ PGA cache hit %", col: "pga_cache_hit_pct", dir: "down", role: "trap", warn: 92, crit: 80, fmt: (v) => v.toFixed(1) + "%", desc: "낮다=자동 증설 근거 아님" },
+    ]},
+    { title: "I·O·효율 지표 (⑦~⑨)", metrics: [
+      { key: "physical_reads_blocks_s", name: "⑦ Physical Reads/s", col: "physical_reads_blocks_s", dir: "up", role: "support", warn: 8000, crit: 20000, fmt: (v) => Math.round(v).toLocaleString(), desc: "물리 읽기 블록/초" },
+      { key: "hard_parses_s", name: "⑧ Hard Parses/s", col: "hard_parses_s", dir: "up", role: "key", warn: 20, crit: 80, fmt: (v) => v.toFixed(1), desc: "리터럴 SQL 폭증의 선행 지표" },
+      { key: "log_file_sync_ms", name: "⑨ log file sync (ms)", col: "log_file_sync_ms", dir: "up", role: "key", warn: 6, crit: 12, fmt: (v) => v.toFixed(1), desc: "커밋 동기 대기 — 잦은 commit" },
+      { key: "redo_mb_s", name: "⑨ Redo (MB/s)", col: "redo_mb_s", dir: "up", role: "support", warn: 15, crit: 35, fmt: (v) => v.toFixed(1), desc: "DML 변경량" },
+    ]},
+  ];
+  const ALL_METRICS = GROUPS.flatMap(g => g.metrics);
+  const LABELS = {};
+  ALL_METRICS.forEach(m => { LABELS[m.key] = m.name; });
+
+  const PRIORITY_ACTIONS = {
+    bind_literal_sql: "리터럴 SQL을 바인드 변수로 전환 — Hard Parse 제거",
+    batch_commit: "commit 배치 100→5,000 상향 — log file sync 완화",
+    fix_stats_cardinality: "통계 재수집/카디널리티 교정 — TEMP spill·읽기 축소",
+    increase_pga: "PGA_AGGREGATE_TARGET 상향 — multipass 완화(보완)",
+    throttle_concurrency: "배치 동시도 조절 — 즉시 부하 완화",
+  };
+  const AK = D.answerKey;
+
+  // ---- helpers ----
+  const rowsFor = (node, phase) =>
+    D.metrics.filter(r => r.phase === phase && (node === "all" ? true : r.instance_id === Number(node)));
+  function valOf(node, phase, col) {
+    const rows = rowsFor(node, phase);
+    const vals = rows.map(r => r[col]).filter(v => typeof v === "number");
+    if (!vals.length) return null;
+    return vals.reduce((a, b) => a + b, 0) / vals.length;
+  }
+  function severity(m, v) {
+    if (v == null) return "";
+    if (m.dir === "up") return v >= m.crit ? "val-hi" : v >= m.warn ? "val-mid" : "val-ok";
+    return v <= m.crit ? "val-hi" : v <= m.warn ? "val-mid" : "val-ok";
+  }
+
+  // ---- selects & legend ----
+  function initSelects() {
+    const pa = $("rl-phase-a"), pb = $("rl-phase-b");
+    D.meta.phases.forEach(p => {
+      const t = `${p.id} · ${p.label} (${p.range})`;
+      pa.add(new Option(t, p.id));
+      pb.add(new Option(t, p.id));
+    });
+    pa.value = "T4"; pb.value = "B0";
+    $("rl-legend").innerHTML = D.meta.phases
+      .map(p => `<span><b style="color:var(--accent-cyan)">${p.id}</b> ${p.label} · ${p.range}</span>`).join(" · ")
+      + ` · <span>${D.meta.cpu_cores} CPU · ${D.meta.note}</span>`;
+  }
+
+  // ---- 10대 지표 비교표 ----
+  function renderMetrics() {
+    const node = $("rl-node").value;
+    const pA = $("rl-phase-a").value, pB = $("rl-phase-b").value;
+    const nodesToShow = node === "all" ? [1, 2] : [Number(node)];
+
+    const kpis = [
+      { k: "AAS (N1, " + pA + ")", v: (valOf(1, pA, "aas") || 0).toFixed(1) },
+      { k: "Hard Parses/s", v: (valOf(1, pA, "hard_parses_s") || 0).toFixed(0) },
+      { k: "TEMP GB/h", v: (valOf(1, pA, "temp_gb_h") || 0).toFixed(1) },
+      { k: "log file sync ms", v: (valOf(1, pA, "log_file_sync_ms") || 0).toFixed(1) },
+    ];
+    $("rl-kpis").innerHTML = kpis.map(x => `<div class="rl-kpi"><div class="k">${x.k}</div><div class="v">${x.v}</div></div>`).join("");
+
+    let hcols = `<th>지표</th>`;
+    nodesToShow.forEach(n => { hcols += `<th>N${n}·${pB}</th><th>N${n}·${pA}</th><th>배수</th>`; });
+    hcols += `<th>구분</th>`;
+    $("rl-metrics-table").querySelector("thead").innerHTML = `<tr>${hcols}</tr>`;
+
+    const colspan = 2 + nodesToShow.length * 3;
+    let bodyHtml = "";
+    GROUPS.forEach(g => {
+      bodyHtml += `<tr class="rl-group-row"><td colspan="${colspan}">${g.title}</td></tr>`;
+      g.metrics.forEach(m => {
+        let cells = `<td class="m-name">${m.name}<small>${m.col} · ${m.desc}</small></td>`;
+        nodesToShow.forEach(n => {
+          const vb = valOf(n, pB, m.col), va = valOf(n, pA, m.col);
+          const mult = (vb && va) ? (va / vb) : null;
+          cells += `<td>${vb == null ? "–" : m.fmt(vb)}</td>`;
+          cells += `<td class="${severity(m, va)}">${va == null ? "–" : m.fmt(va)}</td>`;
+          let mc = "";
+          if (mult != null) mc = m.dir === "up"
+            ? (mult >= 3 ? "val-hi" : mult >= 1.5 ? "val-mid" : "")
+            : (mult <= 0.7 ? "val-mid" : "");
+          cells += `<td class="${mc}">${mult == null ? "–" : "×" + (mult >= 1 ? mult.toFixed(1) : mult.toFixed(2))}</td>`;
+        });
+        const tag = m.role === "trap" ? `<span class="pill trap">함정</span>`
+          : m.role === "key" ? `<span class="pill key">핵심근거</span>` : `<span class="rl-note">보조</span>`;
+        cells += `<td style="text-align:left">${tag}</td>`;
+        bodyHtml += `<tr>${cells}</tr>`;
+      });
+    });
+    $("rl-metrics-table").querySelector("tbody").innerHTML = bodyHtml;
+
+    if (node === "all") {
+      const hp1 = valOf(1, pA, "hard_parses_s"), hp2 = valOf(2, pA, "hard_parses_s");
+      const lfs1 = valOf(1, pA, "log_file_sync_ms"), lfs2 = valOf(2, pA, "log_file_sync_ms");
+      $("rl-metrics-note").innerHTML =
+        `노드 비교(${pA}): Hard Parses/s <span class="tag-node n1">N1 ${hp1.toFixed(0)}</span> vs <span class="tag-node n2">N2 ${hp2.toFixed(0)}</span> · ` +
+        `log file sync <span class="tag-node n1">N1 ${lfs1.toFixed(1)}ms</span> vs <span class="tag-node n2">N2 ${lfs2.toFixed(1)}ms</span> — 부하가 어느 노드에 편중되어 있는지 판단하세요.`;
+    } else {
+      $("rl-metrics-note").textContent = `단일 노드(인스턴스 ${node}) 관점. 전체(노드 비교)로 전환하면 편중 여부를 볼 수 있습니다.`;
+    }
+  }
+
+  // ---- Wait Event TOP ----
+  function renderAwr() {
+    const pA = $("rl-phase-a").value;
+    $("rl-awr-table").querySelector("thead").innerHTML =
+      `<tr><th>Event</th><th>Class</th><th>%DB time</th><th>대기수</th><th>평균ms</th></tr>`;
+    const rows = D.awr.filter(r => r.phase === pA)
+      .sort((a, b) => (b.pct_db_time || 0) - (a.pct_db_time || 0)).slice(0, 8);
+    $("rl-awr-table").querySelector("tbody").innerHTML = rows.map(r => {
+      const cls = (r.pct_db_time || 0) >= 30 ? "val-hi" : (r.pct_db_time || 0) >= 15 ? "val-mid" : "";
+      return `<tr>
+        <td class="m-name">${r.event}</td>
+        <td style="text-align:left">${r.wait_class || "-"}</td>
+        <td class="${cls}">${r.pct_db_time != null ? r.pct_db_time.toFixed(1) + "%" : "–"}</td>
+        <td>${r.waits != null ? Number(r.waits).toLocaleString() : "–"}</td>
+        <td>${r.avg_wait_ms != null ? Number(r.avg_wait_ms).toFixed(1) : "–"}</td>
+      </tr>`;
+    }).join("") || `<tr><td colspan="5" class="rl-note">해당 구간 데이터 없음</td></tr>`;
+  }
+
+  // ---- TOP SQL ----
+  function renderTopSql() {
+    const pA = $("rl-phase-a").value;
+    $("rl-topsql-table").querySelector("thead").innerHTML =
+      `<tr><th>SQL_ID</th><th>DB Time%</th><th>실행</th><th>파싱</th><th>TEMP(MB)</th></tr>`;
+    const setA = D.topSql.filter(r => r.phase === pA)
+      .sort((a, b) => (b.db_time_pct || 0) - (a.db_time_pct || 0));
+    $("rl-topsql-table").querySelector("tbody").innerHTML = setA.map(r => {
+      const culprit = AK.top_sql_culprits.includes(r.sql_id);
+      const pctCls = (r.db_time_pct || 0) >= 30 ? "val-hi" : (r.db_time_pct || 0) >= 15 ? "val-mid" : "";
+      return `<tr>
+        <td class="m-name">${r.sql_id}${culprit ? ' <span class="pill key">주범</span>' : ""}<small>${r.sql_label || ""}</small></td>
+        <td class="${pctCls}">${(r.db_time_pct || 0).toFixed(1)}%</td>
+        <td>${(r.executions || 0).toLocaleString()}</td>
+        <td>${(r.parse_calls || 0).toLocaleString()}</td>
+        <td>${(r.temp_mb || 0).toFixed(1)}</td>
+      </tr>`;
+    }).join("") || `<tr><td colspan="5" class="rl-note">해당 구간 데이터 없음</td></tr>`;
+
+    const litSum = setA.filter(r => r.force_matching_signature === "771122330099")
+      .reduce((a, r) => a + (r.db_time_pct || 0), 0);
+    const mergeRow = setA.find(r => r.sql_id === "9u1m3rg3a0b1x");
+    $("rl-sql-note").innerHTML =
+      `같은 FMS(771122330099) 리터럴군 합산 DB Time = <b style="color:#fbc02d">${litSum.toFixed(1)}%</b>` +
+      (mergeRow ? ` · MERGE(9u1m3rg3a0b1x) 단독 = <b style="color:#fbc02d">${mergeRow.db_time_pct.toFixed(1)}%</b>` : "") +
+      ` — 단일 SQL_ID만 보면 리터럴 파싱 원인을 과소평가합니다.`;
+  }
+
+  // ---- 근거 지표 체크박스 ----
+  function renderEvidence() {
+    $("rl-evi-list").innerHTML = ALL_METRICS.map(m => `
+      <label class="rl-evi-item">
+        <input type="checkbox" class="rl-evi-cb" value="${m.key}" />
+        <span>${m.name} ${m.role === "trap" ? '<span class="pill trap">함정</span>' : m.role === "key" ? '<span class="pill key">핵심</span>' : ""}</span>
+      </label>`).join("");
+  }
+
+  // ---- 개선 우선순위 (정렬) ----
+  let prioState = ["throttle_concurrency", "increase_pga", "fix_stats_cardinality", "batch_commit", "bind_literal_sql"];
+  function renderPriority() {
+    $("rl-prio-list").innerHTML = prioState.map((k, i) => `
+      <li>
+        <span class="rank">${i + 1}</span>
+        <span class="lbl">${PRIORITY_ACTIONS[k]}</span>
+        <span class="mv">
+          <button data-dir="-1" data-i="${i}" ${i === 0 ? "disabled" : ""}>▲</button>
+          <button data-dir="1" data-i="${i}" ${i === prioState.length - 1 ? "disabled" : ""}>▼</button>
+        </span>
+      </li>`).join("");
+    $("rl-prio-list").querySelectorAll("button").forEach(btn => {
+      btn.onclick = () => {
+        const i = Number(btn.dataset.i), dir = Number(btn.dataset.dir), j = i + dir;
+        if (j < 0 || j >= prioState.length) return;
+        [prioState[i], prioState[j]] = [prioState[j], prioState[i]];
+        renderPriority();
+      };
+    });
+  }
+
+  let lastSubmission = null;
+
+  // ---- 채점 ----
+  function grade() {
+    const rootV = $("rl-in-root").value;
+    const nodeSel = $("rl-in-node").value;
+    const onset = $("rl-in-onset").value;
+    const evi = Array.from(root.querySelectorAll(".rl-evi-cb:checked")).map(c => c.value);
+
+    let score = 0; const fb = [];
+    const line = (cls, txt) => fb.push({ cls, txt });
+
+    // 1) 근본 원인 (30)
+    if (rootV === AK.root_cause) { score += 30; line("ok", "근본 원인 정답 (+30): 파싱·카디널리티·commit 복합 병목"); }
+    else if (rootV === "single_sql_merge") { score += 8; line("warn", "부분 정답 (+8): MERGE는 주범이지만 리터럴 파싱군을 놓쳤습니다"); }
+    else if (rootV === "") line("bad", "근본 원인 미선택 (0)");
+    else line("bad", "근본 원인 오답 (0): 결과 지표를 원인으로 단정했습니다");
+
+    // 2) 병목 노드 (10)
+    if (nodeSel === String(AK.bottleneck_node)) { score += 10; line("ok", `병목 편중 노드 정답 (+10): 인스턴스 ${AK.bottleneck_node}`); }
+    else if (nodeSel === "") line("bad", "병목 노드 미선택 (0)");
+    else line("bad", "병목 노드 오답 (0): N1 Hard Parse/log file sync가 훨씬 높습니다");
+
+    // 3) 선행 구간 (10)
+    if (onset === AK.phase_onset) { score += 10; line("ok", `선행 구간 정답 (+10): ${AK.phase_onset}에서 Hard Parse가 먼저 상승`); }
+    else if (onset === "") line("bad", "선행 구간 미선택 (0)");
+    else line("bad", `선행 구간 오답 (0): 정답은 ${AK.phase_onset}`);
+
+    // 4) 근거 지표 (30)
+    let eviScore = 0; const gotKey = [];
+    AK.required_evidence.forEach(k => { if (evi.includes(k)) { eviScore += 8; gotKey.push(LABELS[k] || k); } });
+    const gotSupport = evi.filter(k => AK.supporting_evidence.includes(k) || ALL_METRICS.some(m => m.key === k && m.role === "support"));
+    if (gotSupport.length) eviScore += 6;
+    const traps = evi.filter(k => AK.trap_evidence.includes(k));
+    const trapPenalty = traps.length * 4;
+    eviScore = Math.max(0, Math.min(30, eviScore) - trapPenalty);
+    if (evi.length < 3) { eviScore = Math.max(0, eviScore - 6); line("warn", "근거 지표 3개 미만 (-6): 최소 3개의 독립 증거가 필요합니다"); }
+    score += eviScore;
+    if (gotKey.length) line("ok", `핵심 근거 포함 (+${Math.min(24, gotKey.length * 8)}): ${gotKey.join(", ")}`);
+    else line("bad", "핵심 근거(Hard Parses/TEMP/log file sync) 미포함");
+    if (gotSupport.length) line("ok", `보조 근거 포함 (+6): ${gotSupport.map(k => LABELS[k] || k).join(", ")}`);
+    if (traps.length) line("warn", `결과 지표를 근거로 선택 (-${trapPenalty}): ${traps.map(t => LABELS[t] || t).join(", ")}`);
+
+    // 5) 개선 우선순위 (20)
+    const ideal = AK.priority_order;
+    let prioScore = 0;
+    if (prioState[0] === ideal[0]) prioScore += 12;
+    else if (ideal.slice(0, 2).includes(prioState[0])) prioScore += 6;
+    if (prioState[1] === ideal[1] || ideal.slice(0, 2).includes(prioState[1])) prioScore += 8;
+    score += prioScore;
+    if (prioScore >= 18) line("ok", `개선 우선순위 정합 (+${prioScore}): 바인드 변수화 → commit 배치`);
+    else if (prioScore > 0) line("warn", `개선 우선순위 부분 정합 (+${prioScore})`);
+    else line("bad", "개선 우선순위 부적합 (0): 즉시효과가 큰 조치가 뒤로 밀렸습니다");
+
+    score = Math.max(0, Math.min(100, Math.round(score)));
+    const pass = score >= 80;
+    const color = pass ? "var(--accent-emerald)" : score >= 60 ? "#f97316" : "#ef4444";
+    const verdict = pass ? "합격 (루브릭 80점 이상)" : score >= 60 ? "재검토 필요" : "재제출 대상";
+
+    $("rl-result").innerHTML = `
+      <div class="rl-result" style="border-color:${color}">
+        <div style="display:flex; align-items:center; gap:18px; flex-wrap:wrap;">
+          <div class="rl-score" style="color:${color}">${score}<span style="font-size:1rem;color:var(--color-text-muted)">/100</span></div>
+          <div>
+            <div style="font-weight:900; color:${color}; font-size:1.05rem;">${verdict}</div>
+            <div class="rl-note">배점: 근본원인 30 · 노드 10 · 선행구간 10 · 근거지표 30 · 개선순위 20</div>
+          </div>
+        </div>
+        <div style="margin-top:14px;">
+          ${fb.map(f => {
+            const ic = f.cls === "ok" ? "✅" : f.cls === "bad" ? "❌" : "⚠️";
+            return `<div class="rl-fb"><span>${ic}</span><span>${f.txt}</span></div>`;
+          }).join("")}
+        </div>
+      </div>`;
+    lastSubmission = { root: rootV, node: nodeSel, onset, evidence: evi, priority: prioState.slice(), summary: $("rl-in-summary").value, score, verdict };
+  }
+
+  // ---- events ----
+  $("rl-btn-query").onclick = () => { renderMetrics(); renderAwr(); renderTopSql(); };
+  $("rl-btn-grade").onclick = grade;
+  $("rl-btn-reset").onclick = () => {
+    $("rl-in-root").value = ""; $("rl-in-node").value = ""; $("rl-in-onset").value = ""; $("rl-in-summary").value = "";
+    root.querySelectorAll(".rl-evi-cb").forEach(c => (c.checked = false));
+    prioState = ["throttle_concurrency", "increase_pga", "fix_stats_cardinality", "batch_commit", "bind_literal_sql"];
+    renderPriority(); $("rl-result").innerHTML = "";
+  };
+  $("rl-btn-export").onclick = () => {
+    const data = lastSubmission || { note: "채점 전 제출본" };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "s4-diagnosis-submission.json";
+    a.click(); URL.revokeObjectURL(a.href);
+  };
+
+  // ---- boot ----
+  initSelects();
+  renderEvidence();
+  renderPriority();
+  renderMetrics();
+  renderAwr();
+  renderTopSql();
 }
 
 /* -------------------------------------------------------------

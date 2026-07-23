@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>4회차 통합 진단 분석 워크북 · PERFLAB</title>
+  <script src="workbook-data.js"></script>
+  <style>
+    :root {
+      --bg-deep: #080c14; --bg-darker: #0d1321; --bg-card: rgba(22, 30, 49, 0.7);
+      --border-light: rgba(255, 255, 255, 0.09); --text: #f1f5f9; --muted: #94a3b8;
+      --cyan: #06b6d4; --blue: #3b82f6; --emerald: #10b981; --orange: #f97316;
+      --crimson: #ef4444; --yellow: #fbc02d;
+      --mono: 'D2Coding', 'Fira Code', ui-monospace, 'Courier New', monospace;
+      --sans: 'Pretendard', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: radial-gradient(1200px 600px at 80% -10%, #12203a 0%, var(--bg-deep) 55%); color: var(--text); font-family: var(--sans); font-size: 14px; line-height: 1.5; }
+    a { color: var(--cyan); }
+    header.top { padding: 18px 24px; border-bottom: 1px solid var(--border-light); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; background: rgba(8,12,20,0.6); backdrop-filter: blur(6px); position: sticky; top: 0; z-index: 20; }
+    header.top h1 { font-size: 1.05rem; margin: 0; font-weight: 800; letter-spacing: -0.01em; }
+    header.top .sub { color: var(--muted); font-size: 0.78rem; margin-top: 3px; }
+    .badge { font-size: 0.68rem; font-weight: 800; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--border-light); color: var(--cyan); }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 22px 24px 80px; }
+    .card { background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 12px; padding: 18px; margin-bottom: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.35); }
+    .card h2 { font-size: 0.95rem; margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
+    .card h2 .n { background: var(--cyan); color: #04222a; width: 22px; height: 22px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-weight: 900; font-size: 0.8rem; }
+    .card .hint { color: var(--muted); font-size: 0.78rem; margin: 0 0 14px; }
+    .controls { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 0.72rem; color: var(--muted); font-weight: 700; }
+    select, input[type=text], textarea { background: rgba(0,0,0,0.28); border: 1px solid var(--border-light); color: var(--text); border-radius: 7px; padding: 8px 10px; font-family: var(--sans); font-size: 0.85rem; outline: none; }
+    select:focus, input:focus, textarea:focus { border-color: var(--cyan); }
+    .btn { border: none; border-radius: 7px; padding: 9px 16px; font-weight: 800; font-size: 0.82rem; cursor: pointer; transition: transform .12s, filter .12s; }
+    .btn:hover { filter: brightness(1.08); }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary { background: linear-gradient(135deg, var(--cyan), var(--blue)); color: #fff; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border-light); }
+    .btn-warn { background: linear-gradient(135deg, var(--orange), #ff8a3d); color: #fff; }
+    .btn-emerald { background: linear-gradient(135deg, var(--emerald), #34d399); color: #04241a; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    th, td { text-align: right; padding: 7px 9px; border-bottom: 1px solid var(--border-light); white-space: nowrap; }
+    th:first-child, td:first-child { text-align: left; }
+    thead th { color: var(--muted); font-weight: 700; font-size: 0.72rem; position: sticky; top: 0; background: var(--bg-darker); }
+    .tbl-scroll { overflow-x: auto; border: 1px solid var(--border-light); border-radius: 10px; }
+    .val-hi { color: var(--crimson); font-weight: 800; }
+    .val-mid { color: var(--orange); font-weight: 700; }
+    .val-ok { color: var(--emerald); }
+    .metric-name { font-weight: 700; }
+    .metric-name small { color: var(--muted); font-weight: 400; font-family: var(--mono); font-size: 0.68rem; display: block; }
+    .pill { display: inline-block; font-size: 0.68rem; font-weight: 800; padding: 2px 7px; border-radius: 999px; }
+    .pill.trap { background: rgba(239,68,68,0.14); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); }
+    .pill.key { background: rgba(16,185,129,0.14); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.3); }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    @media (max-width: 820px) { .grid2 { grid-template-columns: 1fr; } }
+    .evi-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    @media (max-width: 700px) { .evi-list { grid-template-columns: 1fr; } }
+    .evi-item { display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.2); border: 1px solid var(--border-light); border-radius: 7px; padding: 8px 10px; font-size: 0.8rem; cursor: pointer; }
+    .evi-item input { width: 16px; height: 16px; accent-color: var(--cyan); }
+    .prio-list { list-style: none; margin: 0; padding: 0; }
+    .prio-item { display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.22); border: 1px solid var(--border-light); border-radius: 8px; padding: 9px 12px; margin-bottom: 8px; }
+    .prio-item .rank { background: var(--blue); color: #fff; width: 24px; height: 24px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-weight: 900; font-size: 0.78rem; flex: none; }
+    .prio-item .lbl { flex: 1; font-size: 0.82rem; }
+    .prio-item .mv { display: flex; gap: 4px; }
+    .mv button { background: rgba(255,255,255,0.06); border: 1px solid var(--border-light); color: var(--text); width: 26px; height: 26px; border-radius: 6px; cursor: pointer; font-weight: 800; }
+    .result-box { border-radius: 10px; padding: 16px; margin-top: 14px; border: 1px solid var(--border-light); }
+    .score-ring { font-size: 2.4rem; font-weight: 900; }
+    .fb-line { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; font-size: 0.82rem; border-bottom: 1px dashed rgba(255,255,255,0.06); }
+    .fb-line .ic { flex: none; width: 18px; text-align: center; }
+    .ok-c { color: var(--emerald); } .bad-c { color: var(--crimson); } .warn-c { color: var(--orange); }
+    .spark { display: flex; gap: 2px; align-items: flex-end; height: 26px; }
+    .spark span { width: 4px; background: var(--cyan); border-radius: 1px; opacity: 0.85; }
+    details.key-panel { margin-top: 8px; }
+    details.key-panel summary { cursor: pointer; font-weight: 800; color: var(--yellow); font-size: 0.85rem; }
+    .keybox { background: rgba(251,192,45,0.05); border: 1px solid rgba(251,192,45,0.25); border-radius: 8px; padding: 14px; margin-top: 12px; font-size: 0.82rem; }
+    .keybox code { font-family: var(--mono); color: var(--cyan); }
+    .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+    .note { font-size: 0.74rem; color: var(--muted); }
+    .tag-node { font-family: var(--mono); font-size: 0.7rem; padding: 1px 6px; border-radius: 5px; border: 1px solid var(--border-light); }
+    .tag-node.n1 { color: #93c5fd; } .tag-node.n2 { color: #6ee7b7; }
+    .phase-legend { display: flex; gap: 10px; flex-wrap: wrap; font-size: 0.72rem; color: var(--muted); margin-top: 8px; }
+    .kpi-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+    .kpi { flex: 1; min-width: 120px; background: rgba(0,0,0,0.22); border: 1px solid var(--border-light); border-radius: 9px; padding: 10px 12px; }
+    .kpi .k { font-size: 0.68rem; color: var(--muted); font-weight: 700; }
+    .kpi .v { font-size: 1.15rem; font-weight: 900; margin-top: 3px; }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div>
+      <h1>PERFLAB · 통합 장애진단 분석 워크북 <span class="badge">4회차 · 팀 실습</span></h1>
+      <div class="sub" id="meta-sub">데이터 로딩 중…</div>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <label class="note" style="display:flex; gap:6px; align-items:center; cursor:pointer;">
+        <input type="checkbox" id="instructor-toggle" /> 강사 모드
+      </label>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <!-- 1. QUERY / FILTER -->
+    <section class="card">
+      <h2><span class="n">1</span> 데이터 조회 — 시간대 · 노드 선택</h2>
+      <p class="hint">문제 구간과 정상 기준선을 직접 비교하세요. 노드별로 조회하면 부하 편중 여부를 판단할 수 있습니다.</p>
+      <div class="controls">
+        <div class="field">
+          <label>비교 구간 A (문제 의심)</label>
+          <select id="sel-phase-a"></select>
+        </div>
+        <div class="field">
+          <label>비교 구간 B (기준선)</label>
+          <select id="sel-phase-b"></select>
+        </div>
+        <div class="field">
+          <label>노드</label>
+          <select id="sel-node">
+            <option value="all">전체(노드 비교)</option>
+            <option value="1">인스턴스 1</option>
+            <option value="2">인스턴스 2</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" id="btn-query">조회 실행</button>
+      </div>
+      <div class="phase-legend" id="phase-legend"></div>
+    </section>
+
+    <!-- 2. 10 METRICS -->
+    <section class="card">
+      <h2><span class="n">2</span> 10개 핵심 지표 비교</h2>
+      <p class="hint">구간 A(문제)와 B(기준선)의 구간 평균을 나란히 비교합니다. 붉은 값이 곧 원인은 아닙니다 — 결과 지표(<span class="pill trap">함정</span>)와 원인 근거를 구분하세요.</p>
+      <div class="kpi-row" id="kpi-row"></div>
+      <div class="tbl-scroll">
+        <table id="metrics-table">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="note" id="metrics-note" style="margin-top:10px;"></p>
+    </section>
+
+    <!-- 3. TOP SQL -->
+    <section class="card">
+      <h2><span class="n">3</span> TOP SQL 기여도 비교</h2>
+      <p class="hint">DB Time 기여 상위 SQL을 구간별로 비교합니다. Force Matching Signature가 같은 리터럴 SQL군은 합산 관점으로 보세요.</p>
+      <div class="tbl-scroll">
+        <table id="topsql-table">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 4. SUBMISSION -->
+    <section class="card">
+      <h2><span class="n">4</span> 진단 결과 제출</h2>
+      <p class="hint">조회한 증거를 바탕으로 결론·근거·개선 우선순위를 제출하면 즉시 자동 채점됩니다.</p>
+
+      <div class="grid2">
+        <div>
+          <div class="field" style="margin-bottom:14px;">
+            <label>① 근본 원인 결론</label>
+            <select id="in-root">
+              <option value="">— 선택 —</option>
+              <option value="cpu_saturation">CPU 포화(코어 부족)가 근본 원인</option>
+              <option value="memory_shortage">버퍼 캐시/메모리 부족 (Hit Ratio 저하)</option>
+              <option value="storage_failure">스토리지 장애(디스크 응답 지연)</option>
+              <option value="parse_and_cardinality_and_commit">리터럴 파싱 폭증 + 카디널리티 오차·TEMP spill + 잦은 commit 복합</option>
+              <option value="single_sql_merge">단일 MERGE SQL 하나가 전부의 원인</option>
+            </select>
+          </div>
+          <div class="field" style="margin-bottom:14px;">
+            <label>② 병목 편중 노드</label>
+            <select id="in-node">
+              <option value="">— 선택 —</option>
+              <option value="1">인스턴스 1에 편중</option>
+              <option value="2">인스턴스 2에 편중</option>
+              <option value="0">두 노드 균등</option>
+            </select>
+          </div>
+          <div class="field" style="margin-bottom:14px;">
+            <label>③ 이상 시작(선행) 구간</label>
+            <select id="in-onset">
+              <option value="">— 선택 —</option>
+              <option value="B0">B0</option>
+              <option value="T1">T1 (파싱)</option>
+              <option value="T2">T2 (CPU)</option>
+              <option value="T3">T3 (TEMP/I·O)</option>
+              <option value="T4">T4 (commit)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>④ 한 줄 결론 (선택 입력, 브리핑용)</label>
+            <textarea id="in-summary" rows="3" placeholder="예: 09:31 Hard Parse 선행 상승 → 정산 리터럴 SQL군 귀속 → 카디널리티 오차·TEMP spill·잦은 commit 복합 병목"></textarea>
+          </div>
+        </div>
+
+        <div>
+          <div class="field" style="margin-bottom:8px;">
+            <label>⑤ 근거 지표 선택 (원인을 뒷받침하는 지표 3개 이상)</label>
+          </div>
+          <div class="evi-list" id="evi-list"></div>
+          <p class="note" style="margin-top:8px;">결과 지표(AAS·Hit Ratio·Host CPU 등)만 고르면 감점됩니다. 선행·귀속·증폭을 보여주는 지표를 조합하세요.</p>
+        </div>
+      </div>
+
+      <div style="margin-top:18px;">
+        <div class="field" style="margin-bottom:8px;">
+          <label>⑥ 개선 우선순위 (위 = 가장 먼저 / ▲▼ 로 순서 조정)</label>
+        </div>
+        <ul class="prio-list" id="prio-list"></ul>
+      </div>
+
+      <div class="toolbar">
+        <button class="btn btn-emerald" id="btn-grade">제출 & 자동 채점</button>
+        <button class="btn btn-ghost" id="btn-reset-form">입력 초기화</button>
+        <button class="btn btn-warn" id="btn-export">제출본 내려받기(JSON)</button>
+      </div>
+
+      <div id="result-area"></div>
+    </section>
+
+    <!-- 5. INSTRUCTOR KEY (hidden until instructor mode) -->
+    <section class="card" id="key-card" style="display:none;">
+      <h2><span class="n">★</span> 강사용 예시 결과 · 채점 기준</h2>
+      <div id="key-body"></div>
+    </section>
+
+    <p class="note">
+      데이터 원천: <code>generated/*.csv</code>, <code>evidence/*.csv</code> · 재생성:
+      <code>python3 build_workbook_data.py</code> · node2는 학습용 파생(합성) 노드입니다.
+    </p>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+    const D = window.PERFLAB_S4;
+    if (!D) { document.getElementById("meta-sub").textContent = "workbook-data.js 로드 실패 — build_workbook_data.py 를 먼저 실행하세요."; return; }
+
+    // ---- 지표 정의 (10 축) ----
+    const METRICS = [
+      { key: "aas", name: "AAS (평균 활성세션)", col: "aas", dir: "up", role: "trap", fmt: (v)=>v.toFixed(2), warn: 6, crit: 10, desc: "총 동시 활동량(CPU+대기). 코어 초과=CPU병목 아님" },
+      { key: "host_cpu_pct", name: "Host CPU %", col: "host_cpu_pct", dir: "up", role: "trap", fmt:(v)=>v.toFixed(0)+"%", warn: 70, crit: 88, desc: "OS 전체 사용률. Oracle 단독 사용량 아님" },
+      { key: "wait_aas", name: "비유휴 대기 AAS", col: "wait_aas", dir:"up", role:"support", fmt:(v)=>v.toFixed(2), warn:2, crit:5, desc:"CPU 외 대기로 소비된 활동량" },
+      { key: "physical_reads_blocks_s", name: "Physical Reads/s", col:"physical_reads_blocks_s", dir:"up", role:"support", fmt:(v)=>Math.round(v).toLocaleString(), warn:8000, crit:20000, desc:"물리 읽기 블록/초" },
+      { key: "temp_gb_h", name: "TEMP 사용량(GB/h)", col:"temp_gb_h", dir:"up", role:"support", fmt:(v)=>v.toFixed(1), warn:5, crit:20, desc:"TEMP spill 규모 — PGA 초과 신호" },
+      { key: "workarea_multipass_s", name: "Workarea multipass/s", col:"workarea_multipass_s", dir:"up", role:"key", fmt:(v)=>Math.round(v), warn:5, crit:30, desc:"다중패스 작업영역=심한 PGA 부족" },
+      { key: "buffer_hit_pct", name: "Buffer Hit %", col:"buffer_hit_pct", dir:"down", role:"trap", fmt:(v)=>v.toFixed(1)+"%", warn:95, crit:90, desc:"낮다=메모리 부족 아님(읽기량 분모 효과)" },
+      { key: "hard_parses_s", name: "Hard Parses/s", col:"hard_parses_s", dir:"up", role:"key", fmt:(v)=>v.toFixed(1), warn:20, crit:80, desc:"리터럴 SQL 폭증의 선행 지표" },
+      { key: "redo_mb_s", name: "Redo (MB/s)", col:"redo_mb_s", dir:"up", role:"support", fmt:(v)=>v.toFixed(1), warn:15, crit:35, desc:"DML 변경량" },
+      { key: "log_file_sync_ms", name: "log file sync (ms)", col:"log_file_sync_ms", dir:"up", role:"key", fmt:(v)=>v.toFixed(1), warn:6, crit:12, desc:"커밋 동기 대기 — 잦은 commit 신호" },
+      { key: "user_commits_s", name: "User commits/s", col:"user_commits_s", dir:"up", role:"support", fmt:(v)=>Math.round(v).toLocaleString(), warn:1200, crit:2000, desc:"커밋 빈도(배치 크기 반비례)" },
+      { key: "pga_cache_hit_pct", name: "PGA cache hit %", col:"pga_cache_hit_pct", dir:"down", role:"trap", fmt:(v)=>v.toFixed(1)+"%", warn:92, crit:80, desc:"낮다=자동으로 증설 근거 아님" },
+    ];
+
+    const EVIDENCE_LABELS = {};
+    METRICS.forEach(m => EVIDENCE_LABELS[m.key] = m.name);
+
+    const PRIORITY_ACTIONS = {
+      bind_literal_sql: "리터럴 SQL을 바인드 변수로 전환(모듈 수정/CURSOR_SHARING) — Hard Parse 제거",
+      batch_commit: "commit 배치 100→5,000 상향 — log file sync 완화",
+      fix_stats_cardinality: "통계 재수집/카디널리티 교정 — TEMP spill·읽기 축소",
+      increase_pga: "PGA_AGGREGATE_TARGET 상향 — multipass 완화(보완)",
+      throttle_concurrency: "배치 동시도 조절 — 즉시 부하 완화",
+    };
+
+    const AK = D.answerKey;
+
+    // ---- helpers ----
+    const $ = (id) => document.getElementById(id);
+    const metricsByNodePhase = (node, phase) =>
+      D.metrics.filter(r => r.phase === phase && (node === "all" ? true : r.instance_id === Number(node)));
+
+    function avg(rows, col) {
+      const vals = rows.map(r => r[col]).filter(v => typeof v === "number");
+      if (!vals.length) return null;
+      return vals.reduce((a, b) => a + b, 0) / vals.length;
+    }
+    function severity(m, v) {
+      if (v == null) return "";
+      if (m.dir === "up") return v >= m.crit ? "val-hi" : v >= m.warn ? "val-mid" : "val-ok";
+      return v <= m.crit ? "val-hi" : v <= m.warn ? "val-mid" : "val-ok";
+    }
+
+    // ---- init selects ----
+    function initSelects() {
+      const pa = $("sel-phase-a"), pb = $("sel-phase-b");
+      D.meta.phases.forEach(p => {
+        const t = `${p.id} · ${p.label} (${p.range})`;
+        pa.add(new Option(t, p.id));
+        pb.add(new Option(t, p.id));
+      });
+      pa.value = "T3"; pb.value = "B0";
+      $("meta-sub").textContent =
+        `${D.meta.window} · PDB ${D.meta.pdb} · ${D.meta.cpu_cores} CPU · 노드 ${D.meta.nodes.join(", ")} · ${D.meta.note}`;
+      $("phase-legend").innerHTML = D.meta.phases
+        .map(p => `<span><b style="color:var(--cyan)">${p.id}</b> ${p.label} · ${p.range}</span>`).join(" · ");
+    }
+
+    // ---- 지표 테이블 렌더 ----
+    function renderMetrics() {
+      const node = $("sel-node").value;
+      const pA = $("sel-phase-a").value, pB = $("sel-phase-b").value;
+      const nodesToShow = node === "all" ? [1, 2] : [Number(node)];
+
+      // KPI
+      const rowsA1 = metricsByNodePhase(1, pA);
+      const kpis = [
+        { k: "AAS (인스1, "+pA+")", v: (avg(rowsA1, "aas") || 0).toFixed(1) },
+        { k: "Hard Parses/s", v: (avg(rowsA1, "hard_parses_s") || 0).toFixed(0) },
+        { k: "TEMP GB/h", v: (avg(rowsA1, "temp_gb_h") || 0).toFixed(1) },
+        { k: "log file sync ms", v: (avg(rowsA1, "log_file_sync_ms") || 0).toFixed(1) },
+      ];
+      $("kpi-row").innerHTML = kpis.map(x => `<div class="kpi"><div class="k">${x.k}</div><div class="v">${x.v}</div></div>`).join("");
+
+      // header
+      const head = $("metrics-table").querySelector("thead");
+      let hcols = `<th>지표</th>`;
+      nodesToShow.forEach(n => {
+        hcols += `<th>N${n} · ${pB}</th><th>N${n} · ${pA}</th><th>배수</th>`;
+      });
+      hcols += `<th>구분</th>`;
+      head.innerHTML = `<tr>${hcols}</tr>`;
+
+      const body = $("metrics-table").querySelector("tbody");
+      body.innerHTML = METRICS.map(m => {
+        let cells = `<td class="metric-name">${m.name}<small>${m.col} · ${m.desc}</small></td>`;
+        nodesToShow.forEach(n => {
+          const vb = avg(metricsByNodePhase(n, pB), m.col);
+          const va = avg(metricsByNodePhase(n, pA), m.col);
+          const mult = (vb && va) ? (va / vb) : null;
+          cells += `<td>${vb == null ? "–" : m.fmt(vb)}</td>`;
+          cells += `<td class="${severity(m, va)}">${va == null ? "–" : m.fmt(va)}</td>`;
+          let mc = "";
+          if (mult != null) mc = m.dir === "up"
+            ? (mult >= 3 ? "val-hi" : mult >= 1.5 ? "val-mid" : "")
+            : (mult <= 0.7 ? "val-mid" : "");
+          cells += `<td class="${mc}">${mult == null ? "–" : (mult >= 1 ? "×" + mult.toFixed(1) : "×" + mult.toFixed(2))}</td>`;
+        });
+        const tag = m.role === "trap" ? `<span class="pill trap">함정</span>`
+          : m.role === "key" ? `<span class="pill key">핵심근거</span>` : `<span class="note">보조</span>`;
+        cells += `<td style="text-align:left">${tag}</td>`;
+        return `<tr>${cells}</tr>`;
+      }).join("");
+
+      // node comparison note
+      if (node === "all") {
+        const lfs1 = avg(metricsByNodePhase(1, pA), "log_file_sync_ms");
+        const lfs2 = avg(metricsByNodePhase(2, pA), "log_file_sync_ms");
+        const hp1 = avg(metricsByNodePhase(1, pA), "hard_parses_s");
+        const hp2 = avg(metricsByNodePhase(2, pA), "hard_parses_s");
+        $("metrics-note").innerHTML =
+          `노드 비교(${pA}): Hard Parses/s <span class="tag-node n1">N1 ${hp1.toFixed(0)}</span> vs <span class="tag-node n2">N2 ${hp2.toFixed(0)}</span> · ` +
+          `log file sync <span class="tag-node n1">N1 ${lfs1.toFixed(1)}ms</span> vs <span class="tag-node n2">N2 ${lfs2.toFixed(1)}ms</span> — ` +
+          `부하가 어느 노드에 편중되어 있는지 판단하세요.`;
+      } else {
+        $("metrics-note").textContent = `단일 노드(인스턴스 ${node}) 관점. 전체(노드 비교)로 전환하면 편중 여부를 볼 수 있습니다.`;
+      }
+    }
+
+    // ---- TOP SQL 테이블 ----
+    function renderTopSql() {
+      const pA = $("sel-phase-a").value, pB = $("sel-phase-b").value;
+      const head = $("topsql-table").querySelector("thead");
+      head.innerHTML = `<tr>
+        <th>SQL_ID</th><th>라벨 / 모듈</th><th>FMS</th>
+        <th>${pB} DB Time%</th><th>${pA} DB Time%</th>
+        <th>${pA} 실행수</th><th>${pA} 파싱</th><th>${pA} TEMP(MB)</th></tr>`;
+
+      const setA = D.topSql.filter(r => r.phase === pA);
+      const setB = D.topSql.filter(r => r.phase === pB);
+      const bBy = {}; setB.forEach(r => bBy[r.sql_id] = r);
+      const sorted = setA.slice().sort((a, b) => (b.db_time_pct || 0) - (a.db_time_pct || 0));
+
+      const body = $("topsql-table").querySelector("tbody");
+      body.innerHTML = sorted.map(r => {
+        const b = bBy[r.sql_id];
+        const culprit = AK.top_sql_culprits.includes(r.sql_id);
+        const pctCls = r.db_time_pct >= 30 ? "val-hi" : r.db_time_pct >= 15 ? "val-mid" : "";
+        return `<tr>
+          <td class="metric-name">${r.sql_id}${culprit ? ' <span class="pill key">주범 후보</span>' : ""}</td>
+          <td style="text-align:left">${r.sql_label}<small style="color:var(--muted)">${r.module}/${r.action}</small></td>
+          <td style="text-align:left"><code style="font-size:0.68rem">${r.force_matching_signature}</code></td>
+          <td>${b ? b.db_time_pct.toFixed(1) + "%" : "–"}</td>
+          <td class="${pctCls}">${r.db_time_pct.toFixed(1)}%</td>
+          <td>${(r.executions || 0).toLocaleString()}</td>
+          <td>${(r.parse_calls || 0).toLocaleString()}</td>
+          <td>${(r.temp_mb || 0).toFixed(1)}</td>
+        </tr>`;
+      }).join("");
+
+      // 리터럴군 합산 안내
+      const litSum = sorted.filter(r => r.force_matching_signature === "771122330099")
+        .reduce((a, r) => a + r.db_time_pct, 0);
+      const mergeRow = sorted.find(r => r.sql_id === "9u1m3rg3a0b1x");
+      const noteRow = document.createElement("tr");
+      noteRow.innerHTML = `<td colspan="8" style="text-align:left; color:var(--muted); font-size:0.75rem; padding-top:10px;">
+        같은 FMS(771122330099) 리터럴군 3개 합산 DB Time = <b style="color:var(--yellow)">${litSum.toFixed(1)}%</b>
+        ${mergeRow ? ` · MERGE(9u1m3rg3a0b1x) 단독 = <b style="color:var(--yellow)">${mergeRow.db_time_pct.toFixed(1)}%</b>` : ""}
+        — 단일 SQL_ID만 보면 리터럴 파싱 원인을 과소평가합니다.</td>`;
+      body.appendChild(noteRow);
+    }
+
+    // ---- 근거 지표 체크박스 ----
+    function renderEvidenceList() {
+      $("evi-list").innerHTML = METRICS.map(m => `
+        <label class="evi-item">
+          <input type="checkbox" class="evi-cb" value="${m.key}" />
+          <span>${m.name} ${m.role === "trap" ? '<span class="pill trap">함정</span>' : m.role === "key" ? '<span class="pill key">핵심</span>' : ""}</span>
+        </label>`).join("");
+    }
+
+    // ---- 개선 우선순위 (정렬 가능) ----
+    let prioState = ["throttle_concurrency", "increase_pga", "fix_stats_cardinality", "batch_commit", "bind_literal_sql"];
+    function renderPriority() {
+      $("prio-list").innerHTML = prioState.map((k, i) => `
+        <li class="prio-item">
+          <span class="rank">${i + 1}</span>
+          <span class="lbl">${PRIORITY_ACTIONS[k]}</span>
+          <span class="mv">
+            <button data-dir="-1" data-i="${i}" ${i === 0 ? "disabled" : ""}>▲</button>
+            <button data-dir="1" data-i="${i}" ${i === prioState.length - 1 ? "disabled" : ""}>▼</button>
+          </span>
+        </li>`).join("");
+      $("prio-list").querySelectorAll("button").forEach(btn => {
+        btn.onclick = () => {
+          const i = Number(btn.dataset.i), dir = Number(btn.dataset.dir), j = i + dir;
+          if (j < 0 || j >= prioState.length) return;
+          [prioState[i], prioState[j]] = [prioState[j], prioState[i]];
+          renderPriority();
+        };
+      });
+    }
+
+    // ---- 채점 ----
+    function grade() {
+      const root = $("in-root").value;
+      const nodeSel = $("in-node").value;
+      const onset = $("in-onset").value;
+      const evi = Array.from(document.querySelectorAll(".evi-cb:checked")).map(c => c.value);
+
+      let score = 0; const fb = [];
+      const line = (cls, txt) => fb.push({ cls, txt });
+
+      // 1) 근본 원인 (30)
+      if (root === AK.root_cause) { score += 30; line("ok", "근본 원인 정답 (+30): 파싱·카디널리티·commit 복합 병목"); }
+      else if (root === "single_sql_merge") { score += 8; line("warn", "부분 정답 (+8): MERGE는 주범이지만 리터럴 파싱군을 놓쳤습니다"); }
+      else if (root === "") line("bad", "근본 원인 미선택 (0)");
+      else line("bad", "근본 원인 오답 (0): 결과 지표를 원인으로 단정했습니다");
+
+      // 2) 병목 노드 (10)
+      if (nodeSel === String(AK.bottleneck_node)) { score += 10; line("ok", `병목 편중 노드 정답 (+10): 인스턴스 ${AK.bottleneck_node}`); }
+      else if (nodeSel === "") line("bad", "병목 노드 미선택 (0)");
+      else line("bad", "병목 노드 오답 (0): N1 Hard Parse/log file sync가 훨씬 높습니다");
+
+      // 3) 선행 구간 (10)
+      if (onset === AK.phase_onset) { score += 10; line("ok", `선행 구간 정답 (+10): ${AK.phase_onset}에서 Hard Parse가 먼저 상승`); }
+      else if (onset === "") line("bad", "선행 구간 미선택 (0)");
+      else line("bad", `선행 구간 오답 (0): 정답은 ${AK.phase_onset}`);
+
+      // 4) 근거 지표 (30) — 핵심 3개 각 8, 개수 하한, 함정 감점
+      let eviScore = 0; const gotKey = [];
+      AK.required_evidence.forEach(k => { if (evi.includes(k)) { eviScore += 8; gotKey.push(EVIDENCE_LABELS[k]); } }); // 최대 24
+      const gotSupport = evi.filter(k => AK.supporting_evidence.includes(k) || METRICS.some(m => m.key === k && m.role === "support"));
+      if (gotSupport.length) eviScore += 6; // 보조 근거 1개 이상이면 +6
+      const traps = evi.filter(k => AK.trap_evidence.includes(k));
+      const trapPenalty = traps.length * 4;
+      eviScore = Math.max(0, Math.min(30, eviScore) - trapPenalty);
+      if (evi.length < 3) { eviScore = Math.max(0, eviScore - 6); line("warn", "근거 지표 3개 미만 (-6): 최소 3개의 독립 증거가 필요합니다"); }
+      score += eviScore;
+      if (gotKey.length) line("ok", `핵심 근거 포함 (+${Math.min(24, gotKey.length * 8)}): ${gotKey.join(", ")}`);
+      else line("bad", "핵심 근거(Hard Parses/TEMP/log file sync) 미포함");
+      if (gotSupport.length) line("ok", `보조 근거 포함 (+6): ${gotSupport.map(k => EVIDENCE_LABELS[k] || k).join(", ")}`);
+      if (traps.length) line("warn", `결과 지표를 근거로 선택 (-${trapPenalty}): ${traps.map(t => EVIDENCE_LABELS[t]).join(", ")}`);
+
+      // 5) 개선 우선순위 (20) — 앞 2개 정합성
+      const ideal = AK.priority_order;
+      let prioScore = 0;
+      if (prioState[0] === ideal[0]) prioScore += 12;
+      else if (ideal.slice(0, 2).includes(prioState[0])) prioScore += 6;
+      if (prioState[1] === ideal[1] || ideal.slice(0, 2).includes(prioState[1])) prioScore += 8;
+      score += prioScore;
+      if (prioScore >= 18) line("ok", `개선 우선순위 정합 (+${prioScore}): 바인드 변수화 → commit 배치`);
+      else if (prioScore > 0) line("warn", `개선 우선순위 부분 정합 (+${prioScore})`);
+      else line("bad", "개선 우선순위 부적합 (0): 즉시효과가 큰 조치가 뒤로 밀렸습니다");
+
+      score = Math.max(0, Math.min(100, Math.round(score)));
+      const pass = score >= 80;
+      const color = pass ? "var(--emerald)" : score >= 60 ? "var(--orange)" : "var(--crimson)";
+      const verdict = pass ? "합격 (루브릭 80점 이상)" : score >= 60 ? "재검토 필요" : "재제출 대상";
+
+      $("result-area").innerHTML = `
+        <div class="result-box" style="border-color:${color}">
+          <div style="display:flex; align-items:center; gap:18px; flex-wrap:wrap;">
+            <div class="score-ring" style="color:${color}">${score}<span style="font-size:1rem;color:var(--muted)">/100</span></div>
+            <div>
+              <div style="font-weight:900; color:${color}; font-size:1.05rem;">${verdict}</div>
+              <div class="note">채점 배점: 근본원인 30 · 노드 10 · 선행구간 10 · 근거지표 30 · 개선순위 20</div>
+            </div>
+          </div>
+          <div style="margin-top:14px;">
+            ${fb.map(f => `<div class="fb-line"><span class="ic ${f.cls === "ok" ? "[OK]" : f.cls === "bad" ? "[X]" : "[!]"}">${f.cls === "ok" ? "[OK]" : f.cls === "bad" ? "[X]" : "[!]"}</span><span>${f.txt}</span></div>`).join("")}
+          </div>
+        </div>`;
+      lastSubmission = { root, node: nodeSel, onset, evidence: evi, priority: prioState.slice(), summary: $("in-summary").value, score, verdict, ts: new Date().toISOString() };
+      return score;
+    }
+
+    let lastSubmission = null;
+
+    // ---- 강사용 예시 결과 ----
+    function renderKey() {
+      const ideal = AK.priority_order.map((k, i) => `${i + 1}. ${PRIORITY_ACTIONS[k]}`).join("<br>");
+      $("key-body").innerHTML = `
+        <div class="keybox">
+          <b style="color:var(--yellow)">모범 결론</b><br>
+          ${AK.rationale}
+        </div>
+        <div class="grid2" style="margin-top:14px;">
+          <div class="keybox">
+            <b style="color:var(--emerald)">정답 키</b><br>
+            근본 원인: <code>리터럴 파싱 + 카디널리티/TEMP + 잦은 commit 복합</code><br>
+            병목 노드: <code>인스턴스 ${AK.bottleneck_node}</code><br>
+            선행 구간: <code>${AK.phase_onset}</code><br>
+            주범 SQL: <code>${AK.top_sql_culprits.join(", ")}</code>
+          </div>
+          <div class="keybox">
+            <b style="color:var(--emerald)">필수 근거 지표</b><br>
+            ${AK.required_evidence.map(k => "• " + EVIDENCE_LABELS[k]).join("<br>")}<br>
+            <b style="color:var(--crimson); display:block; margin-top:8px;">근거로 쓰면 감점(결과 지표)</b>
+            ${AK.trap_evidence.map(k => "• " + EVIDENCE_LABELS[k]).join("<br>")}
+          </div>
+        </div>
+        <div class="keybox" style="margin-top:14px;">
+          <b style="color:var(--yellow)">개선 우선순위 모범답안 (즉시조치 → 근본조치)</b><br>${ideal}
+        </div>
+        <div class="note" style="margin-top:10px;">채점 로직: 근본원인 30 / 병목노드 10 / 선행구간 10 / 근거지표 30(핵심 각 8, 함정 각 -4, 3개 미만 -6) / 개선순위 20(앞 2개 정합). 합격선 80점.</div>`;
+    }
+
+    // ---- events ----
+    $("btn-query").onclick = () => { renderMetrics(); renderTopSql(); };
+    $("btn-grade").onclick = grade;
+    $("btn-reset-form").onclick = () => {
+      $("in-root").value = ""; $("in-node").value = ""; $("in-onset").value = ""; $("in-summary").value = "";
+      document.querySelectorAll(".evi-cb").forEach(c => c.checked = false);
+      prioState = ["throttle_concurrency", "increase_pga", "fix_stats_cardinality", "batch_commit", "bind_literal_sql"];
+      renderPriority(); $("result-area").innerHTML = "";
+    };
+    $("btn-export").onclick = () => {
+      const data = lastSubmission || { note: "채점 전 제출본", ts: new Date().toISOString() };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "s4-diagnosis-submission.json";
+      a.click(); URL.revokeObjectURL(a.href);
+    };
+    $("instructor-toggle").onchange = (e) => {
+      $("key-card").style.display = e.target.checked ? "block" : "none";
+      if (e.target.checked) renderKey();
+    };
+
+    // ---- boot ----
+    initSelects();
+    renderEvidenceList();
+    renderPriority();
+    renderMetrics();
+    renderTopSql();
+  })();
+  </script>
+</body>
+</html>
