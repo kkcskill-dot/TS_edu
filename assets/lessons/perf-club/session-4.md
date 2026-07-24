@@ -135,7 +135,7 @@ ORDER  BY snap_id, stat_name;
 **왜 `snap_id + 1`로 단순 연결하면 안 되는가**
 - **재기동:** 기동 시 시간모델 누적값이 0으로 초기화된다. `STARTUP_TIME`을 파티션 키에 넣고 `value >= prev_value`로 역전 구간을 걸러야 음수 델타/거대값을 막는다.
 - **DBID/인스턴스 혼입:** 서로 다른 DB(복제·DBID 변경)나 RAC의 다른 인스턴스 누적값을 빼면 무의미하다. `DBID + INSTANCE_NUMBER`를 함께 조인·파티션한다. RAC 합계는 **인스턴스별 델타를 먼저 구한 뒤 합산**한다.
-- **스냅샷 누락:** 스냅샷이 빠지면 `snap_id`가 연속이 아니다. `LAG`는 직전 **보존된** 스냅샷을 가리키므로, 경과시간(`elapsed_s`)을 상수 1시간으로 가정하지 말고 **실제 `end_interval_time` 차이**로 계산해야 한다. 그래서 출력에 실제 시작/종료시각과 `elapsed_s`를 함께 낸다.
+- **스냅샷 누락:** 스냅샷이 빠지면 `snap_id`가 중간에 건너뛴다. 그런데 `LAG`는 직전에 **남아 있는** 스냅샷을 가리키므로, 두 스냅샷 사이가 항상 1시간이라고 가정하면 안 된다. 경과시간은 **실제 `end_interval_time`의 차이**로 계산해야 하며, 그래서 결과에 실제 시작·종료시각과 `elapsed_s`를 함께 출력한다.
 - **PDB 범위:** PDB별로 보려면 버전이 제공하는 `CON_DBID/CON_ID`를 조인·필터·파티션 키에 추가한다.
 
 **판독 기준**
@@ -256,9 +256,9 @@ ORDER  BY samples DESC FETCH FIRST 15 ROWS ONLY;
 ```
 
 > **`COUNT(*)`(=`samples`)의 의미 — 매우 중요**
-> ASH의 `samples`는 **표본 개수**일 뿐 실행 횟수도, 대기 발생 횟수도 아니다. 각 표본은 표본 간격만큼의 **활동 시간을 대표**한다.
-> - **메모리 ASH**(`V$/GV$ACTIVE_SESSION_HISTORY`)는 통상 약 **1초** 표본이므로 `AAS ≈ COUNT(*) / 경과초`로 근사할 수 있다.
-> - **디스크 ASH**(`DBA_HIST_ACTIVE_SESS_HISTORY`)는 메모리 표본 전부가 아니라 통상 약 **10초 간격**으로 **일부만** 저장된다. 따라서 `COUNT(*) / 경과초`를 그대로 AAS로 쓰면 약 1/10로 **과소 계산**된다. 아래 4-4b처럼 각 저장 표본이 대표하는 시간으로 **가중**해야 한다.
+> ASH의 `samples`는 **표본 개수**다. 실행 횟수도 아니고 대기 발생 횟수도 아니다. 표본 하나는 "그 시점에 세션이 활동 중이었다"는 스냅샷이며, 표본 간격만큼의 **활동 시간**을 대표한다.
+> - **메모리 ASH**(`V$/GV$ACTIVE_SESSION_HISTORY`): 약 **1초**마다 표본을 뜬다. 그래서 `AAS ≈ COUNT(*) / 경과초`로 바로 근사할 수 있다.
+> - **디스크 ASH**(`DBA_HIST_ACTIVE_SESS_HISTORY`): 메모리 표본을 전부 저장하지 않고 약 **10초에 하나씩만** 남긴다. 그래서 `COUNT(*) / 경과초`를 그대로 AAS로 쓰면 실제의 약 1/10로 **과소 계산**된다. 아래 4-4b처럼 각 표본이 대표하는 시간으로 **가중**해서 보정해야 한다.
 
 ```sql
 -- [실무 스크립트 4-4b] 디스크 ASH(DBA_HIST_ASH)의 표본간격 보정 AAS (dialect: oracle)
@@ -275,10 +275,10 @@ WHERE  dbid = :dbid
 ```
 
 **판독 기준**
-- 세션 수 자체보다 **ON CPU vs WAITING 상태 분해**가 핵심이다. 세션이 많아도 대부분 WAITING이면 CPU 증설로 풀리지 않는다.
-- 디스크 ASH로 AAS를 낼 때는 반드시 **표본간격 보정**을 한다. `:fallback_interval_s`를 무조건 10으로 하드코딩하지 말고 실제 표본시각 차이로 확인하며, 확인 불가 시 "통상 10초를 사용한 추정치"라고 표시한다.
+- 세션 수보다 **ON CPU와 WAITING의 비율**이 핵심이다. 세션이 아무리 많아도 대부분 WAITING이라면 CPU를 늘려도 풀리지 않는다.
+- 디스크 ASH로 AAS를 낼 때는 반드시 **표본간격을 보정**한다. `:fallback_interval_s`를 무조건 10으로 박아두지 말고 실제 표본시각 차이로 확인하고, 확인이 안 되면 "10초 가정 추정치"라고 명시한다.
 
-**함정 / 오개념** — 접속 세션 수(V$SESSION count)를 부하로 착각하지 말 것. 활성(ACTIVE) 세션, 그중에서도 상태 분해가 진짜 신호다.
+**함정 / 오개념** — 접속 세션 수(V$SESSION count)를 부하로 착각하지 말 것. 진짜 신호는 **활성(ACTIVE) 세션**, 그리고 그 세션들의 **ON CPU / WAITING 분해**다.
 
 ---
 
@@ -518,7 +518,7 @@ GROUP  BY h.sql_id, h.force_matching_signature, h.instance_number
 ORDER  BY active_samples DESC FETCH FIRST 20 ROWS ONLY;
 ```
 
-> **노드 편중 판정법:** 같은 `sql_id`(또는 `fms`)의 `active_samples`를 인스턴스별로 비교한다. 특정 노드(예: `inst=1`)에 표본이 몰려 있으면 부하가 그 노드에 편중된 것이다. `on_cpu` vs `waiting` 비율까지 보면, 그 편중이 CPU 소모형인지 대기(파싱·커밋) 유발형인지 성격까지 구분된다. 디스크 ASH를 쓸 때는 4-4b의 **표본간격 보정**을 함께 적용해야 절대 AAS로 환산할 수 있다.
+> **노드 편중 판정법:** 같은 `sql_id`(또는 `fms`)의 `active_samples`를 인스턴스별로 비교한다. 특정 노드(예: `inst=1`)에 표본이 몰려 있으면 부하가 그 노드로 쏠린 것이다. 여기에 `on_cpu` 대 `waiting` 비율을 함께 보면, 그 쏠림이 CPU를 태우는 유형인지 대기(파싱·커밋)를 유발하는 유형인지까지 구분된다. 디스크 ASH를 쓸 때는 4-4b의 **표본간격 보정**을 함께 적용해야 절대적인 AAS 값으로 환산할 수 있다.
 
 ```sql
 -- [실무 스크립트 4-10c] 과거 '컴파일 계획' 이력 조회 (dialect: oracle)
@@ -541,7 +541,7 @@ SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR(
          format          => 'ALLSTATS LAST +IOSTATS +MEMSTATS +PREDICATE +ALIAS'));
 ```
 
-**판독 기준** — 개별 SQL_ID의 DB time%뿐 아니라, **같은 FMS로 묶은 합산 기여율**을 본다. 실행계획에서는 `A-Rows/(E-Rows×Starts)` 오차 배수와 작업영역(OMem/1Mem/TempSpc)을 확인한다. 단, 이 **실측 오차·실제 TEMP spill**은 반드시 **`DISPLAY_CURSOR`(4-10d) 또는 SQL Monitor 실측 증거**로만 확정한다. `DISPLAY_AWR`(4-10c)는 컴파일 계획(예상치)이므로 실측을 단정할 수 없다.
+**판독 기준** — 개별 SQL_ID의 DB time%만 보지 말고, **같은 FMS로 묶은 합산 기여율**을 함께 본다(바인드만 다른 같은 SQL이 흩어져 있을 수 있다). 실행계획에서는 `A-Rows/(E-Rows×Starts)` 오차 배수와 작업영역(OMem/1Mem/TempSpc)을 확인한다. 단, **실측 오차와 실제 TEMP spill**은 반드시 **`DISPLAY_CURSOR`(4-10d)나 SQL Monitor의 실측값**으로만 확정한다. `DISPLAY_AWR`(4-10c)는 컴파일 시점의 예상치라서 실측을 단정할 수 없다.
 
 > **증거 등급 원칙 — DISPLAY_AWR ≠ DISPLAY_CURSOR**
 > `DISPLAY_AWR`(과거 컴파일 계획, E-Rows·COST 등 **예상치**)과 `DISPLAY_CURSOR ALLSTATS LAST`(마지막 실행의 **실측치** A-Rows/Starts/Buffers/OMem/1Mem)는 서로 다른 종류의 증거다. 실측 자료가 없으면 오차·spill은 "가설"로 등급을 낮춘다. 장시간·병렬 SQL은 라이선스 범위 내 **SQL Monitor**가 더 적절할 수 있다. 운영 DML을 실측 목적으로 재실행하지 않는다.
@@ -638,7 +638,7 @@ flowchart LR
 
 ## 4.7 다른 DB(MySQL 8.0 / PostgreSQL) 대응 병기안
 
-이 장의 진단 SQL은 Oracle 19c 기준입니다. MySQL·PostgreSQL에는 **내장 AWR/ASH가 없어** 동일 절차를 그대로 옮길 수 없으며, 아래처럼 다른 소스와 방법을 씁니다. 수치의 의미가 Oracle과 **완전히 동치가 아니라는 점**이 핵심입니다.
+이 장의 진단 SQL은 Oracle 19c 기준입니다. MySQL·PostgreSQL에는 **내장 AWR/ASH가 없기 때문에** 같은 절차를 그대로 옮길 수 없고, 아래 표처럼 다른 소스와 방법을 씁니다. 무엇보다 **각 수치의 의미가 Oracle과 정확히 같지는 않다**는 점을 기억해야 합니다.
 
 | 진단 목적 | Oracle (본문) | MySQL 8.0 | PostgreSQL | 동일성 한계 |
 |---|---|---|---|---|
