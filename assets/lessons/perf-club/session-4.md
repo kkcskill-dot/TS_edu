@@ -67,6 +67,222 @@ AAS(평균 활성 세션)가 코어 수를 넘었다는 사실은 "시스템이 
 
 ## 4.1 부하·활동 지표 (지표 ① ~ ④)
 
+> **⚠️ 이 장의 SQL 예제 실행 환경 안내 (반드시 먼저 읽으세요)**
+>
+> - **DB 방언 표기:** 이 장의 진단 SQL은 별도 표기가 없으면 **Oracle 19c 기준**입니다. `V# 제4장. 성능진단 리포트 작성: 10대 지표 추출·판독과 종합진단
+
+**단원 학습 목표**
+
+1. `V$` 동적 성능 뷰와 `DBA_HIST_%` 이력 뷰에서 성능진단 10대 지표를 직접 추출하는 쿼리를 작성할 수 있다.
+2. 각 지표를 정상 기준선(baseline)과 비교하여 정상·주의·위험을 판정하는 기준을 세울 수 있다.
+3. 지표별 대표적인 오개념과 함정(결과 지표를 원인으로 오인하는 실수)을 회피할 수 있다.
+4. 부하·활동 / 메모리 / I·O·효율 / 원인 SQL 네 그룹의 지표를 인과관계로 연결하여 병목의 전파 경로를 추적할 수 있다.
+5. 현상→근거→원인→조치→검증 구조의 종합 성능진단 리포트를 작성할 수 있다.
+6. TOP SQL을 지목하고 바인드 변수화·통계 교정·커밋 배치 등 구체적 최적화 방향을 우선순위와 함께 제안할 수 있다.
+
+---
+
+## 4.0 성능진단 리포트의 골격과 10대 지표 체계
+
+### 1) 리포트는 왜 "지표 나열"이 아니라 "인과 논증"인가
+
+성능진단 리포트의 목적은 지표를 예쁘게 정리하는 것이 아니라, **"무엇이 느린가 → 왜 느린가 → 무엇을 고치면 되는가"**를 증거로 논증하는 것입니다. 지표 수치를 아무리 많이 붙여도, 그 지표들이 하나의 원인으로 수렴하지 않으면 보고서가 아니라 대시보드 캡처에 불과합니다.
+
+그래서 잘 쓴 리포트는 항상 네 부분으로 이어집니다.
+
+1. **현상(Symptom)**: 언제, 무엇이, 얼마나 나빠졌는가 (사용자 체감·SLA 위반)
+2. **지표별 상태(Evidence)**: 10대 지표를 기준선과 비교해 정상/주의/위험으로 판정
+3. **핵심 진단과 우선순위(Root Cause)**: 지표를 인과로 엮어 근본 원인과 조치 순서를 결정
+4. **원인 SQL과 최적화(Action)**: 부하를 유발한 SQL을 지목하고 개선안·검증 방법 제시
+
+### 2) 10대 지표의 4그룹 체계
+
+이 장에서 다루는 10대 지표(회장님 보고서 양식 기준)는 다음과 같이 네 그룹으로 묶입니다. 그룹은 곧 병목이 전파되는 **계층**입니다.
+
+| 그룹 | 지표 | 성격 |
+|---|---|---|
+| **부하·활동** | ① CPU TIME ② DB Response Time ③ Wait Event(TOP10) ④ Session | 시스템이 지금 얼마나 바쁜가 |
+| **메모리** | ⑤ SGA ⑥ PGA(Sort) | 메모리가 부하를 흡수하는가 |
+| **I·O·효율** | ⑦ Logical/Physical Read ⑧ Parsing ⑨ Redo | 일을 효율적으로 하는가 |
+| **원인 SQL** | ⑩ TOP SQL | 누가 부하를 만드는가 |
+
+### 3) 판독의 두 가지 대원칙
+
+**원칙 1 — 항상 기준선(baseline)과 비교하라.** 절대 수치 하나로는 정상 여부를 알 수 없습니다. "Hard Parse 100/s"는 그 자체로 위험이 아니라, **정상일 때 1.2/s였다면** 위험한 것입니다.
+
+**원칙 2 — 결과 지표와 원인 지표를 구분하라.** 성능 문제에는 반드시 "증상을 보여주지만 원인은 아닌" 결과 지표가 있습니다.
+
+$$\text{AAS} = \frac{\text{DB time}}{\text{elapsed time}} = \text{DB CPU AAS} + \text{Wait AAS}$$
+
+AAS(평균 활성 세션)가 코어 수를 넘었다는 사실은 "시스템이 바쁘다"는 **결과**일 뿐, "CPU가 부족하다"는 **원인**이 아닙니다. 원인은 그 아래에 있는 Hard Parse, 카디널리티 오차, 잦은 commit 같은 지표에 있습니다. 이 구분을 못 하면 "CPU 증설"이라는 잘못된 처방으로 직행하게 됩니다.
+
+### 4) 실습 데이터 배경 — PERFLAB 스냅샷
+
+이 장의 모든 예시와 인터랙티브 실습은 다음 재현 데이터셋을 사용합니다.
+
+| 구간 | 시간대 | 상태 |
+|---|---|---|
+| **B0** | 09:00~09:29 | 정상 기준선 |
+| **T1** | 09:30~09:34 | 파싱 이상 (Hard Parse 선행 상승) |
+| **T2** | 09:35~09:42 | CPU 과부하 |
+| **T3** | 09:43~09:54 | PGA/TEMP·I/O 압박 |
+| **T4** | 09:55~10:10 | Redo/commit 병목 |
+| **R1** | 10:11~10:20 | 완화·회복 |
+
+- 대상: `PERFLAB` PDB, 단일 서비스, 노드 2개(RAC 가정, node2는 학습용 파생), CPU 8코어
+- 부하는 정산 배치가 라우팅된 **1번 노드에 편중**되어 있습니다.
+
+> **주의:** 아래 임계치 숫자는 이 시나리오의 baseline(B0)에 맞춘 값입니다. 실제 시스템에서는 각자의 정상 기준선을 먼저 측정한 뒤 임계치를 세워야 합니다.
+
+---
+
+## 4.1 부하·활동 지표 (지표 ① ~ ④)
+
+> **⚠️ 이 장의 SQL 예제 실행 환경 안내 (반드시 먼저 읽으세요)**
+>
+/`GV# 제4장. 성능진단 리포트 작성: 10대 지표 추출·판독과 종합진단
+
+**단원 학습 목표**
+
+1. `V$` 동적 성능 뷰와 `DBA_HIST_%` 이력 뷰에서 성능진단 10대 지표를 직접 추출하는 쿼리를 작성할 수 있다.
+2. 각 지표를 정상 기준선(baseline)과 비교하여 정상·주의·위험을 판정하는 기준을 세울 수 있다.
+3. 지표별 대표적인 오개념과 함정(결과 지표를 원인으로 오인하는 실수)을 회피할 수 있다.
+4. 부하·활동 / 메모리 / I·O·효율 / 원인 SQL 네 그룹의 지표를 인과관계로 연결하여 병목의 전파 경로를 추적할 수 있다.
+5. 현상→근거→원인→조치→검증 구조의 종합 성능진단 리포트를 작성할 수 있다.
+6. TOP SQL을 지목하고 바인드 변수화·통계 교정·커밋 배치 등 구체적 최적화 방향을 우선순위와 함께 제안할 수 있다.
+
+---
+
+## 4.0 성능진단 리포트의 골격과 10대 지표 체계
+
+### 1) 리포트는 왜 "지표 나열"이 아니라 "인과 논증"인가
+
+성능진단 리포트의 목적은 지표를 예쁘게 정리하는 것이 아니라, **"무엇이 느린가 → 왜 느린가 → 무엇을 고치면 되는가"**를 증거로 논증하는 것입니다. 지표 수치를 아무리 많이 붙여도, 그 지표들이 하나의 원인으로 수렴하지 않으면 보고서가 아니라 대시보드 캡처에 불과합니다.
+
+그래서 잘 쓴 리포트는 항상 네 부분으로 이어집니다.
+
+1. **현상(Symptom)**: 언제, 무엇이, 얼마나 나빠졌는가 (사용자 체감·SLA 위반)
+2. **지표별 상태(Evidence)**: 10대 지표를 기준선과 비교해 정상/주의/위험으로 판정
+3. **핵심 진단과 우선순위(Root Cause)**: 지표를 인과로 엮어 근본 원인과 조치 순서를 결정
+4. **원인 SQL과 최적화(Action)**: 부하를 유발한 SQL을 지목하고 개선안·검증 방법 제시
+
+### 2) 10대 지표의 4그룹 체계
+
+이 장에서 다루는 10대 지표(회장님 보고서 양식 기준)는 다음과 같이 네 그룹으로 묶입니다. 그룹은 곧 병목이 전파되는 **계층**입니다.
+
+| 그룹 | 지표 | 성격 |
+|---|---|---|
+| **부하·활동** | ① CPU TIME ② DB Response Time ③ Wait Event(TOP10) ④ Session | 시스템이 지금 얼마나 바쁜가 |
+| **메모리** | ⑤ SGA ⑥ PGA(Sort) | 메모리가 부하를 흡수하는가 |
+| **I·O·효율** | ⑦ Logical/Physical Read ⑧ Parsing ⑨ Redo | 일을 효율적으로 하는가 |
+| **원인 SQL** | ⑩ TOP SQL | 누가 부하를 만드는가 |
+
+### 3) 판독의 두 가지 대원칙
+
+**원칙 1 — 항상 기준선(baseline)과 비교하라.** 절대 수치 하나로는 정상 여부를 알 수 없습니다. "Hard Parse 100/s"는 그 자체로 위험이 아니라, **정상일 때 1.2/s였다면** 위험한 것입니다.
+
+**원칙 2 — 결과 지표와 원인 지표를 구분하라.** 성능 문제에는 반드시 "증상을 보여주지만 원인은 아닌" 결과 지표가 있습니다.
+
+$$\text{AAS} = \frac{\text{DB time}}{\text{elapsed time}} = \text{DB CPU AAS} + \text{Wait AAS}$$
+
+AAS(평균 활성 세션)가 코어 수를 넘었다는 사실은 "시스템이 바쁘다"는 **결과**일 뿐, "CPU가 부족하다"는 **원인**이 아닙니다. 원인은 그 아래에 있는 Hard Parse, 카디널리티 오차, 잦은 commit 같은 지표에 있습니다. 이 구분을 못 하면 "CPU 증설"이라는 잘못된 처방으로 직행하게 됩니다.
+
+### 4) 실습 데이터 배경 — PERFLAB 스냅샷
+
+이 장의 모든 예시와 인터랙티브 실습은 다음 재현 데이터셋을 사용합니다.
+
+| 구간 | 시간대 | 상태 |
+|---|---|---|
+| **B0** | 09:00~09:29 | 정상 기준선 |
+| **T1** | 09:30~09:34 | 파싱 이상 (Hard Parse 선행 상승) |
+| **T2** | 09:35~09:42 | CPU 과부하 |
+| **T3** | 09:43~09:54 | PGA/TEMP·I/O 압박 |
+| **T4** | 09:55~10:10 | Redo/commit 병목 |
+| **R1** | 10:11~10:20 | 완화·회복 |
+
+- 대상: `PERFLAB` PDB, 단일 서비스, 노드 2개(RAC 가정, node2는 학습용 파생), CPU 8코어
+- 부하는 정산 배치가 라우팅된 **1번 노드에 편중**되어 있습니다.
+
+> **주의:** 아래 임계치 숫자는 이 시나리오의 baseline(B0)에 맞춘 값입니다. 실제 시스템에서는 각자의 정상 기준선을 먼저 측정한 뒤 임계치를 세워야 합니다.
+
+---
+
+## 4.1 부하·활동 지표 (지표 ① ~ ④)
+
+> **⚠️ 이 장의 SQL 예제 실행 환경 안내 (반드시 먼저 읽으세요)**
+>
+ 동적 성능 뷰, `DBA_HIST_%` 이력 뷰, `DBMS_XPLAN` 패키지는 Oracle 전용이며, 필요한 곳에는 MySQL 8.0 / PostgreSQL 대응을 병기합니다(§4.7).
+
+**단원 학습 목표**
+
+1. `V$` 동적 성능 뷰와 `DBA_HIST_%` 이력 뷰에서 성능진단 10대 지표를 직접 추출하는 쿼리를 작성할 수 있다.
+2. 각 지표를 정상 기준선(baseline)과 비교하여 정상·주의·위험을 판정하는 기준을 세울 수 있다.
+3. 지표별 대표적인 오개념과 함정(결과 지표를 원인으로 오인하는 실수)을 회피할 수 있다.
+4. 부하·활동 / 메모리 / I·O·효율 / 원인 SQL 네 그룹의 지표를 인과관계로 연결하여 병목의 전파 경로를 추적할 수 있다.
+5. 현상→근거→원인→조치→검증 구조의 종합 성능진단 리포트를 작성할 수 있다.
+6. TOP SQL을 지목하고 바인드 변수화·통계 교정·커밋 배치 등 구체적 최적화 방향을 우선순위와 함께 제안할 수 있다.
+
+---
+
+## 4.0 성능진단 리포트의 골격과 10대 지표 체계
+
+### 1) 리포트는 왜 "지표 나열"이 아니라 "인과 논증"인가
+
+성능진단 리포트의 목적은 지표를 예쁘게 정리하는 것이 아니라, **"무엇이 느린가 → 왜 느린가 → 무엇을 고치면 되는가"**를 증거로 논증하는 것입니다. 지표 수치를 아무리 많이 붙여도, 그 지표들이 하나의 원인으로 수렴하지 않으면 보고서가 아니라 대시보드 캡처에 불과합니다.
+
+그래서 잘 쓴 리포트는 항상 네 부분으로 이어집니다.
+
+1. **현상(Symptom)**: 언제, 무엇이, 얼마나 나빠졌는가 (사용자 체감·SLA 위반)
+2. **지표별 상태(Evidence)**: 10대 지표를 기준선과 비교해 정상/주의/위험으로 판정
+3. **핵심 진단과 우선순위(Root Cause)**: 지표를 인과로 엮어 근본 원인과 조치 순서를 결정
+4. **원인 SQL과 최적화(Action)**: 부하를 유발한 SQL을 지목하고 개선안·검증 방법 제시
+
+### 2) 10대 지표의 4그룹 체계
+
+이 장에서 다루는 10대 지표(회장님 보고서 양식 기준)는 다음과 같이 네 그룹으로 묶입니다. 그룹은 곧 병목이 전파되는 **계층**입니다.
+
+| 그룹 | 지표 | 성격 |
+|---|---|---|
+| **부하·활동** | ① CPU TIME ② DB Response Time ③ Wait Event(TOP10) ④ Session | 시스템이 지금 얼마나 바쁜가 |
+| **메모리** | ⑤ SGA ⑥ PGA(Sort) | 메모리가 부하를 흡수하는가 |
+| **I·O·효율** | ⑦ Logical/Physical Read ⑧ Parsing ⑨ Redo | 일을 효율적으로 하는가 |
+| **원인 SQL** | ⑩ TOP SQL | 누가 부하를 만드는가 |
+
+### 3) 판독의 두 가지 대원칙
+
+**원칙 1 — 항상 기준선(baseline)과 비교하라.** 절대 수치 하나로는 정상 여부를 알 수 없습니다. "Hard Parse 100/s"는 그 자체로 위험이 아니라, **정상일 때 1.2/s였다면** 위험한 것입니다.
+
+**원칙 2 — 결과 지표와 원인 지표를 구분하라.** 성능 문제에는 반드시 "증상을 보여주지만 원인은 아닌" 결과 지표가 있습니다.
+
+$$\text{AAS} = \frac{\text{DB time}}{\text{elapsed time}} = \text{DB CPU AAS} + \text{Wait AAS}$$
+
+AAS(평균 활성 세션)가 코어 수를 넘었다는 사실은 "시스템이 바쁘다"는 **결과**일 뿐, "CPU가 부족하다"는 **원인**이 아닙니다. 원인은 그 아래에 있는 Hard Parse, 카디널리티 오차, 잦은 commit 같은 지표에 있습니다. 이 구분을 못 하면 "CPU 증설"이라는 잘못된 처방으로 직행하게 됩니다.
+
+### 4) 실습 데이터 배경 — PERFLAB 스냅샷
+
+이 장의 모든 예시와 인터랙티브 실습은 다음 재현 데이터셋을 사용합니다.
+
+| 구간 | 시간대 | 상태 |
+|---|---|---|
+| **B0** | 09:00~09:29 | 정상 기준선 |
+| **T1** | 09:30~09:34 | 파싱 이상 (Hard Parse 선행 상승) |
+| **T2** | 09:35~09:42 | CPU 과부하 |
+| **T3** | 09:43~09:54 | PGA/TEMP·I/O 압박 |
+| **T4** | 09:55~10:10 | Redo/commit 병목 |
+| **R1** | 10:11~10:20 | 완화·회복 |
+
+- 대상: `PERFLAB` PDB, 단일 서비스, 노드 2개(RAC 가정, node2는 학습용 파생), CPU 8코어
+- 부하는 정산 배치가 라우팅된 **1번 노드에 편중**되어 있습니다.
+
+> **주의:** 아래 임계치 숫자는 이 시나리오의 baseline(B0)에 맞춘 값입니다. 실제 시스템에서는 각자의 정상 기준선을 먼저 측정한 뒤 임계치를 세워야 합니다.
+
+---
+
+ 동적 성능 뷰, `DBA_HIST_%` 이력 뷰, `DBMS_XPLAN` 패키지는 Oracle 전용이며, 필요한 곳에는 MySQL 8.0 / PostgreSQL 대응을 병기합니다(§4.7).
+> - **라이선스:** `DBA_HIST_%`, `V$ACTIVE_SESSION_HISTORY`(ASH), `DBMS_XPLAN.DISPLAY_AWR` 등은 Oracle **Diagnostics Pack**(일부는 Tuning Pack) 라이선스가 있어야 사용할 수 있습니다.
+> - **실행기 한계:** 이 워크스페이스의 인터랙티브 SQL 실습기는 브라우저에서 도는 **sql.js(SQLite WASM)**이므로, 위 Oracle 전용 문법은 **실행·자동채점되지 않습니다.** 이 장의 SQL은 "실행 버튼"용이 아니라 **판독 절차 학습용**이며, 실제 확인은 Oracle **비운영(테스트) 환경**에서 parse/권한/단위를 검증해야 합니다.
+> - **시간 조건 원칙:** 구간 집계의 시간 조건은 경계 표본 이중계산을 막기 위해 항상 **반개구간 `[begin, end)`** 로 씁니다.
+
 ### 4.1.1 지표① CPU TIME
 
 **진단 포인트** — Oracle이 실제로 CPU에서 연산한 시간(DB CPU)이 전체 활동에서 차지하는 비중과, OS 전체 CPU 사용률(Host CPU%)의 여유를 함께 본다.
@@ -74,23 +290,62 @@ AAS(평균 활성 세션)가 코어 수를 넘었다는 사실은 "시스템이 
 **개선·튜닝 방향** — CPU 자체 증설은 최후 수단. 대개는 CPU를 낭비하는 원인(Hard Parse, 비효율 실행계획)을 제거하는 것이 정답이다.
 
 ```sql
--- [실무 스크립트 4-1] DB CPU 시간과 CPU AAS (실시간: V$SYS_TIME_MODEL)
+-- [실무 스크립트 4-1] DB CPU 시간과 CPU AAS (dialect: oracle)
+-- (실시간 스냅샷: V$SYS_TIME_MODEL)
 SELECT stat_name, ROUND(value/1e6, 1) AS seconds
 FROM   v$sys_time_model
 WHERE  stat_name IN ('DB CPU', 'DB time', 'background cpu time');
-
--- 이력 구간 델타로 DB CPU AAS 계산 (DBA_HIST_SYS_TIME_MODEL)
-SELECT sn.begin_interval_time,
-       ROUND( (e.value - b.value) / 1e6
-              / (EXTRACT(SECOND FROM (sn.end_interval_time - sn.begin_interval_time))
-                 + EXTRACT(MINUTE FROM (sn.end_interval_time - sn.begin_interval_time))*60), 2)
-       AS db_cpu_aas
-FROM   dba_hist_sys_time_model b, dba_hist_sys_time_model e, dba_hist_snapshot sn
-WHERE  b.stat_name = 'DB CPU' AND e.stat_name = 'DB CPU'
-AND    e.snap_id = b.snap_id + 1 AND sn.snap_id = e.snap_id
-AND    b.instance_number = e.instance_number
-ORDER  BY sn.begin_interval_time;
 ```
+
+> ⚠️ 위 `V$SYS_TIME_MODEL` 값은 **기동 이후 누적치**입니다. 특정 구간의 CPU를 알려면 **두 시점의 차(델타)** 를 구해야 하며, 아래 이력 델타 쿼리를 사용합니다.
+
+```sql
+-- [실무 스크립트 4-1b] 이력 구간 델타로 DB CPU / DB time AAS 계산 (dialect: oracle)
+-- 재기동·스냅샷 누락·RAC 혼입에 안전하도록 DBID + INSTANCE_NUMBER + STARTUP_TIME으로
+-- 파티션한 뒤 LAG로 직전 보존 스냅샷과의 델타를 계산한다.
+WITH x AS (
+  SELECT s.dbid, s.instance_number, s.startup_time, s.snap_id,
+         s.begin_interval_time, s.end_interval_time,
+         t.stat_name, t.value,
+         LAG(t.value) OVER (
+           PARTITION BY s.dbid, s.instance_number, s.startup_time, t.stat_name
+           ORDER BY s.snap_id) AS prev_value,
+         LAG(s.end_interval_time) OVER (
+           PARTITION BY s.dbid, s.instance_number, s.startup_time, t.stat_name
+           ORDER BY s.snap_id) AS prev_end_time
+  FROM   dba_hist_snapshot s
+  JOIN   dba_hist_sys_time_model t
+    ON   t.dbid = s.dbid
+   AND   t.instance_number = s.instance_number
+   AND   t.snap_id = s.snap_id
+  WHERE  s.dbid = :dbid
+    AND  s.instance_number = :inst_id
+    AND  t.stat_name IN ('DB CPU', 'DB time')
+), d AS (
+  SELECT x.*,
+         EXTRACT(DAY    FROM end_interval_time - prev_end_time)*86400
+       + EXTRACT(HOUR   FROM end_interval_time - prev_end_time)*3600
+       + EXTRACT(MINUTE FROM end_interval_time - prev_end_time)*60
+       + EXTRACT(SECOND FROM end_interval_time - prev_end_time) AS elapsed_s
+  FROM   x
+)
+SELECT snap_id, begin_interval_time, end_interval_time, stat_name,
+       ROUND(elapsed_s, 0) AS elapsed_s,
+       ROUND((value - prev_value)/1e6 / NULLIF(elapsed_s, 0), 2) AS aas
+FROM   d
+WHERE  prev_value IS NOT NULL   -- 각 파티션(=재기동 구간)의 첫 행은 델타 없음
+  AND  value >= prev_value      -- 누적값 역전(재기동/초기화) 구간 배제
+  AND  elapsed_s > 0
+  AND  end_interval_time   > :begin_ts
+  AND  begin_interval_time < :end_ts
+ORDER  BY snap_id, stat_name;
+```
+
+**왜 `snap_id + 1`로 단순 연결하면 안 되는가**
+- **재기동:** 기동 시 시간모델 누적값이 0으로 초기화된다. `STARTUP_TIME`을 파티션 키에 넣고 `value >= prev_value`로 역전 구간을 걸러야 음수 델타/거대값을 막는다.
+- **DBID/인스턴스 혼입:** 서로 다른 DB(복제·DBID 변경)나 RAC의 다른 인스턴스 누적값을 빼면 무의미하다. `DBID + INSTANCE_NUMBER`를 함께 조인·파티션한다. RAC 합계는 **인스턴스별 델타를 먼저 구한 뒤 합산**한다.
+- **스냅샷 누락:** 스냅샷이 빠지면 `snap_id`가 연속이 아니다. `LAG`는 직전 **보존된** 스냅샷을 가리키므로, 경과시간(`elapsed_s`)을 상수 1시간으로 가정하지 말고 **실제 `end_interval_time` 차이**로 계산해야 한다. 그래서 출력에 실제 시작/종료시각과 `elapsed_s`를 함께 낸다.
+- **PDB 범위:** PDB별로 보려면 버전이 제공하는 `CON_DBID/CON_ID`를 조인·필터·파티션 키에 추가한다.
 
 **판독 기준**
 
@@ -131,24 +386,64 @@ WHERE  dbt.stat_name = 'DB time' AND cpu.stat_name = 'DB CPU';
 **개선·튜닝 방향** — 상위 이벤트의 wait_class에 맞춰 해당 지표 그룹으로 진단을 이관한다.
 
 ```sql
--- [실무 스크립트 4-3] TOP 대기 이벤트 (실시간: V$SYSTEM_EVENT)
+-- [실무 스크립트 4-3] TOP 대기 이벤트 (dialect: oracle, 실시간 누적: V$SYSTEM_EVENT)
+-- ⚠️ time_waited_micro는 '기동 이후 누적치'다. 아래 pct는 '기동 이후 전체 대기 중 비율'일 뿐,
+--    특정 장애 구간의 Top wait이 아니다. 구간 분석은 반드시 두 시점 델타(4-3b)를 써라.
 SELECT event, wait_class, total_waits, time_waited_micro/1e6 AS time_s,
        ROUND(RATIO_TO_REPORT(time_waited_micro) OVER () * 100, 1) AS pct
 FROM   v$system_event
 WHERE  wait_class <> 'Idle'
 ORDER  BY time_waited_micro DESC FETCH FIRST 10 ROWS ONLY;
-
--- ASH 기반 대체 추출 (Diagnostic Pack): 부하 구간의 대기 상위
-SELECT event, COUNT(*) AS samples,
-       ROUND(COUNT(*) * 100 / SUM(COUNT(*)) OVER (), 1) AS pct
-FROM   v$active_session_history
-WHERE  sample_time BETWEEN TIMESTAMP '2026-07-15 09:55:00'
-                       AND TIMESTAMP '2026-07-15 10:10:00'
-AND    session_state = 'WAITING'
-GROUP  BY event ORDER BY samples DESC FETCH FIRST 10 ROWS ONLY;
 ```
 
-**판독 기준** — wait_class별 %DB time으로 우선순위를 매긴다. Concurrency(파싱·경합)와 User I/O(읽기)를 반드시 구분한다.
+```sql
+-- [실무 스크립트 4-3b] 과거 구간의 Top wait: DBA_HIST_SYSTEM_EVENT 두 스냅샷 델타 (dialect: oracle)
+-- 4-1b와 동일하게 DBID+INSTANCE_NUMBER+STARTUP_TIME 경계에서 LAG로 델타를 구한다.
+WITH e AS (
+  SELECT s.dbid, s.instance_number, s.startup_time, s.snap_id,
+         s.begin_interval_time, s.end_interval_time,
+         v.event_name, v.wait_class, v.time_waited_micro, v.total_waits,
+         LAG(v.time_waited_micro) OVER (
+           PARTITION BY s.dbid, s.instance_number, s.startup_time, v.event_name
+           ORDER BY s.snap_id) AS prev_time_micro
+  FROM   dba_hist_snapshot s
+  JOIN   dba_hist_system_event v
+    ON   v.dbid = s.dbid AND v.instance_number = s.instance_number
+   AND   v.snap_id = s.snap_id
+  WHERE  s.dbid = :dbid AND s.instance_number = :inst_id
+    AND  v.wait_class <> 'Idle'
+    AND  s.end_interval_time > :begin_ts AND s.begin_interval_time < :end_ts
+)
+SELECT event_name, wait_class,
+       ROUND(SUM(time_waited_micro - prev_time_micro)/1e6, 1) AS delta_time_s
+FROM   e
+WHERE  prev_time_micro IS NOT NULL
+  AND  time_waited_micro >= prev_time_micro   -- 재기동 역전 배제
+GROUP  BY event_name, wait_class
+ORDER  BY delta_time_s DESC FETCH FIRST 10 ROWS ONLY;
+```
+
+```sql
+-- [실무 스크립트 4-3c] ASH 기반 활성세션 구성비 (dialect: oracle, Diagnostics Pack)
+-- 분모를 WAITING만으로 잡지 말고 ON CPU + non-idle WAIT를 같은 활성 표본 분모로 집계한다.
+-- 시간조건은 반개구간 [begin, end).
+SELECT session_state, event,
+       COUNT(*) AS active_samples,
+       ROUND(COUNT(*) * 100 / SUM(COUNT(*)) OVER (), 1) AS active_pct
+FROM   v$active_session_history
+WHERE  sample_time >= TIMESTAMP '2026-07-15 09:55:00'
+  AND  sample_time <  TIMESTAMP '2026-07-15 10:10:00'
+  AND  (session_state = 'ON CPU'
+        OR (session_state = 'WAITING' AND wait_class <> 'Idle'))
+GROUP  BY session_state, event
+ORDER  BY active_samples DESC FETCH FIRST 10 ROWS ONLY;
+```
+
+**판독 기준**
+- `V$SYSTEM_EVENT`의 `pct`는 **기동 이후 누적 비율**이고, 4-3b의 `delta_time_s`가 **해당 구간의 실제 대기**다. 둘을 혼동하지 말 것.
+- wait_class별 우선순위는 **% DB time**(대기 시간 / DB time)으로 매긴다.
+- ASH의 `active_pct`는 "활성 표본 중 비율"이다. **WAITING만 분모로 잡은 비율은 "대기 내부 구성비"** 로 별도 명명하고 `% DB time`과 혼동하지 않는다.
+- Concurrency(파싱·경합)와 User I/O(읽기)를 반드시 구분한다.
 
 **함정 / 오개념** — 평균 대기시간(avg_wait_ms)이 낮아도 대기 횟수(waits)가 폭증하면 **총 대기시간은 크다**. 평균만 보지 말고 `waits × avg_wait_ms`(=총 대기)를 보라.
 
@@ -159,16 +454,38 @@ GROUP  BY event ORDER BY samples DESC FETCH FIRST 10 ROWS ONLY;
 **개선·튜닝 방향** — 부하를 유발한 module을 특정해 애플리케이션/배치 담당과 연결한다.
 
 ```sql
--- [실무 스크립트 4-4] ASH로 부하 귀속 파악 (module/action/state/event)
+-- [실무 스크립트 4-4] ASH로 부하 귀속 파악 (dialect: oracle, Diagnostics Pack)
+-- 시간조건은 반개구간 [begin, end)으로 경계 표본 이중계산을 막는다.
 SELECT module, action, session_state, event, COUNT(*) AS samples
 FROM   v$active_session_history
-WHERE  sample_time BETWEEN TIMESTAMP '2026-07-15 09:30:00'
-                       AND TIMESTAMP '2026-07-15 10:10:00'
+WHERE  sample_time >= TIMESTAMP '2026-07-15 09:30:00'
+  AND  sample_time <  TIMESTAMP '2026-07-15 10:10:00'
 GROUP  BY module, action, session_state, event
 ORDER  BY samples DESC FETCH FIRST 15 ROWS ONLY;
 ```
 
-**판독 기준** — 세션 수 자체보다 **ON CPU vs WAITING 상태 분해**가 핵심이다. 세션이 많아도 대부분 WAITING이면 CPU 증설로 풀리지 않는다.
+> **`COUNT(*)`(=`samples`)의 의미 — 매우 중요**
+> ASH의 `samples`는 **표본 개수**일 뿐 실행 횟수도, 대기 발생 횟수도 아니다. 각 표본은 표본 간격만큼의 **활동 시간을 대표**한다.
+> - **메모리 ASH**(`V$/GV$ACTIVE_SESSION_HISTORY`)는 통상 약 **1초** 표본이므로 `AAS ≈ COUNT(*) / 경과초`로 근사할 수 있다.
+> - **디스크 ASH**(`DBA_HIST_ACTIVE_SESS_HISTORY`)는 메모리 표본 전부가 아니라 통상 약 **10초 간격**으로 **일부만** 저장된다. 따라서 `COUNT(*) / 경과초`를 그대로 AAS로 쓰면 약 1/10로 **과소 계산**된다. 아래 4-4b처럼 각 저장 표본이 대표하는 시간으로 **가중**해야 한다.
+
+```sql
+-- [실무 스크립트 4-4b] 디스크 ASH(DBA_HIST_ASH)의 표본간격 보정 AAS (dialect: oracle)
+-- 각 저장 표본이 대표하는 시간(USECS_PER_ROW)을 합산해 경과초로 나눈다.
+SELECT COUNT(*) AS stored_samples,
+       ROUND(SUM(NVL(usecs_per_row, :fallback_interval_s * 1e6))
+             / 1e6 / NULLIF(:elapsed_s, 0), 2) AS weighted_aas
+FROM   dba_hist_active_sess_history
+WHERE  dbid = :dbid
+  AND  instance_number = :inst_id
+  AND  sample_time >= :begin_ts
+  AND  sample_time <  :end_ts
+  AND  session_type = 'FOREGROUND';
+```
+
+**판독 기준**
+- 세션 수 자체보다 **ON CPU vs WAITING 상태 분해**가 핵심이다. 세션이 많아도 대부분 WAITING이면 CPU 증설로 풀리지 않는다.
+- 디스크 ASH로 AAS를 낼 때는 반드시 **표본간격 보정**을 한다. `:fallback_interval_s`를 무조건 10으로 하드코딩하지 말고 실제 표본시각 차이로 확인하며, 확인 불가 시 "통상 10초를 사용한 추정치"라고 표시한다.
 
 **함정 / 오개념** — 접속 세션 수(V$SESSION count)를 부하로 착각하지 말 것. 활성(ACTIVE) 세션, 그중에서도 상태 분해가 진짜 신호다.
 
@@ -299,7 +616,9 @@ WHERE  event IN ('log file sync','log file parallel write');
 **개선·튜닝 방향** — 지목한 SQL의 실행계획을 `DBMS_XPLAN`으로 확인해 카디널리티 오차·작업영역 spill을 증명하고 교정한다.
 
 ```sql
--- [실무 스크립트 4-10] DB time 기여 상위 SQL + FMS 그룹 집계
+-- [실무 스크립트 4-10] DB time 기여 상위 SQL + FMS 그룹 집계 (dialect: oracle)
+-- ⚠️ V$SQL.ELAPSED_TIME은 '현재 shared pool에 캐시된 커서의 누적치'다.
+--    과거 특정 구간의 Top SQL은 4-10b(DBA_HIST_SQLSTAT 델타)를 써야 한다.
 SELECT sql_id, force_matching_signature AS fms, plan_hash_value,
        ROUND(elapsed_time/1e6,1) AS elapsed_s, executions, parse_calls,
        buffer_gets, disk_reads
@@ -316,18 +635,57 @@ ORDER  BY elapsed_s DESC;
 ```
 
 ```sql
--- [실무 스크립트 4-10b] 과부하 SQL의 실행계획 실측 (DBMS_XPLAN)
-SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_AWR('9u1m3rg3a0b1x', NULL, NULL,
-       'ALLSTATS LAST +COST +BYTES'));
+-- [실무 스크립트 4-10b] 과거 구간 Top SQL: DBA_HIST_SQLSTAT 델타 (dialect: oracle)
+-- 스냅샷 사이 증가분(*_DELTA)만 합산하므로 구간 기여를 정확히 반영한다.
+SELECT ss.sql_id,
+       SUM(ss.elapsed_time_delta)/1e6 AS elapsed_s,
+       SUM(ss.executions_delta)       AS execs,
+       SUM(ss.parse_calls_delta)      AS parse_calls,
+       SUM(ss.buffer_gets_delta)      AS buffer_gets,
+       SUM(ss.disk_reads_delta)       AS disk_reads
+FROM   dba_hist_snapshot s
+JOIN   dba_hist_sqlstat  ss
+  ON   ss.dbid = s.dbid AND ss.instance_number = s.instance_number
+ AND   ss.snap_id = s.snap_id
+WHERE  s.dbid = :dbid AND s.instance_number = :inst_id
+  AND  s.end_interval_time > :begin_ts AND s.begin_interval_time < :end_ts
+GROUP  BY ss.sql_id
+ORDER  BY elapsed_s DESC FETCH FIRST 15 ROWS ONLY;
 ```
 
-**판독 기준** — 개별 SQL_ID의 DB time%뿐 아니라, **같은 FMS로 묶은 합산 기여율**을 본다. 실행계획에서는 `A-Rows/(E-Rows×Starts)` 오차 배수와 작업영역(OMem/1Mem/TempSpc)을 확인한다.
+```sql
+-- [실무 스크립트 4-10c] 과거 '컴파일 계획' 이력 조회 (dialect: oracle)
+-- ⚠️ DISPLAY_AWR는 AWR에 보존된 '과거 컴파일 계획'을 보여준다.
+--    실행 시점의 실측 A-Rows/Starts/Buffers를 보장하지 '않으므로' ALLSTATS LAST를 쓰지 않는다.
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_AWR(
+         sql_id          => '9u1m3rg3a0b1x',
+         plan_hash_value => :plan_hash_value,
+         db_id           => :dbid,
+         format          => 'TYPICAL +PREDICATE +ALIAS +OUTLINE'));
+```
 
-이 사례의 증거(`evidence/xplan-overload.txt`):
-- `MERGE`(9u1m3rg3a0b1x)의 Id 6에서 카디널리티 **620배 오차**
-- 작업영역이 512M→64M로 축소 추정되며 **TempSpc 38GB** spill 발생
+```sql
+-- [실무 스크립트 4-10d] 마지막 실행의 '실측' row-source 통계 (dialect: oracle)
+-- 실측 A-Rows/Starts/실제 TEMP는 여기(DISPLAY_CURSOR ALLSTATS LAST)에서만 확정한다.
+-- 전제: statistics_level=ALL 또는 /*+ gather_plan_statistics */로 통계가 수집되고 커서가 남아 있어야 한다.
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR(
+         sql_id          => '9u1m3rg3a0b1x',
+         cursor_child_no => :child_no,
+         format          => 'ALLSTATS LAST +IOSTATS +MEMSTATS +PREDICATE +ALIAS'));
+```
 
-**함정 / 오개념** — 리터럴 SQL의 SQL_ID 파편화는 개별로 보면 각각 작아 보여, 파싱이 원인임을 숨긴다. 반드시 FMS로 묶어라.
+**판독 기준** — 개별 SQL_ID의 DB time%뿐 아니라, **같은 FMS로 묶은 합산 기여율**을 본다. 실행계획에서는 `A-Rows/(E-Rows×Starts)` 오차 배수와 작업영역(OMem/1Mem/TempSpc)을 확인한다. 단, 이 **실측 오차·실제 TEMP spill**은 반드시 **`DISPLAY_CURSOR`(4-10d) 또는 SQL Monitor 실측 증거**로만 확정한다. `DISPLAY_AWR`(4-10c)는 컴파일 계획(예상치)이므로 실측을 단정할 수 없다.
+
+> **증거 등급 원칙 — DISPLAY_AWR ≠ DISPLAY_CURSOR**
+> `DISPLAY_AWR`(과거 컴파일 계획, E-Rows·COST 등 **예상치**)과 `DISPLAY_CURSOR ALLSTATS LAST`(마지막 실행의 **실측치** A-Rows/Starts/Buffers/OMem/1Mem)는 서로 다른 종류의 증거다. 실측 자료가 없으면 오차·spill은 "가설"로 등급을 낮춘다. 장시간·병렬 SQL은 라이선스 범위 내 **SQL Monitor**가 더 적절할 수 있다. 운영 DML을 실측 목적으로 재실행하지 않는다.
+
+이 사례의 실측 증거는 `DISPLAY_CURSOR`(또는 SQL Monitor) 결과로 확보되어야 하며, 그 실측치에서 다음이 관측되었다:
+- `MERGE`(9u1m3rg3a0b1x)의 Id 6에서 카디널리티 약 **620배 오차**(A-Rows / (E-Rows × Starts))
+- 작업영역이 축소되어 **약 38GB의 TEMP spill**(실측 `TempSpc`) 발생
+
+> 위 620배·38GB는 **`DISPLAY_CURSOR ALLSTATS LAST`/SQL Monitor 실측**에서 나온 값이다. `DISPLAY_AWR` 컴파일 계획만 보고 이 수치를 단정해서는 안 된다.
+
+**함정 / 오개념** — 리터럴 SQL의 SQL_ID 파편화는 개별로 보면 각각 작아 보여, 파싱이 원인임을 숨긴다. 반드시 FMS로 묶어라. 또한 `DISPLAY_AWR`(예상 계획)로 실측 오차·spill을 단정하는 것은 대표적 오개념이다.
 
 ---
 
@@ -403,6 +761,32 @@ flowchart LR
 - [ ] `log file sync`와 `log file parallel write`를 구분했는가?
 - [ ] 노드 편중(RAC)을 확인했는가?
 - [ ] 스토리지 지표(system-context)로 "디스크 장애" 대안 가설을 반박했는가?
+
+**SQL 정확성 필수 3개 체크 (셋 중 하나라도 틀리면 기술정확성 감점)**
+- [ ] **ASH 표본간격 보정** — 디스크 ASH(`DBA_HIST_ACTIVE_SESS_HISTORY`)에 `COUNT(*)/경과초`를 그대로 AAS로 쓰지 않고, 표본이 대표하는 시간(`USECS_PER_ROW` 등)으로 가중했는가?
+- [ ] **재기동 안전 델타** — AWR 누적 델타를 `SNAP_ID+1`만으로 잇지 않고, 동일 `DBID + INSTANCE_NUMBER + STARTUP_TIME` 경계에서 `LAG`로 계산하고 누적값 역전을 배제했는가?
+- [ ] **계획/실측 구분** — `DISPLAY_AWR`(과거 컴파일 계획, 예상치)로 실측 A-Rows/spill을 단정하지 않고, 실측은 `DISPLAY_CURSOR ALLSTATS LAST`/SQL Monitor로 확정했는가?
+
+---
+
+## 4.7 다른 DB(MySQL 8.0 / PostgreSQL) 대응 병기안
+
+이 장의 진단 SQL은 Oracle 19c 기준입니다. MySQL·PostgreSQL에는 **내장 AWR/ASH가 없어** 동일 절차를 그대로 옮길 수 없으며, 아래처럼 다른 소스와 방법을 씁니다. 수치의 의미가 Oracle과 **완전히 동치가 아니라는 점**이 핵심입니다.
+
+| 진단 목적 | Oracle (본문) | MySQL 8.0 | PostgreSQL | 동일성 한계 |
+|---|---|---|---|---|
+| 구간 DB Time / CPU | `DBA_HIST_SYS_TIME_MODEL` 델타 (4-1b) | 내장 AWR 없음 → `performance_schema` summary를 외부에서 주기 저장 후 두 시점 델타 | 내장 AWR 없음 → `pg_stat_database`, `pg_stat_statements`를 외부 저장 후 델타 | MySQL/PG 수치는 Oracle `DB Time`과 완전 동치 아님 |
+| Top 대기 이력 | `DBA_HIST_SYSTEM_EVENT` 델타 (4-3b), ASH | `events_waits_summary_global_by_event_name` 두 시점 델타 (고정주기 ASH형 이력 없음) | `pg_stat_activity` 샘플링 또는 `pg_wait_sampling` 확장 | 현재 상태/이벤트 ring buffer를 "ASH"라 부르지 않음 |
+| 부하 귀속 / 활성세션 | ASH `module/action` (4-4) | `performance_schema.threads` + statement 이벤트 샘플링 | `pg_stat_activity`(`state`, `wait_event`) 샘플링 | 표본 밀도·수집주기가 Oracle ASH와 다름 |
+| Top SQL | `DBA_HIST_SQLSTAT.*_DELTA` (4-10b) | `events_statements_summary_by_digest` 두 시점 델타 | `pg_stat_statements` 두 시점 델타 | `digest`/`queryid`는 Oracle `SQL_ID`/`FMS`와 동일하지 않음 |
+| 현재 실제 계획 (실측) | `DISPLAY_CURSOR ALLSTATS LAST` (4-10d) | `EXPLAIN ANALYZE` | `EXPLAIN (ANALYZE, BUFFERS, WAL)` | MySQL/PG `ANALYZE`는 **실제 실행**하므로 운영 DML에 사용 금지 |
+| 과거 계획 이력 | `DISPLAY_AWR` (4-10c) | 기본 저장소 없음 | 기본 저장소 없음 (`auto_explain` 등 사전 로그 필요) | 외부 수집 없이는 사후 복원 불가 |
+| 파싱/커서 재사용 | Hard/Soft Parse (`V$SYSSTAT`) | Prepared Statement 재사용, `Com_stmt_prepare` 등 상태변수 | 서버측 prepared statement, `pg_prepared_statements` | 파싱 모델 자체가 달라 지표 정의가 다름 |
+| 커밋/redo | `redo size`, `log file sync` | `Innodb_os_log_written`, `innodb_flush_log_at_trx_commit` | WAL 통계(`pg_stat_wal`), `commit_delay` | 동기화 반영식·설정이 엔진별로 다름 |
+
+**관리형/보완 도구:** AWS RDS/Aurora의 **Performance Insights**·Database Insights, Percona **PMM**, PostgreSQL **PoWA**·**pgSentinel** 등으로 ASH/AWR 유사 관측을 보완할 수 있으나, 이는 **코어 DB 기능과는 별개**이며 라이선스·설치가 필요합니다.
+
+> **인터랙티브 실습기(sql.js/SQLite) 관련 재확인:** 위 Oracle/MySQL/PostgreSQL 진단 SQL은 이 워크스페이스의 sql.js(SQLite WASM) 실습기에서 **실행·자동채점되지 않습니다.** 정적(구문·객체·산식) 검토로 학습하고, 실제 확인은 각 DB의 비운영 환경에서 수행하세요. 캡스톤 실습은 SQL을 직접 실행하지 않고 **사전 계산된 지표를 판독**하는 형태로 설계되어 있습니다.
 
 ---
 

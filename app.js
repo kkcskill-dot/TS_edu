@@ -95,7 +95,7 @@ function initPerfTextbook() {
     'tb-session1': ['markdown-viewer-session1', 'assets/lessons/perf-club/session-1.md'],
     'tb-session2': ['markdown-viewer-session2', 'assets/lessons/perf-club/session-2.md'],
     'tb-session3': ['markdown-viewer-session3', 'assets/lessons/perf-club/session-3.md'],
-    'tb-session4': ['markdown-viewer-session4', 'assets/lessons/perf-club/session-4.md']
+    'tb-session4': ['markdown-viewer-session4', 'assets/lessons/perf-club/session-4.md?v=20260724']
   };
   const renderTextbookTab = async (tabId) => {
     const src = SESSION_SRC[tabId];
@@ -1345,8 +1345,14 @@ function initReportLab() {
     ]},
   ];
   const ALL_METRICS = GROUPS.flatMap(g => g.metrics);
+  const ACCURACY_EVIDENCE = [
+    { key: "ash_sample_weight", name: "ASH 표본간격 보정", desc: "DBA_HIST_ASH의 COUNT(*)를 약 1초 표본처럼 쓰지 않고 USECS_PER_ROW(또는 명시한 저장 간격)로 시간 가중한다." },
+    { key: "snapshot_restart_safe", name: "재기동 안전 스냅샷 델타", desc: "동일 DBID·INSTANCE_NUMBER·STARTUP_TIME 안에서 LAG하고 누락/음수 델타를 제외한다." },
+    { key: "plan_evidence_type", name: "계획과 실측 증거 구분", desc: "DISPLAY_AWR은 과거 컴파일 계획, DISPLAY_CURSOR ALLSTATS LAST·SQL Monitor는 실측 증거로 구분한다." }
+  ];
   const LABELS = {};
   ALL_METRICS.forEach(m => { LABELS[m.key] = m.name; });
+  ACCURACY_EVIDENCE.forEach(m => { LABELS[m.key] = m.name; });
 
   const PRIORITY_ACTIONS = {
     bind_literal_sql: "리터럴 SQL을 바인드 변수로 전환 — Hard Parse 제거",
@@ -1402,10 +1408,10 @@ function initReportLab() {
 
     let hcols = `<th>지표</th>`;
     nodesToShow.forEach(n => { hcols += `<th>N${n}·${pB}</th><th>N${n}·${pA}</th><th>배수</th>`; });
-    hcols += `<th>구분</th>`;
+    hcols += `<th>수집원</th><th>표본간격</th><th>단위</th><th>구분</th>`;
     $("rl-metrics-table").querySelector("thead").innerHTML = `<tr>${hcols}</tr>`;
 
-    const colspan = 2 + nodesToShow.length * 3;
+    const colspan = 5 + nodesToShow.length * 3;
     let bodyHtml = "";
     GROUPS.forEach(g => {
       bodyHtml += `<tr class="rl-group-row"><td colspan="${colspan}">${g.title}</td></tr>`;
@@ -1425,6 +1431,10 @@ function initReportLab() {
         const tag = m.role === "trap" ? `<span class="pill trap">함정</span>`
           : m.role === "key" ? `<span class="pill key">핵심근거</span>` : `<span class="rl-note">보조</span>`;
         cells += `<td style="text-align:left">${tag}</td>`;
+        const provenance = m.key === "aas"
+          ? ["사전 계산 AWR/ASH 요약", "1분 버킷; 디스크 ASH는 USECS_PER_ROW 보정 필요", "평균 활성 세션"]
+          : ["사전 계산 AWR/OS 요약", "1분 버킷", m.name.match(/\(([^)]+)\)/)?.[1] || "지표별"];
+        cells += provenance.map(v => `<td><small>${v}</small></td>`).join("");
         bodyHtml += `<tr>${cells}</tr>`;
       });
     });
@@ -1519,6 +1529,15 @@ function initReportLab() {
     });
   }
 
+  const accuracyList = $("rl-accuracy-list");
+  if (accuracyList) {
+    accuracyList.innerHTML = ACCURACY_EVIDENCE.map(m => `
+      <label class="rl-evi-item">
+        <input type="checkbox" class="rl-evi-cb rl-accuracy-cb" value="${m.key}" />
+        <span>${m.name}<small>${m.desc}</small></span>
+      </label>`).join("");
+  }
+
   let lastSubmission = null;
 
   // ---- 채점 ----
@@ -1527,6 +1546,8 @@ function initReportLab() {
     const nodeSel = $("rl-in-node").value;
     const onset = $("rl-in-onset").value;
     const evi = Array.from(root.querySelectorAll(".rl-evi-cb:checked")).map(c => c.value);
+    const requiredAccuracy = ACCURACY_EVIDENCE.map(m => m.key);
+    const missingAccuracy = requiredAccuracy.filter(key => !evi.includes(key));
 
     let score = 0; const fb = [];
     const line = (cls, txt) => fb.push({ cls, txt });
@@ -1574,6 +1595,14 @@ function initReportLab() {
     else line("bad", "개선 우선순위 부적합 (0): 즉시효과가 큰 조치가 뒤로 밀렸습니다");
 
     score = Math.max(0, Math.min(100, Math.round(score)));
+    if (missingAccuracy.length) {
+      const accuracyCap = 89;
+      score = Math.min(score, accuracyCap);
+      line("bad", `기술정확성 필수 근거 누락: ${missingAccuracy.map(k => LABELS[k]).join(", ")} (최대 ${accuracyCap}점)`);
+    } else {
+      line("ok", "기술정확성 필수 근거 3개 확인: ASH 보정·재기동 안전 델타·계획/실측 구분");
+    }
+
     const pass = score >= 80;
     const color = pass ? "var(--accent-emerald)" : score >= 60 ? "#f97316" : "#ef4444";
     const verdict = pass ? "합격 (루브릭 80점 이상)" : score >= 60 ? "재검토 필요" : "재제출 대상";

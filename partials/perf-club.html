@@ -1184,12 +1184,19 @@
             #panel-report-lab .rl-score { font-size: 2.4rem; font-weight: 900; }
             #panel-report-lab .rl-fb { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; font-size: 0.82rem; border-bottom: 1px dashed var(--border-light); color: var(--color-text-main); }
             #panel-report-lab .rl-note { font-size: 0.74rem; color: var(--color-text-muted); }
+            #panel-report-lab .rl-scope-badge { margin: 10px 0 18px; padding: 10px 12px; border: 1px solid var(--rl-warn); border-radius: 8px; background: color-mix(in srgb, var(--rl-warn) 10%, transparent); color: var(--color-text-main); font-size: 0.78rem; line-height: 1.55; }
+            #panel-report-lab .rl-scope-badge strong { color: var(--rl-warn); }
+            #panel-report-lab .rl-accuracy { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border-light); }
+            #panel-report-lab .rl-accuracy h5 { margin: 0 0 8px; color: var(--color-text-main); }
             #panel-report-lab .tag-node { font-family: var(--font-mono); font-size: 0.7rem; padding: 1px 6px; border-radius: 5px; border: 1px solid var(--border-light); }
             #panel-report-lab .tag-node.n1 { color: var(--accent-blue); } #panel-report-lab .tag-node.n2 { color: var(--accent-emerald); }
           </style>
 
           <div class="panel-intro">
             <p>4회차 캡스톤. PERFLAB 스냅샷(2026-07-15 09:00~10:20)의 <strong>10대 성능 지표</strong>를 정상 기준선과 비교·판독하고, 근본 원인·개선 우선순위를 담은 <strong>종합진단 리포트</strong>를 작성해 즉시 자동 채점받습니다.</p>
+          </div>
+          <div class="rl-scope-badge" role="note">
+            <strong>검증 범위:</strong> 이 화면은 합성·사전 계산 증거를 판독하는 캡스톤입니다. Oracle AWR/ASH SQL을 실행하지 않으며 sql.js(SQLite WASM) 자동채점 대상도 아닙니다. 실제 운영 적용 전 Oracle 비운영 환경에서 별도 검증하세요.
           </div>
 
           <!-- 리포트 작성법 미니 교과서 아코디언 -->
@@ -1336,6 +1343,11 @@
                   <label>⑤ 근거 지표 선택 (원인을 뒷받침하는 지표 3개 이상)</label>
                 </div>
                 <div class="rl-evi" id="rl-evi-list"></div>
+                <div class="rl-accuracy">
+                  <h5>SQL 정확성 필수 근거 (3개 모두 선택)</h5>
+                  <p class="rl-note">하나라도 누락하면 기술정확성 만점을 받을 수 없습니다.</p>
+                  <div class="rl-evi" id="rl-accuracy-list"></div>
+                </div>
                 <p class="rl-note" style="margin-top:8px;">결과 지표(AAS·Hit Ratio·Host CPU 등)만 고르면 감점됩니다. 선행·귀속·증폭을 보여주는 지표를 조합하세요.</p>
               </div>
             </div>
