@@ -1342,7 +1342,7 @@
   <!-- Javascript Modules -->
   <script src="challenges.js?v=7.9"></script>
   <script src="visualizers.js?v=7.9"></script>
-  <script src="app.js?v=8.1"></script>
+  <script src="app.js?v=8.2"></script>
   <script src="assets/js/courses/perf-s4-summary.js?v=1.1"></script>
   <script src="assets/js/academy.js?v=7.9"></script>
   <!-- Courses Modules -->
@@ -1385,9 +1385,11 @@
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       // 인증 토큰은 평문 대신 해시(cyrb53)로만 비교한다 → 소스 보기에 토큰 문자열이 노출되지 않음.
-      // (단, 클라이언트 측 소프트 게이트이므로 완벽한 보안은 아님)
-      const AUTH_SEED = 0x5f3a2b;
-      const AUTH_HASH = 4936454413363700;
+      // ⚠️ 이것은 어디까지나 '소프트 게이트'다. 클라이언트에서 실행되므로 완벽한 보안이 아니며,
+      //    실제 접근 차단이 필요하면 서버(Nginx auth_basic 등)에서 막아야 한다.
+      //    아래 상수는 grep 즉시노출만 피하려 분할·조합했을 뿐, 보안 강도를 높이지는 않는다.
+      const AUTH_SEED = (0x5f << 16) | (0x3a << 8) | 0x2b;
+      const AUTH_HASH = 1149357 * 4294967296 + 3686935028;
       const cyrb53 = (str, seed = 0) => {
         let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
         for (let i = 0, ch; i < str.length; i++) {

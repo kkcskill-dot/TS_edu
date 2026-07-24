@@ -14,6 +14,8 @@
 #
 # 환경변수: CBT_DB_PATH(기본 ./cbt_data.db), HOST(127.0.0.1), PORT(8090)
 # =============================================================
+import hashlib
+import hmac
 import json
 import os
 import sqlite3
@@ -27,6 +29,11 @@ DB_PATH = os.environ.get(
 )
 HOST = os.environ.get("HOST", "127.0.0.1")
 PORT = int(os.environ.get("PORT", "8090"))
+
+# 관리자 비밀번호는 코드에 두지 않는다. systemd Environment=ADMIN_PW_SHA256=<sha256 hex>로 주입.
+#   해시 생성: python3 -c "import hashlib;print(hashlib.sha256(b'<비밀번호>').hexdigest())"
+# 응시자의 결과 제출(POST /results)은 개방, 열람(GET)·삭제(DELETE)는 관리자 토큰 필수.
+ADMIN_PW_SHA256 = os.environ.get("ADMIN_PW_SHA256", "").strip().lower()
 
 _write_lock = threading.Lock()  # sqlite 쓰기 직렬화(동시 제출 시 'database is locked' 방지)
 
@@ -127,10 +134,20 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
         self.end_headers()
         if body:
             self.wfile.write(body)
+
+    def check_auth(self):
+        auth_header = self.headers.get("Authorization", "")
+        pw = auth_header[7:] if auth_header.startswith("Bearer ") else ""
+        computed = hashlib.sha256(pw.encode("utf-8")).hexdigest()
+        # ADMIN_PW_SHA256 미설정 시 항상 실패(안전 기본값). 상수시간 비교로 타이밍 공격 차단.
+        if not ADMIN_PW_SHA256 or not hmac.compare_digest(computed, ADMIN_PW_SHA256):
+            self._send(401, {"error": "Unauthorized"})
+            return False
+        return True
 
     @staticmethod
     def _path(p):
@@ -144,6 +161,8 @@ class Handler(BaseHTTPRequestHandler):
         if path in ("", "/health"):
             return self._send(200, {"ok": True, "service": "cbt-api", "db": DB_PATH})
         if path == "/results":
+            if not self.check_auth():   # 전체 응시자 기록 열람은 관리자만
+                return
             try:
                 return self._send(200, fetch_all())
             except Exception as e:
@@ -169,6 +188,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_DELETE(self):
         if self._path(self.path) != "/results":
             return self._send(404, {"error": "not found"})
+        if not self.check_auth():   # 기록 삭제(개별/전체)는 관리자만
+            return
         rid = (parse_qs(urlparse(self.path).query).get("id") or [None])[0]
         try:
             delete(rid)

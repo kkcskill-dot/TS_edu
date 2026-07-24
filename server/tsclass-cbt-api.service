@@ -11,6 +11,10 @@ StateDirectory=tsclass
 Environment=CBT_DB_PATH=/var/lib/tsclass/cbt.db
 Environment=HOST=127.0.0.1
 Environment=PORT=8090
+# 관리자 비밀번호의 SHA-256 해시(원문 아님). 열람/삭제 API 인증에 사용.
+#   해시 생성: python3 -c "import hashlib;print(hashlib.sha256(b'<새비밀번호>').hexdigest())"
+#   ⚠️ 아래 값은 기존 비밀번호 해시다. 이미 노출된 값이므로 배포 시 새 비밀번호로 교체 권장.
+Environment=ADMIN_PW_SHA256=52b8888632a11bbb56838f1adf17466ecdb7cd0ea41fbdd89c585e855dbca358
 ExecStart=/usr/bin/python3 /opt/tsclass/cbt_api.py
 Restart=on-failure
 RestartSec=2

@@ -74,9 +74,27 @@ sudo nginx -t && sudo systemctl reload nginx
 2. 관리자 대시보드(CBT 관리자) → 방금 결과가 보임
 3. **다른 PC/브라우저**에서 다른 이름으로 응시 → 같은 관리자 대시보드에 **모두** 누적되면 성공
 
+## 관리자 인증 (ADMIN_PW_SHA256)
+- 관리자 API(**결과 열람 `GET /results`, 삭제 `DELETE /results`**)는 관리자 비밀번호가 필요합니다.
+  응시자 **결과 제출 `POST /results`** 은 인증 없이 열려 있습니다.
+- 비밀번호 **원문은 코드/설정 어디에도 두지 않습니다.** systemd 유닛의 환경변수로 **SHA-256 해시만** 주입합니다.
+  ```ini
+  Environment=ADMIN_PW_SHA256=<sha256 hex>
+  ```
+- 해시 생성:
+  ```bash
+  python3 -c "import hashlib;print(hashlib.sha256(b'새비밀번호'.encode()).hexdigest())"
+  ```
+- 클라이언트(`app.js`)는 관리자 모달 입력값을 `Authorization: Bearer <비밀번호>`로 보내고,
+  서버가 SHA-256으로 해시해 상수시간(`hmac.compare_digest`) 비교합니다. 검증이 성공한 토큰만 이후 열람/삭제에 재사용합니다.
+- `ADMIN_PW_SHA256` 가 비어 있으면 관리자 API는 **항상 401**(안전 기본값)입니다.
+- ⚠️ 기존 비밀번호는 이미 소스/git 이력에 평문 노출된 적이 있으므로 **배포 시 새 비밀번호로 교체**하세요.
+  세 백엔드(cbt/tsclub/tssurvey)가 같은 해시를 공유하므로, 교체 시 세 유닛의 `ADMIN_PW_SHA256`을 함께 갱신합니다.
+
 ## 보안 메모
-- 토큰 게이트(`techsvc`)는 **클라이언트 측 소프트 게이트**라 API 자체를 막지 않습니다. API는 사이트에 접근 가능한 사람이면 호출할 수 있습니다.
-- 내부망 전용이면 충분하지만, 더 엄격히 하려면 Nginx에서 `/tsclass/api/` 에 **IP 허용목록**(`allow`/`deny`)을 거는 것을 권장합니다. (특히 `DELETE` 전체 초기화)
+- 토큰 게이트(`techsvc`)는 **클라이언트 측 소프트 게이트**라 사이트 접근 자체를 완벽히 막지는 않습니다.
+  단, 위 관리자 인증은 **서버 측**에서 강제되므로 소스 열람만으로 우회할 수 없습니다.
+- 더 엄격히 하려면 Nginx에서 `/tsclass/api/` 에 **IP 허용목록**(`allow`/`deny`)을 추가로 거는 것을 권장합니다.
 - 운영 로그: 접속/호출 기록은 기존처럼 Nginx access_log 에 남습니다.
 
 ## 백업

@@ -4703,6 +4703,19 @@ const cbtIdb = {
 
 // ── 서버 공유 저장소 파사드 (다른 사용자 기록까지 통합 조회) ──
 // 인터페이스(Promise)는 cbtIdb와 동일 → submitCbtExam·renderCbtAdminDashboard 등 호출부 변경 없음.
+// CBT 관리자 토큰(평문 비밀번호). 서버가 SHA-256으로 검증한다. 세션 동안만 메모리+sessionStorage 보관.
+let cbtAdminToken = (() => { try { return sessionStorage.getItem("cbt_admin_token") || ""; } catch (e) { return ""; } })();
+function setCbtAdminToken(tok) {
+  cbtAdminToken = tok || "";
+  try {
+    if (cbtAdminToken) sessionStorage.setItem("cbt_admin_token", cbtAdminToken);
+    else sessionStorage.removeItem("cbt_admin_token");
+  } catch (e) { /* sessionStorage 불가 시 메모리로만 유지 */ }
+}
+function cbtAuthHeaders() {
+  return cbtAdminToken ? { "Authorization": "Bearer " + cbtAdminToken } : {};
+}
+
 // 정본 = 서버(/tsclass/api/results, sqlite). 서버 불통 시 IndexedDB(cbtIdb)로 폴백.
 const cbtDb = {
   API: "api/results", // /tsclass/ 기준 상대경로 → Nginx가 백엔드로 프록시
@@ -4725,19 +4738,19 @@ const cbtDb = {
   },
   async getAllResults() {
     try {
-      const r = await fetch(this.API, { cache: "no-store" });
-      if (r.ok) return await r.json(); // 전체 사용자 기록(서버)
+      const r = await fetch(this.API, { cache: "no-store", headers: cbtAuthHeaders() });
+      if (r.ok) return await r.json(); // 전체 사용자 기록(서버, 관리자 토큰 필요)
     } catch (e) { /* 서버 불통 */ }
     console.warn("CBT 서버 조회 실패 — 로컬(IndexedDB) 폴백(본인 기록만)");
     try { return await cbtIdb.getAllResults(); } catch (e) { return []; }
   },
   async deleteResult(id) {
-    try { await fetch(this.API + "?id=" + encodeURIComponent(id), { method: "DELETE" }); } catch (e) {}
+    try { await fetch(this.API + "?id=" + encodeURIComponent(id), { method: "DELETE", headers: cbtAuthHeaders() }); } catch (e) {}
     try { await cbtIdb.deleteResult(id); } catch (e) {}
     return true;
   },
   async clearAll() {
-    try { await fetch(this.API, { method: "DELETE" }); } catch (e) {}
+    try { await fetch(this.API, { method: "DELETE", headers: cbtAuthHeaders() }); } catch (e) {}
     try { await cbtIdb.clearAll(); } catch (e) {}
     return true;
   }
@@ -7298,18 +7311,34 @@ function showAdminPasswordModal() {
     function cleanup() {
       modal.style.display = "none";
       input.value = "";
+      if (btnConfirm) btnConfirm.disabled = false;
       btnConfirm.onclick = null;
       btnCancel.onclick = null;
       input.onkeydown = null;
       modal.onclick = null;
     }
 
-    function handleConfirm() {
+    async function handleConfirm() {
       const pw = input.value;
+      // 비밀번호는 클라이언트에서 비교하지 않는다. 서버(SHA-256 검증)에 토큰으로 물어본다.
+      // 보호된 GET /results 가 200이면 토큰이 유효한 것.
+      if (btnConfirm) { btnConfirm.disabled = true; }
+      let ok = false;
+      try {
+        const r = await fetch(cbtDb.API, { cache: "no-store", headers: { "Authorization": "Bearer " + pw } });
+        ok = r.ok;
+      } catch (e) {
+        cleanup();
+        alert("인증 서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.");
+        resolve(false);
+        return;
+      }
       cleanup();
-      if (pw === "qhdkscjfwj!!") {
+      if (ok) {
+        setCbtAdminToken(pw);   // 이후 열람/삭제 호출에 사용
         resolve(true);
       } else {
+        setCbtAdminToken("");
         alert("비밀번호가 일치하지 않습니다. 관리자 권한이 필요합니다.");
         resolve(false);
       }

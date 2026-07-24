@@ -4,6 +4,8 @@
 #  - 표준 라이브러리만 사용(http.server + sqlite3)
 #  - Nginx 프록시(/tsclub/api/ -> 백엔드 /)
 # =============================================================
+import hashlib
+import hmac
 import json
 import os
 import sqlite3
@@ -91,7 +93,9 @@ def mask_name(name):
     else:
         return name[0] + "*" * (len(name) - 2) + name[-1]
 
-ADMIN_PASSWORD = "qhdkscjfwj!!"
+# 관리자 비밀번호는 코드에 두지 않는다. systemd Environment=ADMIN_PW_SHA256=<sha256 hex>로 주입.
+#   해시 생성: python3 -c "import hashlib;print(hashlib.sha256(b'<비밀번호>').hexdigest())"
+ADMIN_PW_SHA256 = os.environ.get("ADMIN_PW_SHA256", "").strip().lower()
 
 class TSClubRequestHandler(BaseHTTPRequestHandler):
     def _send_cors_headers(self):
@@ -110,7 +114,10 @@ class TSClubRequestHandler(BaseHTTPRequestHandler):
 
     def check_auth(self):
         auth_header = self.headers.get("Authorization", "")
-        if auth_header != f"Bearer {ADMIN_PASSWORD}":
+        pw = auth_header[7:] if auth_header.startswith("Bearer ") else ""
+        computed = hashlib.sha256(pw.encode("utf-8")).hexdigest()
+        # ADMIN_PW_SHA256 미설정 시 항상 실패(안전 기본값). 상수시간 비교로 타이밍 공격 차단.
+        if not ADMIN_PW_SHA256 or not hmac.compare_digest(computed, ADMIN_PW_SHA256):
             self._respond_json(401, {"error": "Unauthorized"})
             return False
         return True
